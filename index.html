@@ -6,16 +6,16 @@
 <meta name="theme-color" content="#0f172a">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.svg">
-<title>Mis Finanzas</title>
+<title>Di.Mi.Trip Pulse Finance</title>
 <style>
   :root {
     --bg: #f4f6fa; --card: #fff; --text: #1e293b; --muted: #64748b;
-    --border: #e2e8f0; --accent: #2563eb; --danger: #dc2626; --ok: #16a34a;
+    --border: #e2e8f0; --accent: #2563eb; --danger: #dc2626; --ok: #16a34a; --warn: #d97706;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
-      --border: #334155; --accent: #60a5fa; --danger: #f87171; --ok: #4ade80;
+      --border: #334155; --accent: #60a5fa; --danger: #f87171; --ok: #4ade80; --warn: #fbbf24;
     }
   }
   * { box-sizing: border-box; }
@@ -24,8 +24,20 @@
     font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   main { max-width: 760px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 1.4rem; margin: 8px 0 12px; }
+  h1 { font-size: 1.4rem; margin: 0; }
   h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .app-hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .app-hdr .accent { color: var(--accent); }
+  .app-hdr .pulse  { color: var(--warn); }
+  .refresh-btn {
+    display: flex; align-items: center; gap: 5px; font: 600 .78rem/1 inherit;
+    padding: 6px 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .refresh-btn svg { transition: transform .7s; }
+  .refresh-btn.spin svg { transform: rotate(360deg); }
   h3 { font-size: .8rem; margin: 14px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   section {
     background: var(--card); border: 1px solid var(--border);
@@ -43,15 +55,40 @@
   .tabs button[aria-selected=true] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   .vista[hidden] { display: none; }
 
-  /* Resumen de patrimonio */
-  .resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  /* Resumen de patrimonio — 4 tiles */
+  .resumen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
-  .stat .lbl { font-size: .78rem; color: var(--muted); }
-  .stat .val { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  @media (max-width: 520px) {
-    .resumen { grid-template-columns: 1fr 1fr; }
-    .resumen .stat:last-child { grid-column: 1 / -1; }
+  .stat .lbl { font-size: .75rem; color: var(--muted); }
+  .stat .val { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; margin-top: 2px; }
+  @media (max-width: 600px) { .resumen { grid-template-columns: 1fr 1fr; } }
+
+  /* Evolución */
+  .ev-notice {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+    border-radius: 8px; padding: 8px 12px; font-size: .75rem; color: var(--muted);
+    margin-bottom: 14px; display: flex; gap: 7px;
   }
+  .ev-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .ev-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .ev-hd h2 { margin: 0 0 2px; font-size: .9rem; }
+  .ev-hd .sub { font-size: .72rem; color: var(--muted); margin: 0; }
+  .ev-hint { font-size: .7rem; color: var(--muted); opacity: .65; white-space: nowrap; align-self: flex-end; }
+  .ev-badge { display: inline-flex; align-items: center; gap: 3px; font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+  .ev-badge.up  { background: color-mix(in srgb, var(--ok)     12%, transparent); color: var(--ok); }
+  .ev-badge.dn  { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+  .ev-badge.neu { background: color-mix(in srgb, var(--muted)  12%, transparent); color: var(--muted); }
+  .cw { position: relative; }
+  .cw.h200 { height: 200px; } .cw.h170 { height: 170px; } .cw.h160 { height: 160px; } .cw.h150 { height: 150px; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .g2 { grid-template-columns: 1fr; } }
+  .brow { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .bcard { flex: 1; min-width: 100px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; }
+  .bcard .bl { font-size: .7rem; color: var(--muted); margin-bottom: 3px; }
+  .bcard .bv { font-size: .95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ev-sub { font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .ev-fin-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .ev-fin-grid .bcard { min-width: 90px; }
 
   /* Saldos */
   .saldos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
@@ -105,18 +142,27 @@
 </head>
 <body>
 <main>
-  <h1>💰 Mis Finanzas</h1>
+  <div class="app-hdr">
+    <h1>Di.<span class="accent">Mi</span>.Trip <span class="pulse">Pulse</span> Finance</h1>
+    <button class="refresh-btn" id="refreshBtn" type="button" title="Actualizar datos">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg><span>Actualizar</span>
+    </button>
+  </div>
 
   <div class="resumen">
     <div class="stat"><div class="lbl">Activos</div><div class="val pos" id="totActivos"></div></div>
     <div class="stat"><div class="lbl">Deudas</div><div class="val neg" id="totDeudas"></div></div>
     <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
+    <div class="stat"><div class="lbl">Var. 7 días</div><div class="val" id="var7d">—</div></div>
   </div>
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-vista="gastos">Gastos</button>
-    <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
     <button type="button" role="tab" data-vista="vinculos">Vínculos</button>
+    <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
+    <button type="button" role="tab" data-vista="evolucion">Evolución</button>
   </nav>
 
   <!-- ===== GASTOS ===== -->
@@ -208,6 +254,69 @@
       <p class="meta">Para sumar a alguien acá, asignale una persona a un activo o deuda en la pestaña Patrimonio.</p>
     </section>
   </div>
+
+  <!-- ===== EVOLUCIÓN ===== -->
+  <div class="vista" id="vista-evolucion" hidden>
+    <div class="ev-notice">
+      <span>ℹ️</span>
+      <span>Los gráficos usan snapshots guardados automáticamente al abrir la app. <strong>Clic en las leyendas para mostrar/ocultar series.</strong></span>
+    </div>
+
+    <div class="ev-card">
+      <div class="ev-hd">
+        <div><h2>Patrimonio neto</h2><p class="sub">Evolución histórica · ARS</p></div>
+        <span class="ev-badge neu" id="evBadgeP">—</span>
+      </div>
+      <div class="cw h200"><canvas id="cP"></canvas></div>
+    </div>
+
+    <div class="g2">
+      <div class="ev-card" style="margin-bottom:0">
+        <div class="ev-hd">
+          <div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div>
+          <span class="ev-hint">clic leyenda</span>
+        </div>
+        <div class="cw h160"><canvas id="cB"></canvas></div>
+      </div>
+      <div class="ev-card" style="margin-bottom:0">
+        <div class="ev-hd">
+          <div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div>
+          <span class="ev-hint">clic leyenda</span>
+        </div>
+        <div class="cw h160"><canvas id="cG"></canvas></div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px"></div>
+
+    <div class="ev-card">
+      <div class="ev-hd">
+        <div><h2>Ingresos vs Compromisos</h2><p class="sub">Cobros pendientes y compromisos actuales</p></div>
+        <span class="ev-badge dn" id="evBadgeIC">—</span>
+      </div>
+      <div class="brow" id="evBrow"></div>
+      <div class="g2">
+        <div><div class="ev-sub">Composición de ingresos</div><div class="cw h150"><canvas id="cIngD"></canvas></div></div>
+        <div><div class="ev-sub">Composición de compromisos</div><div class="cw h150"><canvas id="cCmpD"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="ev-card">
+      <div class="ev-hd">
+        <div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div>
+        <span class="ev-hint">clic leyenda</span>
+      </div>
+      <div class="cw h200"><canvas id="cD"></canvas></div>
+    </div>
+
+    <div class="ev-card">
+      <div class="ev-hd">
+        <div><h2>Gastos financieros fijos</h2><p class="sub">Costos mensuales conocidos · ARS</p></div>
+        <span class="ev-badge dn" id="evBadgeF">—</span>
+      </div>
+      <div class="cw h170"><canvas id="cF"></canvas></div>
+      <div class="ev-fin-grid" id="evFinGrid"></div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -292,12 +401,7 @@ function saldoDe(medio) {
   return estado.iniciales[medio] - gastado;
 }
 
-// ---------- Pestañas ----------
-function mostrarVista(v) {
-  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista === v));
-  document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-' + v);
-  try { localStorage.setItem(STORAGE_KEY + '-vista', v); } catch {}
-}
+// ---------- Pestañas (ver función mostrarVista más abajo) ----------
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
 
 // ---------- Resumen ----------
@@ -573,8 +677,273 @@ function renderVinculos() {
   }
 }
 
+// ---------- Snapshots ----------
+const SNAP_KEY = STORAGE_KEY + '-snaps';
+
+function cargarSnaps() {
+  try { return JSON.parse(localStorage.getItem(SNAP_KEY)) || []; } catch { return []; }
+}
+
+function guardarSnap() {
+  const snaps = cargarSnaps();
+  const d = hoy();
+  const t = totales();
+  const fi = n => estado.items.find(it => it.nombre === n)?.monto || 0;
+  const snap = {
+    d,
+    a: Math.round(t.activos),
+    dv: Math.round(t.deudas),
+    n: Math.round(t.neto),
+    dd: {
+      vs: Math.round(Math.abs(saldoDe('Visa Santander'))),
+      mc: Math.round(Math.abs(saldoDe('Mastercard MP'))),
+      bm: Math.round(fi('Boris MP')),
+      cm: Math.round(fi('Créditos MP 1') + fi('Créditos MP 2') + fi('Créditos MP 3') + fi('Créditos MP 4')),
+    },
+  };
+  const filtered = snaps.filter(s => s.d !== d);
+  filtered.push(snap);
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify(filtered.slice(-400))); } catch {}
+}
+
+function varSieteDias() {
+  const snaps = cargarSnaps();
+  if (!snaps.length) return null;
+  const hace7 = new Date(hoy());
+  hace7.setDate(hace7.getDate() - 7);
+  const hace7str = hace7.toLocaleDateString('sv');
+  const old = snaps.filter(s => s.d <= hace7str).sort((a, b) => b.d.localeCompare(a.d))[0];
+  if (!old) return null;
+  const diff = totales().neto - old.n;
+  const pct = old.n !== 0 ? (diff / Math.abs(old.n)) * 100 : 0;
+  return { diff, pct };
+}
+
+function renderVar7d() {
+  const v = varSieteDias();
+  const el = $('var7d');
+  if (!v || !isFinite(v.pct)) { el.textContent = '—'; el.className = 'val'; return; }
+  el.textContent = (v.pct >= 0 ? '+' : '') + v.pct.toFixed(1) + '%';
+  el.className = 'val ' + (v.pct >= 0 ? 'pos' : 'neg');
+}
+
+// ---------- Chart.js lazy load ----------
+const _chartInst = {};
+let _cjsLoading = false, _cjsCbs = [];
+
+function withChartJs(cb) {
+  if (typeof Chart !== 'undefined') { cb(); return; }
+  _cjsCbs.push(cb);
+  if (!_cjsLoading) {
+    _cjsLoading = true;
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+    s.onload = () => { const fns = _cjsCbs.splice(0); fns.forEach(f => f()); };
+    document.head.appendChild(s);
+  }
+}
+
+function mkChart(id, cfg) {
+  if (_chartInst[id]) { _chartInst[id].destroy(); delete _chartInst[id]; }
+  const cv = document.getElementById(id);
+  if (!cv) return null;
+  _chartInst[id] = new Chart(cv, cfg);
+  return _chartInst[id];
+}
+
+// ---------- Chart helpers ----------
+const CV = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const S7 = ['#60a5fa','#f87171','#4ade80','#fb923c','#c084fc','#fbbf24','#38bdf8'];
+const fmtM = n => { const a = Math.abs(n); const v = a >= 1e6 ? (a/1e6).toFixed(1)+'M' : a >= 1e3 ? Math.round(a/1e3)+'k' : String(Math.round(a)); return (n < 0 ? '−' : '') + v; };
+const mesNom = mes => ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+mes.split('-')[1]-1];
+
+function ttO() {
+  return { backgroundColor: CV('--card'), titleColor: CV('--text'), bodyColor: CV('--muted'),
+    borderColor: CV('--border'), borderWidth: 1, padding: 10, cornerRadius: 8, usePointStyle: true, boxPadding: 4 };
+}
+function axO(yFmt, stacked = false) {
+  const t = CV('--muted'), g = CV('--border');
+  return {
+    x: { stacked, ticks: { color: t }, grid: { color: g, lineWidth: .5 }, border: { display: false } },
+    y: { stacked, ticks: { color: t, callback: yFmt }, grid: { color: g, lineWidth: .5 }, border: { display: false } },
+  };
+}
+function legO(pos = 'bottom') {
+  return { position: pos, labels: { color: CV('--muted'), boxWidth: 10, padding: 10, font: { size: 10 }, usePointStyle: true } };
+}
+
+function snapPorMes(snaps) {
+  const m = {};
+  for (const s of snaps) m[s.d.slice(0,7)] = s;
+  return Object.entries(m).sort(([a],[b]) => a.localeCompare(b)).slice(-12).map(([mes, s]) => ({ mes, ...s }));
+}
+
+// ---------- Chart renders ----------
+function rChartP() {
+  const raw = cargarSnaps().sort((a,b) => a.d.localeCompare(b.d));
+  const t = totales(); const hoyStr = hoy();
+  const data = !raw.length ? [{ d: hoyStr, n: t.neto }]
+    : raw[raw.length-1].d === hoyStr ? raw : [...raw, { d: hoyStr, n: t.neto }];
+  const badge = $('evBadgeP');
+  if (data.length >= 2) {
+    const diff = data[data.length-1].n - data[0].n;
+    badge.textContent = (diff >= 0 ? '▲ +' : '▼ ') + fmtM(diff);
+    badge.className = 'ev-badge ' + (diff >= 0 ? 'up' : 'dn');
+  } else { badge.textContent = 'Un punto'; badge.className = 'ev-badge neu'; }
+  mkChart('cP', {
+    type: 'line',
+    data: { labels: data.map(s => s.d.slice(5).split('-').reverse().join('/')),
+      datasets: [{ label: 'Patrimonio neto', data: data.map(s => s.n),
+        borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,.10)', fill: true, tension: .4, borderWidth: 2,
+        pointBackgroundColor: '#60a5fa', pointBorderColor: CV('--card'), pointBorderWidth: 2,
+        pointRadius: data.length <= 12 ? 4 : 2, pointHoverRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { ...ttO(), callbacks: {
+        label: c => ' ' + fmtM(c.parsed.y),
+        afterLabel: c => { if (!c.dataIndex) return ''; const d = c.parsed.y - c.dataset.data[c.dataIndex-1]; return ' Δ ' + (d >= 0 ? '+' : '−') + '$' + Math.abs(d).toLocaleString('es-AR'); }
+      }}},
+      scales: axO(v => fmtM(v)) }
+  });
+}
+
+function rChartB() {
+  const raw = cargarSnaps(); const t = totales(); const hoyStr = hoy();
+  const full = !raw.length ? [{ d: hoyStr, a: t.activos, dv: t.deudas, n: t.neto, dd: {} }]
+    : raw[raw.length-1].d === hoyStr ? raw : [...raw, { d: hoyStr, a: t.activos, dv: t.deudas, n: t.neto, dd: {} }];
+  const data = snapPorMes(full);
+  mkChart('cB', { type: 'bar',
+    data: { labels: data.map(s => mesNom(s.mes)), datasets: [
+      { label: 'Activos', data: data.map(s => s.a), backgroundColor: 'rgba(74,222,128,.75)', borderRadius: 3, barPercentage: .75 },
+      { label: 'Deudas',  data: data.map(s => s.dv), backgroundColor: 'rgba(248,113,113,.75)', borderRadius: 3, barPercentage: .75 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: legO(), tooltip: { ...ttO(), callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtM(c.parsed.y) } } },
+      scales: axO(v => '$' + fmtM(v)) } });
+}
+
+function rChartG() {
+  const byMes = {};
+  for (const g of estado.gastos) {
+    const mes = g.fecha.slice(0, 7);
+    if (!byMes[mes]) byMes[mes] = { Auto: 0, Comida: 0, Servicios: 0, Otros: 0 };
+    byMes[mes][CATEGORIAS.includes(g.categoria) ? g.categoria : 'Otros'] += g.monto;
+  }
+  const entries = Object.entries(byMes).sort(([a],[b]) => a.localeCompare(b)).slice(-6);
+  if (!entries.length) {
+    if (_chartInst['cG']) { _chartInst['cG'].destroy(); delete _chartInst['cG']; }
+    return;
+  }
+  mkChart('cG', { type: 'bar',
+    data: { labels: entries.map(([m]) => mesNom(m)), datasets: [
+      { label: 'Auto',      data: entries.map(([,c]) => c.Auto),      backgroundColor: 'rgba(251,146,60,.82)' },
+      { label: 'Comida',    data: entries.map(([,c]) => c.Comida),    backgroundColor: 'rgba(163,230,53,.82)' },
+      { label: 'Servicios', data: entries.map(([,c]) => c.Servicios), backgroundColor: 'rgba(192,132,252,.82)' },
+      { label: 'Otros',     data: entries.map(([,c]) => c.Otros),     backgroundColor: 'rgba(148,163,184,.65)' }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: legO(), tooltip: { ...ttO(), callbacks: {
+        label: c => ' ' + c.dataset.label + ': $' + fmtM(c.parsed.y),
+        footer: items => '  Total: $' + fmtM(items.reduce((s,i) => s + i.parsed.y, 0)) } } },
+      scales: axO(v => '$' + fmtM(v), true) } });
+}
+
+function rChartIC() {
+  const ingresos = estado.items.filter(it => it.tipo === 'activo' &&
+    (it.grupo === 'Cobros pendientes' || it.grupo === 'Préstamos con personas'));
+  const totalIng = ingresos.reduce((s,it) => s + it.monto, 0);
+  const fi = n => estado.items.find(it => it.nombre === n)?.monto || 0;
+  const visaS = Math.abs(saldoDe('Visa Santander'));
+  const mcS = Math.abs(saldoDe('Mastercard MP'));
+  const credSant = fi('Crédito Santander 1') + fi('Crédito Santander 2') + fi('Crédito Santander 3');
+  const credMP = fi('Créditos MP 1') + fi('Créditos MP 2') + fi('Créditos MP 3') + fi('Créditos MP 4');
+  const prestPers = estado.items.filter(it => it.tipo === 'deuda' && it.grupo === 'Préstamos con personas').reduce((s,it) => s + it.monto, 0);
+  const servicios = estado.items.filter(it => it.tipo === 'deuda' && it.grupo === 'Servicios y gastos fijos').reduce((s,it) => s + it.monto, 0);
+  const impuestos = estado.items.filter(it => it.tipo === 'deuda' && it.grupo === 'Impuestos').reduce((s,it) => s + it.monto, 0);
+  const totalCmp = visaS + mcS + credSant + credMP + prestPers + servicios + impuestos;
+  const diff = totalIng - totalCmp;
+  $('evBrow').innerHTML =
+    `<div class="bcard"><div class="bl">💚 Cobros pendientes</div><div class="bv pos">+${fmt(totalIng)}</div></div>` +
+    `<div class="bcard"><div class="bl">📤 Compromisos totales</div><div class="bv neg">−${fmt(totalCmp)}</div></div>` +
+    `<div class="bcard"><div class="bl">⚖️ Diferencia</div><div class="bv ${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : '−'}${fmt(Math.abs(diff))}</div></div>`;
+  const b = $('evBadgeIC');
+  b.textContent = diff >= 0 ? '▲ Superávit' : '▼ Déficit';
+  b.className = 'ev-badge ' + (diff >= 0 ? 'up' : 'dn');
+  const dOpts = { responsive: true, maintainAspectRatio: false, cutout: '68%',
+    plugins: { legend: legO(), tooltip: { ...ttO(), callbacks: { label: c => ' ' + c.label + ': $' + fmtM(c.parsed) } } } };
+  mkChart('cIngD', { type: 'doughnut',
+    data: { labels: ingresos.map(it => it.nombre), datasets: [{ data: ingresos.map(it => it.monto),
+      backgroundColor: S7, borderWidth: 2, borderColor: CV('--card') }] }, options: dOpts });
+  mkChart('cCmpD', { type: 'doughnut',
+    data: { labels: ['Visa Santander','Mastercard MP','Créd. Santander','Créd. MP','Préstamos pers.','Servicios','Impuestos'],
+      datasets: [{ data: [visaS,mcS,credSant,credMP,prestPers,servicios,impuestos],
+        backgroundColor: ['#f87171','#fb923c','#fbbf24','#38bdf8','#c084fc','#94a3b8','#4ade80'],
+        borderWidth: 2, borderColor: CV('--card') }] }, options: dOpts });
+}
+
+function rChartD() {
+  const raw = cargarSnaps(); const t = totales(); const hoyStr = hoy();
+  const fi = n => estado.items.find(it => it.nombre === n)?.monto || 0;
+  const todaySnap = { d: hoyStr, n: t.neto, a: t.activos, dv: t.deudas, dd: {
+    vs: Math.abs(saldoDe('Visa Santander')), mc: Math.abs(saldoDe('Mastercard MP')),
+    bm: fi('Boris MP'), cm: fi('Créditos MP 1')+fi('Créditos MP 2')+fi('Créditos MP 3')+fi('Créditos MP 4') } };
+  const data = !raw.length ? [todaySnap] : raw[raw.length-1].d === hoyStr ? raw : [...raw, todaySnap];
+  const labels = data.map(s => s.d.slice(5).split('-').reverse().join('/'));
+  const ln = (label, key, color, dash=[]) => ({ label, data: data.map(s => s.dd?.[key] || 0),
+    borderColor: color, fill: false, tension: .3, borderWidth: 2, borderDash: dash,
+    pointBackgroundColor: color, pointBorderColor: CV('--card'), pointBorderWidth: 2,
+    pointRadius: data.length <= 10 ? 3 : 1, pointHoverRadius: 5 });
+  mkChart('cD', { type: 'line',
+    data: { labels, datasets: [
+      ln('Visa Santander','vs','#f87171'), ln('Boris MP','bm','#fb923c',[5,4]),
+      ln('Mastercard MP','mc','#fbbf24'),  ln('Créditos MP','cm','#38bdf8',[2,2]) ] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { ...legO(), labels: { ...legO().labels, pointStyle: 'line' } },
+        tooltip: { ...ttO(), callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtM(c.parsed.y) } } },
+      scales: axO(v => '$' + fmtM(v)) } });
+}
+
+function rChartF() {
+  const fi = n => estado.items.find(it => it.nombre === n)?.monto || 0;
+  const items = [
+    { label: 'ARCA monotributo',    value: fi('ARCA monotributo'),     color: '#c084fc' },
+    { label: 'ARCA ingresos brutos',value: fi('ARCA ingresos brutos'), color: '#60a5fa' },
+    { label: 'Contadora',           value: fi('Contadora'),            color: '#94a3b8' },
+    { label: 'Cochera',             value: fi('Cochera'),              color: '#38bdf8' },
+  ].filter(d => d.value > 0);
+  const total = items.reduce((s,d) => s + d.value, 0);
+  $('evBadgeF').textContent = '$' + fmtM(total) + '/mes';
+  $('evFinGrid').innerHTML = items.map(d =>
+    `<div class="bcard"><div class="bl">${esc(d.label)}</div><div class="bv neg">$${fmtM(d.value)}</div></div>`).join('');
+  mkChart('cF', { type: 'bar',
+    data: { labels: items.map(d => d.label), datasets: [{
+      label: 'Gasto mensual', data: items.map(d => d.value),
+      backgroundColor: items.map(d => d.color), borderRadius: 4, barPercentage: .6 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { ...ttO(), callbacks: { label: c => ' $' + fmtM(c.parsed.x) + '/mes' } } },
+      scales: {
+        x: { ticks: { color: CV('--muted'), callback: v => '$' + fmtM(v) }, grid: { color: CV('--border'), lineWidth: .5 }, border: { display: false } },
+        y: { ticks: { color: CV('--muted') }, grid: { display: false }, border: { display: false } } } } });
+}
+
+let _evolReady = false;
+function iniciarEvolucion() {
+  withChartJs(() => { rChartP(); rChartB(); rChartG(); rChartIC(); rChartD(); rChartF(); _evolReady = true; });
+}
+
+// ---------- Refresh button ----------
+$('refreshBtn').onclick = function() {
+  this.classList.add('spin');
+  this.querySelector('span').textContent = 'Actualizando…';
+  guardarSnap();
+  render();
+  if (_evolReady) iniciarEvolucion();
+  setTimeout(() => {
+    this.classList.remove('spin');
+    this.querySelector('span').textContent = 'Actualizar';
+  }, 700);
+};
+
 function render() {
   renderResumen();
+  renderVar7d();
   renderSaldos();
   renderHistorial();
   renderLista('listaActivos', 'activo');
@@ -582,11 +951,20 @@ function render() {
   renderVinculos();
 }
 
+// ---------- Pestañas (override para Evolución) ----------
+function mostrarVista(v) {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista === v));
+  document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-' + v);
+  try { localStorage.setItem(STORAGE_KEY + '-vista', v); } catch {}
+  if (v === 'evolucion') iniciarEvolucion();
+}
+
 // Inicialización
 $('categoria').innerHTML = CATEGORIAS.map(c => `<option>${c}</option>`).join('');
 $('medio').innerHTML = MEDIOS.map(m => `<option>${m}</option>`).join('');
 $('itemGrupo').innerHTML = GRUPOS.map(g => `<option>${g}</option>`).join('');
 guardar();
+guardarSnap();
 resetForm();
 resetFormItem();
 let vistaInicial = 'gastos';
