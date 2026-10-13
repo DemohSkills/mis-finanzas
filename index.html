@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<title>Mis Finanzas</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --card: #fff; --text: #1e293b; --muted: #64748b;
+    --border: #e2e8f0; --accent: #2563eb; --danger: #dc2626; --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
+      --border: #334155; --accent: #60a5fa; --danger: #f87171; --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.4rem; margin: 8px 0 12px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  h3 { font-size: .8rem; margin: 14px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .meta { font-size: .8rem; color: var(--muted); }
+  .pos { color: var(--ok); }
+  .neg { color: var(--danger); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Pestañas */
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; position: sticky; top: 0; background: var(--bg); padding: 6px 0; z-index: 5; }
+  .tabs button { flex: 1; }
+  .tabs button[aria-selected=true] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .vista[hidden] { display: none; }
+
+  /* Resumen de patrimonio */
+  .resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+  .stat .lbl { font-size: .78rem; color: var(--muted); }
+  .stat .val { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  @media (max-width: 520px) {
+    .resumen { grid-template-columns: 1fr 1fr; }
+    .resumen .stat:last-child { grid-column: 1 / -1; }
+  }
+
+  /* Saldos */
+  .saldos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .saldo { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .saldo .nombre { font-size: .82rem; color: var(--muted); }
+  .saldo .monto { font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .saldo button { margin-top: 6px; font-size: .78rem; padding: 2px 8px; }
+
+  /* Formularios */
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
+  label.full { grid-column: 1 / -1; }
+  input, select {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; width: 100%;
+  }
+  .acciones { grid-column: 1 / -1; display: flex; gap: 8px; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; padding: 9px 14px;
+    border: 1px solid var(--border); background: transparent; color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; flex: 1; }
+  button.danger { color: var(--danger); }
+  button.mini { font-size: .8rem; padding: 3px 10px; }
+  @media (max-width: 480px) { form { grid-template-columns: 1fr; } }
+
+  /* Historial */
+  .gasto { border-top: 1px solid var(--border); padding: 10px 0; }
+  .gasto:first-child { border-top: 0; }
+  .gasto .info { min-width: 0; }
+  .gasto .desc { font-weight: 500; overflow-wrap: anywhere; }
+  .gasto .importe { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gasto .btns { display: flex; gap: 6px; margin-top: 6px; }
+  .gasto.editando, .item.editando { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .vacio { color: var(--muted); text-align: center; padding: 12px 0; }
+
+  /* Activos / deudas */
+  .item { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-top: 1px solid var(--border); }
+  .item .nom { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .item .edit { padding: 2px 8px; font-size: .8rem; }
+  .chip { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); margin-left: 4px; }
+  .subtotal { display: flex; justify-content: space-between; font-weight: 700; padding: 8px 4px 0; border-top: 2px solid var(--border); margin-top: 4px; }
+
+  /* Vínculos */
+  .persona { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  .persona .nombre { font-weight: 600; }
+  .persona .estado { font-weight: 700; }
+  .persona ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  .persona li { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); padding: 2px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>💰 Mis Finanzas</h1>
+
+  <div class="resumen">
+    <div class="stat"><div class="lbl">Activos</div><div class="val pos" id="totActivos"></div></div>
+    <div class="stat"><div class="lbl">Deudas</div><div class="val neg" id="totDeudas"></div></div>
+    <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-vista="gastos">Gastos</button>
+    <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
+    <button type="button" role="tab" data-vista="vinculos">Vínculos</button>
+  </nav>
+
+  <!-- ===== GASTOS ===== -->
+  <div class="vista" id="vista-gastos">
+    <section>
+      <h2>Saldos por medio de pago</h2>
+      <div class="saldos" id="saldos"></div>
+    </section>
+
+    <section>
+      <h2 id="formTitulo">Cargar gasto</h2>
+      <form id="form" autocomplete="off">
+        <label>Monto
+          <input type="number" id="monto" step="0.01" min="0.01" inputmode="decimal" required>
+        </label>
+        <label>Fecha
+          <input type="date" id="fecha" required>
+        </label>
+        <label>Categoría
+          <select id="categoria" required></select>
+        </label>
+        <label>Medio de pago
+          <select id="medio" required></select>
+        </label>
+        <label class="full">Descripción (opcional)
+          <input type="text" id="descripcion" maxlength="120" placeholder="Ej: nafta, súper, luz…">
+        </label>
+        <div class="acciones">
+          <button type="submit" class="primary" id="btnGuardar">Guardar gasto</button>
+          <button type="button" id="btnCancelar" hidden>Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <section>
+      <div class="row"><h2>Historial</h2><span class="meta" id="total"></span></div>
+      <div id="historial"></div>
+    </section>
+  </div>
+
+  <!-- ===== PATRIMONIO ===== -->
+  <div class="vista" id="vista-patrimonio" hidden>
+    <section>
+      <h2>Activos <span class="meta">— lo que tengo o me deben</span></h2>
+      <div id="listaActivos"></div>
+    </section>
+
+    <section>
+      <h2>Deudas <span class="meta">— lo que debo</span></h2>
+      <div id="listaDeudas"></div>
+    </section>
+
+    <section>
+      <h2 id="itemTitulo">Agregar activo o deuda</h2>
+      <form id="formItem" autocomplete="off">
+        <label class="full">Nombre
+          <input type="text" id="itemNombre" maxlength="80" required placeholder="Ej: Crédito Santander 4">
+        </label>
+        <label>Tipo
+          <select id="itemTipo">
+            <option value="activo">Activo (tengo / me deben)</option>
+            <option value="deuda">Deuda (debo)</option>
+          </select>
+        </label>
+        <label>Monto
+          <input type="number" id="itemMonto" step="0.01" min="0" inputmode="decimal" required>
+        </label>
+        <label>Grupo
+          <select id="itemGrupo"></select>
+        </label>
+        <label>Persona (opcional)
+          <input type="text" id="itemPersona" maxlength="40" list="personasList" placeholder="Ej: Vero">
+        </label>
+        <datalist id="personasList"></datalist>
+        <div class="acciones">
+          <button type="submit" class="primary" id="btnItemGuardar">Agregar</button>
+          <button type="button" id="btnItemBorrar" class="danger" hidden>Borrar</button>
+          <button type="button" id="btnItemCancelar" hidden>Cancelar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <!-- ===== VÍNCULOS ===== -->
+  <div class="vista" id="vista-vinculos" hidden>
+    <section>
+      <h2>Compromisos con personas</h2>
+      <div id="vinculos"></div>
+      <p class="meta">Para sumar a alguien acá, asignale una persona a un activo o deuda en la pestaña Patrimonio.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+const CATEGORIAS = ['Auto', 'Comida', 'Servicios', 'Otros'];
+const MEDIOS = ['Banco Santander', 'Mercado Pago', 'Astropay', 'Visa Santander', 'Mastercard MP', 'Efectivo'];
+const GRUPOS = ['Cobros pendientes', 'Préstamos con personas', 'Créditos bancarios', 'Impuestos', 'Servicios y gastos fijos', 'Otros'];
+const STORAGE_KEY = 'finanzas-v1';
+
+// Patrimonio inicial (13/10/2026). Se carga una sola vez.
+const SALDOS_INICIALES = {
+  'Banco Santander': 220000, 'Mercado Pago': 1976000, 'Efectivo': 158000,
+  'Visa Santander': -12935396, 'Mastercard MP': -2464000,
+};
+const ITEMS_INICIALES = [
+  ['Delux sueldo',            'activo', 300000,  'Cobros pendientes', ''],
+  ['Meli Envíos extra',       'activo', 340000,  'Cobros pendientes', ''],
+  ['Delux peajes',            'activo', 100000,  'Cobros pendientes', ''],
+  ['Cristine-Lag cuotas',     'activo', 315000,  'Préstamos con personas', 'Cristine-Lag'],
+  ['Vero Urb',                'deuda',  0,       'Préstamos con personas', 'Vero'],
+  ['Vero MP',                 'deuda',  1919000, 'Préstamos con personas', 'Vero'],
+  ['Boris MP',                'deuda',  3500000, 'Préstamos con personas', 'Boris'],
+  ['Crédito Santander 1',     'deuda',  500000,  'Créditos bancarios', ''],
+  ['Crédito Santander 2',     'deuda',  686000,  'Créditos bancarios', ''],
+  ['Crédito Santander 3',     'deuda',  3520000, 'Créditos bancarios', ''],
+  ['Créditos MP 1',           'deuda',  405700,  'Créditos bancarios', ''],
+  ['Créditos MP 2',           'deuda',  375000,  'Créditos bancarios', ''],
+  ['Créditos MP 3',           'deuda',  160000,  'Créditos bancarios', ''],
+  ['Créditos MP 4',           'deuda',  176000,  'Créditos bancarios', ''],
+  ['Contadora',               'deuda',  70000,   'Servicios y gastos fijos', ''],
+  ['Cochera',                 'deuda',  170000,  'Servicios y gastos fijos', ''],
+  ['ARCA monotributo',        'deuda',  120000,  'Impuestos', ''],
+  ['ARCA ingresos brutos',    'deuda',  160000,  'Impuestos', ''],
+];
+
+// Estado: saldo inicial por medio + gastos + activos/deudas.
+// El saldo de cada medio se calcula siempre como (inicial − gastos de ese medio),
+// así editar o borrar un gasto ajusta el saldo automáticamente.
+const nuevoId = () => crypto.randomUUID?.() || String(Date.now() + Math.random());
+
+let estado = cargar();
+let editandoId = null;
+let editandoItemId = null;
+
+function cargar() {
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch {}
+  if (!data || !Array.isArray(data.gastos)) data = { iniciales: {}, gastos: [] };
+  data.iniciales ||= {};
+  // Migración: "Visa" pasó a llamarse "Visa Santander"
+  if ('Visa' in data.iniciales) {
+    data.iniciales['Visa Santander'] = data.iniciales['Visa'];
+    delete data.iniciales['Visa'];
+    data.gastos.forEach(g => { if (g.medio === 'Visa') g.medio = 'Visa Santander'; });
+  }
+  for (const m of MEDIOS) if (typeof data.iniciales[m] !== 'number') data.iniciales[m] = 0;
+  if (!Array.isArray(data.items)) data.items = [];
+  if (!data.patrimonioCargado) {
+    for (const [m, valor] of Object.entries(SALDOS_INICIALES)) {
+      const gastado = data.gastos.filter(g => g.medio === m).reduce((s, g) => s + g.monto, 0);
+      data.iniciales[m] = valor + gastado;
+    }
+    data.items.push(...ITEMS_INICIALES.map(([nombre, tipo, monto, grupo, persona]) =>
+      ({ id: nuevoId(), nombre, tipo, monto, grupo, persona })));
+    data.patrimonioCargado = true;
+  }
+  return data;
+}
+
+function guardar() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(estado)); }
+  catch { alert('No se pudo guardar en este navegador.'); }
+}
+
+const fmt = n => n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const hoy = () => new Date().toLocaleDateString('sv'); // YYYY-MM-DD local
+const fechaCorta = f => f.split('-').reverse().join('/');
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function saldoDe(medio) {
+  const gastado = estado.gastos.filter(g => g.medio === medio).reduce((s, g) => s + g.monto, 0);
+  return estado.iniciales[medio] - gastado;
+}
+
+// ---------- Pestañas ----------
+function mostrarVista(v) {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista === v));
+  document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-' + v);
+  try { localStorage.setItem(STORAGE_KEY + '-vista', v); } catch {}
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
+
+// ---------- Resumen ----------
+function totales() {
+  let activos = 0, deudas = 0;
+  for (const m of MEDIOS) { const s = saldoDe(m); s >= 0 ? activos += s : deudas -= s; }
+  for (const it of estado.items) it.tipo === 'activo' ? activos += it.monto : deudas += it.monto;
+  return { activos, deudas, neto: activos - deudas };
+}
+
+function renderResumen() {
+  const t = totales();
+  $('totActivos').textContent = fmt(t.activos);
+  $('totDeudas').textContent = fmt(t.deudas);
+  $('totNeto').textContent = fmt(t.neto);
+  $('totNeto').className = 'val ' + (t.neto < 0 ? 'neg' : 'pos');
+}
+
+// ---------- Saldos ----------
+function renderSaldos() {
+  $('saldos').innerHTML = '';
+  for (const m of MEDIOS) {
+    const s = saldoDe(m);
+    const div = document.createElement('div');
+    div.className = 'saldo';
+    div.innerHTML = `
+      <div class="nombre">${esc(m)}</div>
+      <div class="monto ${s < 0 ? 'neg' : ''}">${fmt(s)}</div>
+      <button type="button">Ajustar saldo</button>`;
+    div.querySelector('button').onclick = () => ajustarSaldo(m);
+    $('saldos').appendChild(div);
+  }
+}
+
+// Permite fijar cuánto hay hoy en un medio; se recalcula el saldo inicial
+// para que el saldo actual quede exactamente en el valor ingresado.
+function ajustarSaldo(medio) {
+  const actual = saldoDe(medio);
+  const txt = prompt(`Saldo actual de ${medio} (negativo si es deuda de tarjeta):`, actual);
+  if (txt === null) return;
+  const valor = parseMonto(txt);
+  if (isNaN(valor)) return alert('Monto inválido');
+  estado.iniciales[medio] += valor - actual;
+  guardar();
+  render();
+}
+
+// Acepta "1234.50" o formato argentino "1.234,50"
+function parseMonto(txt) {
+  const t = txt.replace(/[$\s]/g, '');
+  return parseFloat(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
+}
+
+// ---------- Historial de gastos ----------
+function renderHistorial() {
+  const cont = $('historial');
+  cont.innerHTML = '';
+  const lista = [...estado.gastos].sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado);
+  if (!lista.length) {
+    cont.innerHTML = '<div class="vacio">Todavía no cargaste gastos.</div>';
+    $('total').textContent = '';
+    return;
+  }
+  $('total').textContent = `${lista.length} gasto${lista.length > 1 ? 's' : ''} · ${fmt(lista.reduce((s, g) => s + g.monto, 0))}`;
+  for (const g of lista) {
+    const div = document.createElement('div');
+    div.className = 'gasto' + (g.id === editandoId ? ' editando' : '');
+    div.innerHTML = `
+      <div class="row">
+        <div class="info">
+          <div class="desc">${esc(g.descripcion || g.categoria)}</div>
+          <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
+        </div>
+        <div class="importe">−${fmt(g.monto)}</div>
+      </div>
+      <div class="btns">
+        <button type="button" class="mini" data-a="editar">Editar</button>
+        <button type="button" class="mini danger" data-a="borrar">Borrar</button>
+      </div>`;
+    div.querySelector('[data-a=editar]').onclick = () => empezarEdicion(g.id);
+    div.querySelector('[data-a=borrar]').onclick = () => borrar(g.id);
+    cont.appendChild(div);
+  }
+}
+
+function resetForm() {
+  editandoId = null;
+  $('form').reset();
+  $('fecha').value = hoy();
+  $('formTitulo').textContent = 'Cargar gasto';
+  $('btnGuardar').textContent = 'Guardar gasto';
+  $('btnCancelar').hidden = true;
+}
+
+function empezarEdicion(id) {
+  const g = estado.gastos.find(x => x.id === id);
+  if (!g) return;
+  editandoId = id;
+  $('monto').value = g.monto;
+  $('fecha').value = g.fecha;
+  $('categoria').value = g.categoria;
+  $('medio').value = g.medio;
+  $('descripcion').value = g.descripcion || '';
+  $('formTitulo').textContent = 'Editar gasto';
+  $('btnGuardar').textContent = 'Actualizar gasto';
+  $('btnCancelar').hidden = false;
+  renderHistorial();
+  $('form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('monto').focus();
+}
+
+function borrar(id) {
+  const g = estado.gastos.find(x => x.id === id);
+  if (!g || !confirm(`¿Borrar el gasto de ${fmt(g.monto)} (${g.categoria}, ${g.medio})?`)) return;
+  estado.gastos = estado.gastos.filter(x => x.id !== id);
+  if (editandoId === id) resetForm();
+  guardar();
+  render();
+}
+
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const monto = Math.round(parseFloat($('monto').value) * 100) / 100;
+  if (!(monto > 0)) return alert('Ingresá un monto mayor a 0');
+  const datos = {
+    monto,
+    fecha: $('fecha').value,
+    categoria: $('categoria').value,
+    medio: $('medio').value,
+    descripcion: $('descripcion').value.trim(),
+  };
+  if (editandoId) {
+    Object.assign(estado.gastos.find(x => x.id === editandoId), datos);
+  } else {
+    estado.gastos.push({ id: nuevoId(), creado: Date.now(), ...datos });
+  }
+  guardar();
+  resetForm();
+  render();
+});
+
+$('btnCancelar').onclick = () => { resetForm(); renderHistorial(); };
+
+// ---------- Activos y deudas ----------
+function renderLista(contId, tipo) {
+  const cont = $(contId);
+  cont.innerHTML = '';
+  // Medios de pago: los de saldo positivo son activos, los negativos (tarjetas) son deudas
+  const medios = MEDIOS.map(m => ({ m, s: saldoDe(m) }))
+    .filter(({ s }) => tipo === 'activo' ? s > 0 : s < 0);
+  const grupos = GRUPOS.map(g => [g, estado.items.filter(it => it.tipo === tipo && it.grupo === g)])
+    .filter(([, items]) => items.length);
+  let total = 0;
+
+  if (medios.length) {
+    cont.insertAdjacentHTML('beforeend', `<h3>${tipo === 'activo' ? 'Cuentas y efectivo' : 'Tarjetas de crédito'}</h3>`);
+    for (const { m, s } of medios) {
+      total += Math.abs(s);
+      cont.appendChild(filaItem(m, Math.abs(s), '', () => ajustarSaldo(m), false));
+    }
+  }
+  for (const [g, items] of grupos) {
+    cont.insertAdjacentHTML('beforeend', `<h3>${esc(g)}</h3>`);
+    for (const it of items) {
+      total += it.monto;
+      cont.appendChild(filaItem(it.nombre, it.monto, it.persona, () => editarItem(it.id), it.id === editandoItemId));
+    }
+  }
+  cont.insertAdjacentHTML('beforeend',
+    `<div class="subtotal"><span>Total ${tipo === 'activo' ? 'activos' : 'deudas'}</span><span class="num ${tipo === 'activo' ? 'pos' : 'neg'}">${fmt(total)}</span></div>`);
+}
+
+function filaItem(nombre, monto, persona, onEdit, editando) {
+  const div = document.createElement('div');
+  div.className = 'item' + (editando ? ' editando' : '');
+  div.innerHTML = `
+    <span class="nom">${esc(nombre)}${persona ? `<span class="chip">${esc(persona)}</span>` : ''}</span>
+    <span class="num">${fmt(monto)}</span>
+    <button type="button" class="edit" title="Editar" aria-label="Editar ${esc(nombre)}">✎</button>`;
+  div.querySelector('button').onclick = onEdit;
+  return div;
+}
+
+function resetFormItem() {
+  editandoItemId = null;
+  $('formItem').reset();
+  $('itemTitulo').textContent = 'Agregar activo o deuda';
+  $('btnItemGuardar').textContent = 'Agregar';
+  $('btnItemBorrar').hidden = $('btnItemCancelar').hidden = true;
+}
+
+function editarItem(id) {
+  const it = estado.items.find(x => x.id === id);
+  if (!it) return;
+  editandoItemId = id;
+  $('itemNombre').value = it.nombre;
+  $('itemTipo').value = it.tipo;
+  $('itemMonto').value = it.monto;
+  $('itemGrupo').value = it.grupo;
+  $('itemPersona').value = it.persona || '';
+  $('itemTitulo').textContent = 'Editar: ' + it.nombre;
+  $('btnItemGuardar').textContent = 'Guardar cambios';
+  $('btnItemBorrar').hidden = $('btnItemCancelar').hidden = false;
+  mostrarVista('patrimonio');
+  render();
+  $('formItem').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('itemMonto').focus();
+}
+
+$('formItem').addEventListener('submit', e => {
+  e.preventDefault();
+  const monto = Math.round(parseFloat($('itemMonto').value) * 100) / 100;
+  if (!(monto >= 0)) return alert('Ingresá un monto válido');
+  const datos = {
+    nombre: $('itemNombre').value.trim(),
+    tipo: $('itemTipo').value,
+    monto,
+    grupo: $('itemGrupo').value,
+    persona: $('itemPersona').value.trim(),
+  };
+  if (editandoItemId) Object.assign(estado.items.find(x => x.id === editandoItemId), datos);
+  else estado.items.push({ id: nuevoId(), ...datos });
+  guardar();
+  resetFormItem();
+  render();
+});
+
+$('btnItemBorrar').onclick = () => {
+  const it = estado.items.find(x => x.id === editandoItemId);
+  if (!it || !confirm(`¿Borrar "${it.nombre}"?`)) return;
+  estado.items = estado.items.filter(x => x.id !== it.id);
+  guardar();
+  resetFormItem();
+  render();
+};
+$('btnItemCancelar').onclick = () => { resetFormItem(); render(); };
+
+// ---------- Vínculos con personas ----------
+function renderVinculos() {
+  const porPersona = new Map();
+  for (const it of estado.items) {
+    if (!it.persona) continue;
+    if (!porPersona.has(it.persona)) porPersona.set(it.persona, []);
+    porPersona.get(it.persona).push(it);
+  }
+  $('personasList').innerHTML = [...porPersona.keys()].map(p => `<option value="${esc(p)}">`).join('');
+
+  const cont = $('vinculos');
+  cont.innerHTML = '';
+  if (!porPersona.size) {
+    cont.innerHTML = '<div class="vacio">No hay compromisos con personas.</div>';
+    return;
+  }
+  const personas = [...porPersona].map(([nombre, items]) => ({
+    nombre, items,
+    neto: items.reduce((s, it) => s + (it.tipo === 'activo' ? it.monto : -it.monto), 0),
+  })).sort((a, b) => Math.abs(b.neto) - Math.abs(a.neto));
+
+  for (const p of personas) {
+    const estadoTxt = p.neto > 0 ? `Te debe ${fmt(p.neto)}` : p.neto < 0 ? `Le debés ${fmt(-p.neto)}` : 'Sin saldo pendiente';
+    const div = document.createElement('div');
+    div.className = 'persona';
+    div.innerHTML = `
+      <div class="row">
+        <span class="nombre">${esc(p.nombre)}</span>
+        <span class="estado num ${p.neto > 0 ? 'pos' : p.neto < 0 ? 'neg' : 'meta'}">${estadoTxt}</span>
+      </div>
+      <ul>${p.items.map(it => `
+        <li><span>${esc(it.nombre)}</span>
+        <span class="num">${it.tipo === 'activo' ? '+' : '−'}${fmt(it.monto)}</span></li>`).join('')}
+      </ul>`;
+    cont.appendChild(div);
+  }
+}
+
+function render() {
+  renderResumen();
+  renderSaldos();
+  renderHistorial();
+  renderLista('listaActivos', 'activo');
+  renderLista('listaDeudas', 'deuda');
+  renderVinculos();
+}
+
+// Inicialización
+$('categoria').innerHTML = CATEGORIAS.map(c => `<option>${c}</option>`).join('');
+$('medio').innerHTML = MEDIOS.map(m => `<option>${m}</option>`).join('');
+$('itemGrupo').innerHTML = GRUPOS.map(g => `<option>${g}</option>`).join('');
+guardar();
+resetForm();
+resetFormItem();
+let vistaInicial = 'gastos';
+try { vistaInicial = localStorage.getItem(STORAGE_KEY + '-vista') || 'gastos'; } catch {}
+mostrarVista(vistaInicial);
+render();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('./sw.js')
+      .catch(e => console.warn('SW no pudo registrarse:', e))
+  );
+}
+</script>
+</body>
+</html>
