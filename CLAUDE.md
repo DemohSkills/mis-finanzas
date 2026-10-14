@@ -25,3 +25,9 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - No tocar la API key ni el PIN salvo que se pida explícitamente
 - No romper datos existentes en localStorage — siempre migrar con valores por defecto
 - Al terminar un cambio: `git add -A && git commit -m "..."` y `git push origin main`
+
+## Ahorro de contexto (leer antes de tocar código)
+- `index.html` pesa ~84 KB (~1550 líneas). NO lo leas completo: cada lectura completa consume decenas de miles de tokens.
+- Para ubicar algo: `grep -n "nombreFuncion" index.html` y leé solo ese tramo con `Read` (offset/limit). Mapa aproximado (las líneas se corren al editar): CSS 10–172, HTML 174–491, JS 492–fin. Secciones del JS: constantes, utilidades, categorías, reglas, estado/storage, wizard, render, config, CSV, backup, PDF, snapshots, voz, evolución, wireEvents. Para regenerar el mapa: `grep -n "^// [A-Z]" index.html`.
+- Hacé ediciones puntuales (`Edit`), no reescribas el archivo entero.
+- Una tarea por conversación. Para probar lógica, extraé la función y corrala con `node`; evitá el navegador con capturas salvo que se pida.

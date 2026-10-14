@@ -714,7 +714,7 @@ function guardar() { ls.set(SK, estado); }
 
 function saldoDe(medio) {
   const gastado  = estado.gastos.filter(g => g.medio===medio && !g.soloHistorial && (g.tipo||'gasto')==='gasto').reduce((s,g) => s+g.monto, 0);
-  const ingresado = estado.gastos.filter(g => g.medio===medio && (g.tipo||'gasto')==='ingreso').reduce((s,g) => s+g.monto, 0);
+  const ingresado = estado.gastos.filter(g => g.medio===medio && !g.soloHistorial && (g.tipo||'gasto')==='ingreso').reduce((s,g) => s+g.monto, 0);
   return estado.iniciales[medio] - gastado + ingresado;
 }
 
@@ -1193,26 +1193,19 @@ function parsearCSV(txt){
   const header=lineas[0]||'';
   const sep=(header.match(/;/g)||[]).length>(header.match(/,/g)||[]).length?';':',';
 
-  // RFC 4180 row parser
+  // RFC 4180 row parser (recorre la línea una sola vez; siempre termina)
   function parseRow(line){
-    const fields=[]; let i=0;
-    while(i<=line.length){
-      if(line[i]==='"'){
-        let val=''; i++;
-        while(i<line.length){
-          if(line[i]==='"'&&line[i+1]==='"'){val+='"';i+=2;}
-          else if(line[i]==='"'){i++;break;}
-          else val+=line[i++];
-        }
-        fields.push(val);
-        if(line[i]===sep)i++;
-      } else {
-        let start=i;
-        while(i<line.length&&line[i]!==sep)i++;
-        fields.push(line.slice(start,i));
-        if(line[i]===sep)i++;
-      }
+    const fields=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(inQ){
+        if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+        else cur+=c;
+      } else if(c==='"'){ inQ=true; }
+      else if(c===sep){ fields.push(cur); cur=''; }
+      else cur+=c;
     }
+    fields.push(cur);
     return fields;
   }
 
