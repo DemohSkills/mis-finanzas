@@ -157,6 +157,8 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
 .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 .cat-chip{font-size:.78rem;padding:3px 10px;border-radius:99px;border:1px solid var(--border);background:transparent;cursor:pointer;}
 .cat-chip.custom{border-color:var(--accent);color:var(--accent);}
+/* ── Backup warning ─────────────────────────────────────────── */
+.backup-warn{background:color-mix(in srgb,var(--warn) 10%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--warn);margin-bottom:12px;display:flex;gap:7px;align-items:center;}
 /* ── Print / PDF ─────────────────────────────────────────────── */
 @media print{
   .tabs,.app-hdr,.refresh-btn,.acciones,button,.saldo button,.item .edit,.gasto .btns,
@@ -279,7 +281,7 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
   </div>
 
   <nav class="tabs" role="tablist">
-    <button type="button" role="tab" data-vista="gastos">Gastos</button>
+    <button type="button" role="tab" data-vista="gastos">Movim.</button>
     <button type="button" role="tab" data-vista="vinculos">Vínculos</button>
     <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
     <button type="button" role="tab" data-vista="evolucion">Evolución</button>
@@ -302,8 +304,14 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
       </div>
       <div id="importPreview" hidden></div>
 
-      <h2 id="formTitulo">Cargar gasto</h2>
+      <h2 id="formTitulo">Cargar movimiento</h2>
       <form id="form" autocomplete="off">
+        <label class="full">Tipo de movimiento
+          <select id="tipo">
+            <option value="gasto">💸 Gasto</option>
+            <option value="ingreso">💰 Ingreso</option>
+          </select>
+        </label>
         <label>Monto
           <input type="number" id="monto" step="0.01" min="0.01" inputmode="decimal" required>
         </label>
@@ -319,9 +327,12 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
         <label class="full">Descripción (opcional)
           <input type="text" id="descripcion" maxlength="120" placeholder="Ej: nafta, súper, luz…">
         </label>
+        <label class="full" id="soloHistorialLabel" hidden style="flex-direction:row;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);">
+          <input type="checkbox" id="soloHistorial" style="width:auto"> Solo historial (no afecta saldo)
+        </label>
         <div class="acciones">
           <button type="button" class="icon-btn no-print" id="btnVoz" title="Cargar por voz">🎙</button>
-          <button type="submit" class="primary" id="btnGuardar">Guardar gasto</button>
+          <button type="submit" class="primary" id="btnGuardar">Guardar movimiento</button>
           <button type="button" id="btnCancelar" hidden>Cancelar</button>
         </div>
       </form>
@@ -434,9 +445,26 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
     </div>
 
     <div class="cfg-section">
-      <h2>🏷 Categorías</h2>
+      <h2>💾 Copia de seguridad</h2>
+      <p class="meta">Exportá todos tus datos. No incluye PIN ni API key.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button type="button" class="mini" id="btnExportBackup">⬇ Copia de seguridad</button>
+        <button type="button" class="mini" id="btnImportBackup">⬆ Restaurar</button>
+        <input type="file" id="backupFile" accept=".json" hidden>
+      </div>
+      <p class="meta" id="lastBackupInfo" style="margin-top:8px"></p>
+    </div>
+
+    <div class="cfg-section">
+      <h2>🏷 Categorías de gastos</h2>
       <div class="cat-chips" id="catChips"></div>
       <button type="button" class="mini" id="btnNuevaCat">+ Crear categoría</button>
+    </div>
+
+    <div class="cfg-section">
+      <h2>🏷 Categorías de ingresos</h2>
+      <div class="cat-chips" id="catIngresoChips"></div>
+      <button type="button" class="mini" id="btnNuevaCatIngreso">+ Crear categoría</button>
     </div>
 
     <div class="cfg-section">
@@ -473,13 +501,16 @@ const CATS_DEFAULT = [
   'Indumentaria y Calzado','Hogar y Materiales','Otros/Varios',
   'Financiación Consolidada','Impuestos e Intereses',
 ];
+const CATS_INCOME_DEFAULT = ['Regalo','Sueldo/Honorarios','Reintegro','Transferencia recibida','Otros ingresos'];
 
-const SK  = 'finanzas-v1';
-const PIN_KEY  = 'finanzas-v1-pin';
-const CATS_KEY = 'finanzas-v1-cats';
-const RULES_KEY= 'finanzas-v1-rules';
-const SNAP_KEY = 'finanzas-v1-snaps';
-const APIKEY_K = 'finanzas-v1-apikey';
+const SK         = 'finanzas-v1';
+const PIN_KEY    = 'finanzas-v1-pin';
+const CATS_KEY   = 'finanzas-v1-cats';
+const CATS_INC_K = 'finanzas-v1-cats-income';
+const RULES_KEY  = 'finanzas-v1-rules';
+const SNAP_KEY   = 'finanzas-v1-snaps';
+const APIKEY_K   = 'finanzas-v1-apikey';
+const BACKUP_DK  = 'finanzas-v1-backup-date';
 
 // ═══════════════════════════════════════════════════════
 // UTILIDADES
@@ -490,7 +521,20 @@ const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minim
 const hoy = () => new Date().toLocaleDateString('sv');
 const fechaCorta = f => f.split('-').reverse().join('/');
 const nuevoId = () => crypto.randomUUID?.() || String(Date.now()+Math.random());
-const parseMonto = txt => { const t=txt.replace(/[$\s]/g,''); return parseFloat(t.includes(',') ? t.replace(/\./g,'').replace(',','.') : t); };
+const parseMonto = txt => {
+  let s = String(txt ?? '').replace(/[$\s ]/g,'');
+  if (!s) return NaN;
+  const hasC = s.includes(','), hasD = s.includes('.');
+  if (hasC && hasD) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g,'').replace(',','.');
+    else s = s.replace(/,/g,'');
+  } else if (hasC) {
+    s = s.replace(',','.');
+  } else if (hasD && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+    s = s.replace(/\./g,'');
+  }
+  return parseFloat(s);
+};
 const ls = { get: k => { try{return JSON.parse(localStorage.getItem(k));}catch{return null;} }, set: (k,v) => { try{localStorage.setItem(k,JSON.stringify(v));}catch{} } };
 
 // ═══════════════════════════════════════════════════════
@@ -500,26 +544,37 @@ function getCats() {
   const custom = ls.get(CATS_KEY) || [];
   return [...CATS_DEFAULT, ...custom.filter(c => !CATS_DEFAULT.includes(c))];
 }
+function getCatsIncome() {
+  const custom = ls.get(CATS_INC_K) || [];
+  return [...CATS_INCOME_DEFAULT, ...custom.filter(c => !CATS_INCOME_DEFAULT.includes(c))];
+}
 function addCat(nombre) {
   const custom = ls.get(CATS_KEY) || [];
   if (!CATS_DEFAULT.includes(nombre) && !custom.includes(nombre)) {
     custom.push(nombre); ls.set(CATS_KEY, custom);
   }
 }
-function fillCatSelect(selId, currentVal) {
+function addCatIncome(nombre) {
+  const custom = ls.get(CATS_INC_K) || [];
+  if (!CATS_INCOME_DEFAULT.includes(nombre) && !custom.includes(nombre)) {
+    custom.push(nombre); ls.set(CATS_INC_K, custom);
+  }
+}
+function fillCatSelect(selId, currentVal, forIncome) {
   const sel = $(selId);
   if (!sel) return;
+  const lista = forIncome ? getCatsIncome() : getCats();
   const prev = currentVal ?? sel.value;
-  sel.innerHTML = getCats().map(c => `<option${c===prev?' selected':''}>${esc(c)}</option>`).join('') +
+  sel.innerHTML = lista.map(c => `<option${c===prev?' selected':''}>${esc(c)}</option>`).join('') +
     '<option value="__nueva__">+ Crear nueva categoría…</option>';
-  sel.onchange = () => { if(sel.value==='__nueva__') crearCategoriaDesdeSelect(sel); };
+  sel.onchange = () => { if(sel.value==='__nueva__') crearCategoriaDesdeSelect(sel, forIncome); };
 }
-function crearCategoriaDesdeSelect(sel) {
+function crearCategoriaDesdeSelect(sel, forIncome) {
   const nombre = prompt('Nombre de la nueva categoría:')?.trim();
-  if (!nombre) { sel.value = getCats()[0]; return; }
-  addCat(nombre);
-  fillCatSelect(sel.id, nombre);
-  fillCatSelect('reglaCat', nombre);
+  if (!nombre) { sel.value = (forIncome ? getCatsIncome() : getCats())[0]; return; }
+  forIncome ? addCatIncome(nombre) : addCat(nombre);
+  fillCatSelect(sel.id, nombre, forIncome);
+  if (!forIncome) fillCatSelect('reglaCat', nombre);
   renderCfgCats();
 }
 
@@ -552,10 +607,14 @@ function renderReglasLista() {
 }
 function renderCfgCats() {
   const cont = $('catChips'); if (!cont) return;
-  const cats = getCats();
-  const custom = ls.get(CATS_KEY) || [];
+  const cats = getCats(); const custom = ls.get(CATS_KEY) || [];
   cont.innerHTML = cats.map(c =>
-    `<span class="cat-chip${custom.includes(c)?' custom':''}" title="${custom.includes(c)?'Personalizada':''}">${esc(c)}</span>`
+    `<span class="cat-chip${custom.includes(c)?' custom':''}">${esc(c)}</span>`
+  ).join('');
+  const contI = $('catIngresoChips'); if (!contI) return;
+  const catsI = getCatsIncome(); const customI = ls.get(CATS_INC_K) || [];
+  contI.innerHTML = catsI.map(c =>
+    `<span class="cat-chip${customI.includes(c)?' custom':''}">${esc(c)}</span>`
   ).join('');
 }
 
@@ -643,14 +702,20 @@ function cargar() {
     data.gastos.forEach(g => { if(g.medio==='Visa') g.medio='Visa Santander'; });
   }
   for (const m of MEDIOS) if(typeof data.iniciales[m] !== 'number') data.iniciales[m] = 0;
+  // Migración: campo tipo y soloHistorial
+  data.gastos.forEach(g => {
+    if (!g.tipo) g.tipo = 'gasto';
+    if (g.soloHistorial === undefined) g.soloHistorial = false;
+  });
   return data;
 }
 
 function guardar() { ls.set(SK, estado); }
 
 function saldoDe(medio) {
-  const gastado = estado.gastos.filter(g => g.medio===medio).reduce((s,g) => s+g.monto, 0);
-  return estado.iniciales[medio] - gastado;
+  const gastado  = estado.gastos.filter(g => g.medio===medio && !g.soloHistorial && (g.tipo||'gasto')==='gasto').reduce((s,g) => s+g.monto, 0);
+  const ingresado = estado.gastos.filter(g => g.medio===medio && (g.tipo||'gasto')==='ingreso').reduce((s,g) => s+g.monto, 0);
+  return estado.iniciales[medio] - gastado + ingresado;
 }
 
 function totales() {
@@ -739,6 +804,7 @@ function initApp() {
   mostrarVista(v);
   render();
   wireEvents();
+  verificarAvisoBackup();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -795,18 +861,21 @@ function ajustarSaldo(medio) {
 function renderHistorial() {
   const cont=$('historial'); cont.innerHTML='';
   const lista=[...estado.gastos].sort((a,b) => b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
-  if (!lista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste gastos.</div>'; $('total').textContent=''; return; }
-  $('total').textContent=`${lista.length} gasto${lista.length>1?'s':''} · ${fmt(lista.reduce((s,g)=>s+g.monto,0))}`;
+  if (!lista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste movimientos.</div>'; $('total').textContent=''; return; }
+  const totalGastos = lista.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
+  const totalIngresos = lista.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
+  $('total').textContent=`${lista.length} movimiento${lista.length>1?'s':''} · Gastos: ${fmt(totalGastos)} · Ingresos: ${fmt(totalIngresos)}`;
   for (const g of lista) {
+    const isIng = (g.tipo||'gasto')==='ingreso';
     const div=document.createElement('div');
     div.className='gasto'+(g.id===editandoId?' editando':'');
     div.innerHTML=`
       <div class="row">
         <div class="info">
-          <div class="desc">${esc(g.descripcion||g.categoria)}</div>
+          <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
           <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
         </div>
-        <div class="importe">−${fmt(g.monto)}</div>
+        <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmt(g.monto)}</div>
       </div>
       <div class="btns">
         <button type="button" class="mini" data-a="editar">Editar</button>
@@ -820,20 +889,26 @@ function renderHistorial() {
 
 function resetForm() {
   editandoId=null; $('form').reset(); $('fecha').value=hoy();
-  $('formTitulo').textContent='Cargar gasto';
-  $('btnGuardar').textContent='Guardar gasto';
+  $('formTitulo').textContent='Cargar movimiento';
+  $('btnGuardar').textContent='Guardar movimiento';
   $('btnCancelar').hidden=true;
+  $('soloHistorialLabel').hidden=true;
+  $('tipo').value='gasto';
   fillCatSelect('categoria');
 }
 
 function empezarEdicion(id) {
   const g=estado.gastos.find(x=>x.id===id); if(!g) return;
   editandoId=id;
+  const isIng=(g.tipo||'gasto')==='ingreso';
+  $('tipo').value=g.tipo||'gasto';
   $('monto').value=g.monto; $('fecha').value=g.fecha;
-  fillCatSelect('categoria', g.categoria);
+  fillCatSelect('categoria', g.categoria, isIng);
   $('medio').value=g.medio; $('descripcion').value=g.descripcion||'';
-  $('formTitulo').textContent='Editar gasto';
-  $('btnGuardar').textContent='Actualizar gasto';
+  $('soloHistorial').checked=!!g.soloHistorial;
+  $('soloHistorialLabel').hidden=false;
+  $('formTitulo').textContent='Editar movimiento';
+  $('btnGuardar').textContent='Actualizar movimiento';
   $('btnCancelar').hidden=false;
   renderHistorial();
   $('form').scrollIntoView({behavior:'smooth',block:'center'});
@@ -842,7 +917,7 @@ function empezarEdicion(id) {
 
 function borrar(id) {
   const g=estado.gastos.find(x=>x.id===id);
-  if(!g||!confirm(`¿Borrar el gasto de ${fmt(g.monto)} (${g.categoria})?`)) return;
+  if(!g||!confirm(`¿Borrar el movimiento de ${fmt(g.monto)} (${g.categoria})?`)) return;
   estado.gastos=estado.gastos.filter(x=>x.id!==id);
   if(editandoId===id) resetForm();
   guardar(); render();
@@ -850,8 +925,14 @@ function borrar(id) {
 
 // Autocompletado de categoría al escribir descripción
 $('descripcion').addEventListener('input', () => {
+  if (($('tipo')?.value||'gasto')==='ingreso') return;
   const cat = aplicarRegla($('descripcion').value);
   if (cat) fillCatSelect('categoria', cat);
+});
+
+$('tipo').addEventListener('change', () => {
+  const isIng = $('tipo').value === 'ingreso';
+  fillCatSelect('categoria', null, isIng);
 });
 
 $('form').addEventListener('submit', e => {
@@ -860,7 +941,9 @@ $('form').addEventListener('submit', e => {
   if(!(monto>0)) return alert('Ingresá un monto mayor a 0');
   let cat = $('categoria').value;
   if (cat === '__nueva__') return;
-  const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim() };
+  const tipo = $('tipo').value || 'gasto';
+  const soloHistorial = $('soloHistorialLabel').hidden ? false : $('soloHistorial').checked;
+  const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial };
   if(editandoId) { Object.assign(estado.gastos.find(x=>x.id===editandoId), datos); }
   else { estado.gastos.push({id:nuevoId(),creado:Date.now(),...datos}); }
   guardar(); resetForm(); render();
@@ -954,6 +1037,7 @@ function renderConfig(){
   fillCatSelect('reglaCat');
   const apiKey=ls.get(APIKEY_K)||'';
   $('cfgApiKey').value=apiKey?'••••••••••••':'';
+  actualizarInfoBackup();
 }
 
 $('btnNuevaCat').onclick=()=>{
@@ -1025,7 +1109,7 @@ $('btnVoz').onclick = () => {
 };
 
 async function parsearVoz(transcript, apiKey){
-  const prompt = `Analizá este texto y extraé: monto (número sin puntos ni comas, solo dígitos), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), y descripción breve. Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":""}`;
+  const prompt = `Analizá este texto y extraé: monto (número positivo, sin separadores), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve, y tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto"}`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -1047,19 +1131,21 @@ async function parsearVoz(transcript, apiKey){
     const match=text.match(/\{[\s\S]*\}/);
     if(!match) throw new Error('No JSON');
     const parsed=JSON.parse(match[0]);
-    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript);
+    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, parsed.tipo||'gasto');
   } catch(err){
     $('voiceStatus').textContent='Error al procesar: '+err.message;
   }
 }
 
-function mostrarConfirmVoz(monto, medio, desc){
-  const catAuto = aplicarRegla(desc) || getCats()[0];
+function mostrarConfirmVoz(monto, medio, desc, tipo='gasto'){
+  const isIng = tipo==='ingreso';
+  const catAuto = isIng ? getCatsIncome()[0] : (aplicarRegla(desc) || getCats()[0]);
   const cont = $('voiceConfirm');
   cont.hidden = false;
   cont.innerHTML = `
     <div class="voice-confirm">
-      <p style="font-weight:600;margin:0 0 10px">¿Confirmás este gasto?</p>
+      <p style="font-weight:600;margin:0 0 10px">¿Confirmás este movimiento?</p>
+      <div class="vc-row"><span>Tipo</span><strong class="${isIng?'pos':'neg'}">${isIng?'💰 Ingreso':'💸 Gasto'}</strong></div>
       <div class="vc-row"><span>Monto</span><strong class="num">$${Number(monto).toLocaleString('es-AR')}</strong></div>
       <div class="vc-row"><span>Medio</span><strong>${esc(medio)}</strong></div>
       <div class="vc-row"><span>Descripción</span><strong>${esc(desc)}</strong></div>
@@ -1071,14 +1157,14 @@ function mostrarConfirmVoz(monto, medio, desc){
         <button type="button" id="btnVozCancel">Cancelar</button>
       </div>
     </div>`;
-  fillCatSelect('vozCat', catAuto);
+  fillCatSelect('vozCat', catAuto, isIng);
   $('voiceStatus').textContent='';
   $('btnVozOk').onclick=()=>{
     const cat=$('vozCat').value;
     if(cat==='__nueva__') return;
-    estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:Math.round(Number(monto)*100)/100,fecha:hoy(),categoria:cat,medio,descripcion:desc});
+    estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:Math.round(Number(monto)*100)/100,fecha:hoy(),categoria:cat,medio,descripcion:desc,tipo,soloHistorial:false});
     guardar(); cont.hidden=true; render();
-    $('voiceStatus').textContent='✅ Gasto guardado.';
+    $('voiceStatus').textContent='✅ Movimiento guardado.';
     setTimeout(()=>$('voiceStatus').textContent='',3000);
   };
   $('btnVozCancel').onclick=()=>{ cont.hidden=true; $('voiceStatus').textContent=''; };
@@ -1088,9 +1174,10 @@ function mostrarConfirmVoz(monto, medio, desc){
 // CSV IMPORT / EXPORT
 // ═══════════════════════════════════════════════════════
 function exportarCSV(){
-  const rows=[['Fecha','Descripcion','Categoria','Monto','MedioDePago']];
+  const rows=[['Fecha','Descripcion','Categoria','Monto','MedioDePago','Tipo','SoloHistorial']];
   for(const g of estado.gastos){
-    rows.push([fechaCorta(g.fecha), `"${(g.descripcion||'').replace(/"/g,'""')}"`, g.categoria, g.monto, g.medio]);
+    rows.push([fechaCorta(g.fecha), `"${(g.descripcion||'').replace(/"/g,'""')}"`, g.categoria,
+      g.monto.toFixed(2), g.medio, g.tipo||'gasto', g.soloHistorial?'true':'false']);
   }
   const csv=rows.map(r=>r.join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
@@ -1099,17 +1186,49 @@ function exportarCSV(){
 }
 
 function parsearCSV(txt){
-  const lineas=txt.split(/\r?\n/).filter(l=>l.trim());
+  // Strip BOM
+  if(txt.charCodeAt(0)===0xFEFF) txt=txt.slice(1);
+  const lineas=txt.split(/\r?\n/);
+  // Autodetect separator from header
+  const header=lineas[0]||'';
+  const sep=(header.match(/;/g)||[]).length>(header.match(/,/g)||[]).length?';':',';
+
+  // RFC 4180 row parser
+  function parseRow(line){
+    const fields=[]; let i=0;
+    while(i<=line.length){
+      if(line[i]==='"'){
+        let val=''; i++;
+        while(i<line.length){
+          if(line[i]==='"'&&line[i+1]==='"'){val+='"';i+=2;}
+          else if(line[i]==='"'){i++;break;}
+          else val+=line[i++];
+        }
+        fields.push(val);
+        if(line[i]===sep)i++;
+      } else {
+        let start=i;
+        while(i<line.length&&line[i]!==sep)i++;
+        fields.push(line.slice(start,i));
+        if(line[i]===sep)i++;
+      }
+    }
+    return fields;
+  }
+
   const rows=[];
   for(const l of lineas.slice(1)){
-    const parts=l.split(',');
+    if(!l.trim()) continue;
+    const parts=parseRow(l);
     if(parts.length<5) continue;
-    let fecha=parts[0].trim(), desc=parts[1].trim().replace(/^"|"$/g,'').replace(/""/g,'"');
-    let cat=parts[2].trim(), montoRaw=parts[3].trim(), medio=parts.slice(4).join(',').trim();
-    const monto=parseFloat(montoRaw.replace(/\./g,'').replace(',','.'));
-    // fecha puede venir DD/MM/AAAA → AAAA-MM-DD
+    let fecha=parts[0].trim(), desc=parts[1].trim();
+    let cat=parts[2].trim(), montoRaw=parts[3].trim(), medio=parts[4].trim();
+    const tipo=parts[5]?.trim().toLowerCase()==='ingreso'?'ingreso':'gasto';
+    // old format (5 cols) defaults soloHistorial:true; new format reads col 6
+    const soloHistorial=parts.length>=7 ? parts[6].trim().toLowerCase()==='true' : true;
     if(fecha.includes('/')) { const[d,m,y]=fecha.split('/'); fecha=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
-    if(!isNaN(monto) && monto>0) rows.push({fecha,descripcion:desc,categoria:cat,monto,medio,soloHistorial:true,duplicado:false});
+    const monto=parseMonto(montoRaw);
+    if(!isNaN(monto)&&monto>0) rows.push({fecha,descripcion:desc,categoria:cat,monto,medio,tipo,soloHistorial,duplicado:false});
   }
   return rows;
 }
@@ -1117,7 +1236,7 @@ function parsearCSV(txt){
 function detectarDuplicados(rows){
   for(const r of rows){
     r.duplicado = estado.gastos.some(g =>
-      g.fecha===r.fecha && Math.abs(g.monto-r.monto)<0.01 && g.medio===r.medio
+      g.fecha===r.fecha && Math.abs(g.monto-r.monto)<0.01 && g.medio===r.medio && (g.tipo||'gasto')===(r.tipo||'gasto')
     );
   }
   return rows;
@@ -1130,10 +1249,10 @@ function mostrarPreviewImport(rows){
   cont.innerHTML=`
     <div class="import-preview">
       <h3>Vista previa: ${rows.length} filas · ${fmt(total)}</h3>
-      ${dups?`<p class="meta" style="color:var(--warn)">⚠️ ${dups} posibles duplicados (fondo amarillo). Marcalos como ignorar si ya los tenés cargados.</p>`:''}
+      ${dups?`<p class="meta" style="color:var(--warn)">⚠️ ${dups} posibles duplicados (fondo amarillo).</p>`:''}
       <div class="import-table-wrap">
         <table>
-          <thead><tr><th>Fecha</th><th>Descripción</th><th>Cat.</th><th>Monto</th><th>Medio</th><th>Modo</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Descripción</th><th>Cat.</th><th>Monto</th><th>Medio</th><th>Tipo</th><th>Modo</th></tr></thead>
           <tbody id="importTbody"></tbody>
         </table>
       </div>
@@ -1146,16 +1265,21 @@ function mostrarPreviewImport(rows){
   rows.forEach((r,i)=>{
     const tr=document.createElement('tr');
     if(r.duplicado) tr.className='dup';
+    const defaultMode = r.soloHistorial ? 'historial' : 'saldo';
     tr.innerHTML=`<td>${fechaCorta(r.fecha)}</td><td>${esc(r.descripcion.slice(0,30))}</td><td>${esc(r.categoria)}</td>
-      <td class="num">$${r.monto.toLocaleString('es-AR')}</td><td>${esc(r.medio)}</td>
+      <td class="num ${(r.tipo||'gasto')==='ingreso'?'pos':'neg'}">${(r.tipo||'gasto')==='ingreso'?'+':''}$${r.monto.toLocaleString('es-AR')}</td>
+      <td>${esc(r.medio)}</td><td>${(r.tipo||'gasto')==='ingreso'?'Ingreso':'Gasto'}</td>
       <td><select class="mode-sel" data-i="${i}">
-        <option value="historial" selected>Solo historial</option>
-        <option value="saldo">Afecta saldo</option>
+        <option value="historial"${defaultMode==='historial'?' selected':''}>Solo historial</option>
+        <option value="saldo"${defaultMode==='saldo'?' selected':''}>Afecta saldo</option>
         ${r.duplicado?'<option value="ignorar">Ignorar (duplicado)</option>':''}
       </select></td>`;
     tbody.appendChild(tr);
   });
-  tbody.querySelectorAll('.mode-sel').forEach(s => s.onchange=()=>{ rows[+s.dataset.i].soloHistorial = s.value==='historial'; rows[+s.dataset.i]._ignorar = s.value==='ignorar'; });
+  tbody.querySelectorAll('.mode-sel').forEach(s => s.onchange=()=>{
+    rows[+s.dataset.i].soloHistorial = s.value==='historial';
+    rows[+s.dataset.i]._ignorar = s.value==='ignorar';
+  });
   $('btnImportOk').onclick=()=>{ confirmarImport(rows); cont.hidden=true; };
   $('btnImportCancel').onclick=()=>{ cont.hidden=true; };
 }
@@ -1164,15 +1288,92 @@ function confirmarImport(rows){
   let importados=0;
   for(const r of rows){
     if(r._ignorar) continue;
-    const g={id:nuevoId(),creado:Date.now(),monto:r.monto,fecha:r.fecha,categoria:r.categoria||'Otros/Varios',medio:r.medio,descripcion:r.descripcion};
+    const g={id:nuevoId(),creado:Date.now(),monto:r.monto,fecha:r.fecha,
+      categoria:r.categoria||'Otros/Varios',medio:r.medio,descripcion:r.descripcion,
+      tipo:r.tipo||'gasto',soloHistorial:!!r.soloHistorial};
     estado.gastos.push(g);
-    if(!r.soloHistorial){
-      // Descuenta del saldo del medio (ya está implícito en saldoDe — nada que hacer, el gasto ya está en el array)
-    }
     importados++;
   }
   guardar(); render();
-  alert(`${importados} gastos importados correctamente.`);
+  alert(`${importados} movimientos importados correctamente.`);
+}
+
+// ═══════════════════════════════════════════════════════
+// BACKUP / RESTORE
+// ═══════════════════════════════════════════════════════
+function exportarBackup(){
+  const backup={
+    version:1, fecha:hoy(),
+    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado},
+    snaps:cargarSnaps(),
+    cats:ls.get(CATS_KEY)||[],
+    catsIncome:ls.get(CATS_INC_K)||[],
+    reglas:getReglas(),
+  };
+  const json=JSON.stringify(backup,null,2);
+  const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+  const fname=`finanzas-backup-${hoy()}.json`;
+  if(navigator.share&&navigator.canShare){
+    const file=new File([blob],fname,{type:'application/json'});
+    if(navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'Backup Finanzas'}).catch(()=>descargarBlob(blob,fname));
+      ls.set(BACKUP_DK,hoy()); actualizarInfoBackup(); return;
+    }
+  }
+  descargarBlob(blob,fname);
+  ls.set(BACKUP_DK,hoy()); actualizarInfoBackup();
+}
+
+function descargarBlob(blob,fname){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=fname; a.click();
+}
+
+function restaurarBackup(file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    let data;
+    try{ data=JSON.parse(ev.target.result); } catch{ alert('Archivo inválido.'); return; }
+    if(!data?.version||!data?.estado?.gastos){ alert('Estructura de backup inválida.'); return; }
+    const gastos=data.estado.gastos.length;
+    const fecha=data.fecha||'desconocida';
+    if(!confirm(`Backup del ${fecha} con ${gastos} movimientos.\n¿Restaurar? Se reemplazarán los datos actuales.`)) return;
+    const prevEstado=JSON.stringify(estado);
+    try{
+      ls.set(SK,data.estado);
+      if(data.snaps) ls.set(SNAP_KEY,data.snaps);
+      if(data.cats) ls.set(CATS_KEY,data.cats);
+      if(data.catsIncome) ls.set(CATS_INC_K,data.catsIncome);
+      if(data.reglas) ls.set(RULES_KEY,data.reglas);
+      estado=cargar(); guardar(); render();
+      if(document.getElementById('vista-evolucion')&&!document.getElementById('vista-evolucion').hidden) iniciarEvolucion();
+      fillCatSelect('categoria'); fillCatSelect('reglaCat');
+      renderConfig();
+      alert('Backup restaurado correctamente.');
+    } catch(err){
+      try{ ls.set(SK,JSON.parse(prevEstado)); } catch{}
+      alert('Error al restaurar: '+err.message);
+    }
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+function actualizarInfoBackup(){
+  const el=$('lastBackupInfo'); if(!el) return;
+  const d=ls.get(BACKUP_DK);
+  el.textContent = d ? `Último backup: ${d}` : 'Sin backups exportados en este dispositivo.';
+}
+
+function verificarAvisoBackup(){
+  const d=ls.get(BACKUP_DK);
+  if(!d) return; // sin backups previos: no molestar la primera vez
+  const hace=Math.floor((Date.now()-new Date(d).getTime())/864e5);
+  if(hace>7){
+    const warn=document.createElement('div');
+    warn.className='backup-warn';
+    warn.innerHTML=`⚠️ El último backup fue hace ${hace} días. <button type="button" class="mini" onclick="mostrarVista('config');this.closest('.backup-warn').remove()">Ir a ⚙️</button>`;
+    document.querySelector('main').prepend(warn);
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1249,7 +1450,7 @@ function rChartB(){
 
 function rChartG(){
   const byMes={};
-  for(const g of estado.gastos){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
+  for(const g of estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto')){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
   const entries=Object.entries(byMes).sort(([a],[b])=>a.localeCompare(b)).slice(-6);
   if(!entries.length){if(_ci['cG']){_ci['cG'].destroy();delete _ci['cG'];}return;}
   const allCats=[...new Set(entries.flatMap(([,c])=>Object.keys(c)))];
@@ -1325,6 +1526,17 @@ function wireEvents(){
     };
     reader.readAsText(file,'UTF-8');
     $('csvFile').value='';
+  };
+  $('btnExportBackup').onclick=exportarBackup;
+  $('btnImportBackup').onclick=()=>$('backupFile').click();
+  $('backupFile').onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    restaurarBackup(file); $('backupFile').value='';
+  };
+  $('btnNuevaCatIngreso').onclick=()=>{
+    const nombre=prompt('Nombre de la nueva categoría de ingreso:')?.trim();
+    if(!nombre) return;
+    addCatIncome(nombre); renderCfgCats(); fillCatSelect('categoria', null, true);
   };
 }
 
