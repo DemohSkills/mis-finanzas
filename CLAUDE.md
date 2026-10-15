@@ -25,6 +25,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - No tocar la API key ni el PIN salvo que se pida explícitamente
 - No romper datos existentes en localStorage — siempre migrar con valores por defecto
 - Al terminar un cambio: `git add -A && git commit -m "..."` y `git push origin main`
+- Al cerrar cada tarea: añadir una línea fechada en `HISTORIAL.md` bajo "Cronología" con qué se cambió y por qué. Sin datos personales (el repo es público). Incluir `HISTORIAL.md` en el mismo commit.
 
 ## Ahorro de contexto (leer antes de tocar código)
 - `index.html` pesa ~84 KB (~1550 líneas). NO lo leas completo: cada lectura completa consume decenas de miles de tokens.
