@@ -273,6 +273,53 @@ button.mini.danger{color:var(--danger);}
   </div>
 </div>
 
+<!-- ══════════════════ COMPROMISO MODAL ══════════════════ -->
+<div class="overlay" id="compModal" hidden>
+  <div class="wiz-box" style="max-width:360px;">
+    <h2 id="compModalTit" style="margin:0 0 14px;font-size:1rem;"></h2>
+    <form id="compForm" autocomplete="off">
+      <div id="compNombreWrap" class="wiz-field">
+        <label>Nombre / número de crédito</label>
+        <input type="text" id="compNombre" maxlength="80" placeholder="Ej: Visa 4321">
+      </div>
+      <div id="compEntidadWrap" class="wiz-field">
+        <label>Entidad</label>
+        <input type="text" id="compEntidad" maxlength="80" placeholder="Ej: Santander">
+      </div>
+      <div id="compTipoWrap" class="wiz-field">
+        <label>Tipo</label>
+        <select id="compTipo">
+          <option value="cuota">Cuota</option>
+          <option value="resumen">Resumen</option>
+        </select>
+      </div>
+      <div class="wiz-field">
+        <label>Monto de la cuota</label>
+        <input type="text" inputmode="decimal" id="compMonto" placeholder="0">
+      </div>
+      <div class="wiz-field">
+        <label>Cuotas pendientes</label>
+        <input type="number" id="compPendientes" min="0" step="1" placeholder="1">
+      </div>
+      <div class="wiz-field">
+        <label>Próx. vencimiento</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="date" id="compFecha" style="flex:1;">
+          <button type="button" class="mini" onclick="document.getElementById('compFecha').value=''">Sin fecha</button>
+        </div>
+      </div>
+      <div id="compMinWrap" class="wiz-field" hidden>
+        <label>Pago mínimo</label>
+        <input type="text" inputmode="decimal" id="compMin" placeholder="0">
+      </div>
+      <div class="wiz-actions" style="margin-top:16px;">
+        <button type="submit" class="primary">Guardar</button>
+        <button type="button" onclick="cerrarCompModal()">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ══════════════════ MAIN APP ══════════════════ -->
 <main id="app" hidden>
   <div class="app-hdr">
@@ -790,28 +837,82 @@ function renderCompromisos(){
     </div>`).join('');
 }
 
-function editarCompromiso(id){
-  const c=estado.compromisos.find(x=>x.id===id);
-  if(!c) return;
-  const montoN=prompt('Monto de la cuota:',c.monto);
-  if(montoN===null) return;
-  const m=parseMonto(montoN);
-  if(isNaN(m)||m<=0){alert('Monto inválido.');return;}
-  const pendN=prompt('Cuotas pendientes:',c.pendientes);
-  if(pendN===null) return;
-  const pend=parseInt(pendN);
-  if(isNaN(pend)||pend<0){alert('Número inválido.');return;}
-  const fechaN=prompt('Próx. vencimiento (YYYY-MM-DD) o vacío para sin fecha:',c.proxVenc||'');
-  if(fechaN===null) return;
-  const fecha=fechaN.trim()||null;
-  if(fecha&&!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){alert('Formato de fecha inválido.');return;}
-  c.monto=m; c.pendientes=pend; c.proxVenc=fecha;
-  if(c.tipo==='resumen'){
-    const minN=prompt('Pago mínimo:',c.pagoMinimo||'');
-    if(minN!==null){const mn=parseMonto(minN);if(!isNaN(mn)&&mn>0)c.pagoMinimo=mn;}
+let _compModalId=null;
+
+function abrirCompModal(id){
+  _compModalId=id;
+  const c=id?estado.compromisos.find(x=>x.id===id):null;
+  const esNuevo=!c;
+  $('compModalTit').textContent=esNuevo?'Agregar compromiso':'Editar compromiso';
+  if(esNuevo){
+    $('compNombreWrap').removeAttribute('hidden');
+    $('compEntidadWrap').removeAttribute('hidden');
+    $('compTipoWrap').removeAttribute('hidden');
+    $('compNombre').value='';
+    $('compEntidad').value='';
+    $('compTipo').value='cuota';
+    $('compMonto').value='';
+    $('compPendientes').value='1';
+    $('compFecha').value='';
+    $('compMin').value='';
+    $('compMinWrap').setAttribute('hidden','');
+  } else {
+    $('compNombreWrap').setAttribute('hidden','');
+    $('compEntidadWrap').setAttribute('hidden','');
+    $('compTipoWrap').setAttribute('hidden','');
+    $('compMonto').value=c.monto;
+    $('compPendientes').value=c.pendientes;
+    $('compFecha').value=c.proxVenc||'';
+    $('compMin').value=c.pagoMinimo||'';
+    if(c.tipo==='resumen') $('compMinWrap').removeAttribute('hidden');
+    else $('compMinWrap').setAttribute('hidden','');
   }
+  $('compTipo').onchange=()=>{
+    if($('compTipo').value==='resumen') $('compMinWrap').removeAttribute('hidden');
+    else $('compMinWrap').setAttribute('hidden','');
+  };
+  $('compModal').removeAttribute('hidden');
+  ($('compNombreWrap').hidden?$('compMonto'):$('compNombre')).focus();
+}
+
+function cerrarCompModal(){
+  $('compModal').setAttribute('hidden','');
+  _compModalId=null;
+}
+
+$('compForm').onsubmit=function(e){
+  e.preventDefault();
+  const esNuevo=!_compModalId;
+  const m=parseMonto($('compMonto').value);
+  if(isNaN(m)||m<=0){alert('Monto inválido.');return;}
+  const pend=parseInt($('compPendientes').value);
+  if(isNaN(pend)||pend<0){alert('Número de cuotas inválido.');return;}
+  const fecha=$('compFecha').value.trim()||null;
+  if(fecha&&!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){alert('Formato de fecha inválido.');return;}
+  const minV=$('compMin').value.trim();
+  const mn=minV?parseMonto(minV):NaN;
+  if(esNuevo){
+    const nombre=$('compNombre').value.trim();
+    if(!nombre){alert('Ingresá un nombre.');return;}
+    const entidad=$('compEntidad').value.trim();
+    if(!entidad){alert('Ingresá la entidad.');return;}
+    const tipo=$('compTipo').value;
+    const c={id:nuevoId(),nombre,entidad,monto:m,pendientes:pend,proxVenc:fecha,tipo,estimado:false};
+    if(tipo==='resumen'&&!isNaN(mn)&&mn>0) c.pagoMinimo=mn;
+    estado.compromisos.push(c);
+  } else {
+    const c=estado.compromisos.find(x=>x.id===_compModalId);
+    if(!c) return;
+    c.monto=m; c.pendientes=pend; c.proxVenc=fecha;
+    if(c.tipo==='resumen'&&!isNaN(mn)&&mn>0) c.pagoMinimo=mn;
+  }
+  cerrarCompModal();
   guardar(); renderCompromisos();
   if(_evolReady) rChartIC();
+};
+
+function editarCompromiso(id){
+  abrirCompModal(id);
 }
 
 function pagarCompromiso(id){
@@ -846,28 +947,7 @@ function borrarCompromiso(id){
 }
 
 function agregarCompromiso(){
-  const nombre=prompt('Nombre / número de crédito:')?.trim();
-  if(!nombre) return;
-  const entidad=prompt('Entidad (ej: Santander, Mercado Pago…):')?.trim();
-  if(!entidad) return;
-  const montoN=prompt('Monto de la cuota:');
-  if(!montoN) return;
-  const monto=parseMonto(montoN);
-  if(isNaN(monto)||monto<=0){alert('Monto inválido.');return;}
-  const pendN=prompt('Cuotas pendientes:','1');
-  const pendientes=parseInt(pendN||'1');
-  const fechaN=prompt('Próx. vencimiento (YYYY-MM-DD) o vacío para sin fecha:')?.trim()||null;
-  if(fechaN&&!/^\d{4}-\d{2}-\d{2}$/.test(fechaN)){alert('Formato de fecha inválido.');return;}
-  const tipoT=prompt("Tipo: 'cuota' o 'resumen' (Enter = cuota):")?.trim()||'cuota';
-  const tipo=tipoT==='resumen'?'resumen':'cuota';
-  const c={id:nuevoId(),nombre,entidad,monto,pendientes,proxVenc:fechaN,tipo,estimado:false};
-  if(tipo==='resumen'){
-    const minN=prompt('Pago mínimo:');
-    if(minN){const mn=parseMonto(minN);if(!isNaN(mn)&&mn>0)c.pagoMinimo=mn;}
-  }
-  estado.compromisos.push(c);
-  guardar(); renderCompromisos();
-  if(_evolReady) rChartIC();
+  abrirCompModal(null);
 }
 // ── FIN COMPROMISOS ──────────────────────────────────────
 

@@ -22,6 +22,7 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - "Solo historial" no tenía efecto en el saldo; luego los ingresos "solo historial" seguían sumando → `saldoDe` los ignora.
   - Se verificó una conciliación de resumen de tarjeta contra el PDF (87 movimientos).
 - 15/10: compromisos mensuales reales — modelo `estado.compromisos[]` con cuotas y fechas de vencimiento, siembra inicial con datos reales, helpers de proyección por mes, sección de edición en Config, y gráfico "Ingresos vs compromisos del mes" con proyección a 6 meses por entidad. Reemplaza el antiguo rChartIC basado en items.
+- 15/10: reemplazados los `prompt()` de `editarCompromiso` y `agregarCompromiso` por un formulario modal único (`#compModal`), reutilizando el patrón `.overlay` + `.wiz-box` ya existente. El modal muestra nombre/entidad/tipo solo al agregar; pago mínimo aparece solo si el tipo es "resumen"; botón "Sin fecha" limpia el campo de vencimiento. Lógica de validación y guardado idéntica a la anterior.
 
 ## Lecciones
 - Un solo pedido grande con muchas funciones gasta mucho contexto y esconde errores. Mejor una tarea por conversación (`/clear` entre tareas).
