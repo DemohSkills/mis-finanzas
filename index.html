@@ -56,6 +56,16 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .saldo .nombre{font-size:.82rem;color:var(--muted);}
 .saldo .monto{font-size:1.2rem;font-weight:600;font-variant-numeric:tabular-nums;}
 .saldo button{margin-top:6px;font-size:.78rem;padding:2px 8px;}
+#saldos{display:block;}
+.saldos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:10px;}
+.saldo-grupo-titulo{font-size:.78rem;margin:12px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+.saldo-activo{border-left:4px solid var(--ok);}
+.saldo-activo .monto{color:var(--ok);}
+.saldo-deuda{border-left:4px solid var(--danger);}
+.saldo-deuda .monto{color:var(--danger);}
+.saldo-etiqueta{font-size:.7rem;color:var(--muted);margin-bottom:1px;}
+details.saldo-grupo-otros>summary{cursor:pointer;list-style:none;user-select:none;}
+details.saldo-grupo-otros>summary::-webkit-details-marker{display:none;}
 /* Forms */
 form{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);}
@@ -596,7 +606,7 @@ button.mini.danger{color:var(--danger);}
 // ═══════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════
-const MEDIOS  = ['Banco Santander','Mercado Pago','Astropay','Visa Santander','Mastercard MP','Efectivo'];
+const MEDIOS  = ['Banco Santander','Mercado Pago','Astropay','Visa Santander','Mastercard MP','Efectivo','American Express'];
 const GRUPOS  = ['Cobros pendientes','Préstamos con personas','Créditos bancarios','Impuestos','Servicios y gastos fijos','Otros'];
 const CATS_DEFAULT = [
   'Transporte/Auto','Comida y Delivery','Propinas y Extras','Proyectos Web',
@@ -1111,7 +1121,7 @@ function mostrarWizard() {
   const cont = $('wizSaldos');
   cont.innerHTML = MEDIOS.map(m => `
     <div class="wiz-field">
-      <label>${esc(m)} ${['Visa Santander','Mastercard MP'].includes(m)?'<small>(negativo si es deuda)</small>':''}</label>
+      <label>${esc(m)} ${['Visa Santander','Mastercard MP','American Express'].includes(m)?'<small>(negativo si es deuda)</small>':''}</label>
       <input type="number" step="0.01" inputmode="decimal" placeholder="0" data-medio="${esc(m)}" value="0">
     </div>`).join('');
   // Build item form grupo select
@@ -1218,14 +1228,51 @@ function renderResumen() {
 }
 
 function renderSaldos() {
-  $('saldos').innerHTML = '';
-  for (const m of MEDIOS) {
+  const cont = $('saldos');
+  cont.innerHTML = '';
+
+  const GRUPOS_SALDO = [
+    { label: 'ACTIVOS', medios: ['Efectivo','Mercado Pago','Banco Santander'], tipo: 'activo' },
+    { label: 'DEUDAS',  medios: ['Visa Santander','Mastercard MP'],             tipo: 'deuda'  },
+    { label: 'OTROS',   medios: ['Astropay','American Express'],                tipo: 'otro'   },
+  ];
+
+  function crearCaja(m, tipo) {
     const s = saldoDe(m);
     const div = document.createElement('div');
-    div.className='saldo';
-    div.innerHTML=`<div class="nombre">${esc(m)}</div><div class="monto${s<0?' neg':''}">${fmt(s)}</div><button type="button">Ajustar saldo</button>`;
+    div.className = 'saldo' + (tipo==='activo' ? ' saldo-activo' : tipo==='deuda' ? ' saldo-deuda' : '');
+    const montoMostrado = tipo==='deuda' ? Math.abs(s) : s;
+    const colorCls = tipo==='activo' ? ' pos' : tipo==='deuda' ? ' neg' : (s<0?' neg':'');
+    const etiqueta = tipo==='deuda' ? `<div class="saldo-etiqueta">Deuda total</div>` : '';
+    div.innerHTML = `<div class="nombre">${esc(m)}</div>${etiqueta}<div class="monto${colorCls}">${fmt(montoMostrado)}</div><button type="button">Ajustar saldo</button>`;
     div.querySelector('button').onclick = () => ajustarSaldo(m);
-    $('saldos').appendChild(div);
+    return div;
+  }
+
+  for (const { label, medios, tipo } of GRUPOS_SALDO) {
+    if (tipo === 'otro') {
+      const tieneBalance = medios.some(m => saldoDe(m) !== 0);
+      const details = document.createElement('details');
+      details.className = 'saldo-grupo-otros';
+      const summary = document.createElement('summary');
+      summary.className = 'saldo-grupo-titulo';
+      summary.textContent = tieneBalance ? label + ' •' : label;
+      details.appendChild(summary);
+      const grid = document.createElement('div');
+      grid.className = 'saldos-grid';
+      for (const m of medios) grid.appendChild(crearCaja(m, tipo));
+      details.appendChild(grid);
+      cont.appendChild(details);
+    } else {
+      const h = document.createElement('div');
+      h.className = 'saldo-grupo-titulo';
+      h.textContent = label;
+      cont.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'saldos-grid';
+      for (const m of medios) grid.appendChild(crearCaja(m, tipo));
+      cont.appendChild(grid);
+    }
   }
 }
 
