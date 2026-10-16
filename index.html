@@ -39,6 +39,10 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .tabs{display:flex;gap:4px;margin-bottom:16px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5;flex-wrap:wrap;}
 .tabs button{flex:1;min-width:55px;font-size:.82rem;display:flex;align-items:center;justify-content:center;text-align:center;}
 .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+/* Segunda fila de navegación */
+.tabs-sec{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;}
+.tabs-sec button{font-size:.75rem;padding:4px 12px;flex:0 0 calc(25% - 3px);min-width:0;text-align:center;}
+.tabs-sec button[aria-selected=true]{background:var(--muted);border-color:var(--muted);color:var(--bg);font-weight:600;}
 .vista[hidden]{display:none;}
 /* KPI */
 .resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
@@ -345,6 +349,9 @@ button.mini.danger{color:var(--danger);}
     <button type="button" role="tab" data-vista="evolucion">Evolución</button>
     <button type="button" role="tab" data-vista="config">⚙️</button>
   </nav>
+  <nav class="tabs-sec" role="tablist" aria-label="Funciones">
+    <button type="button" role="tab" data-vista="compromisos">💳 Compromisos</button>
+  </nav>
 
   <!-- ── GASTOS ── -->
   <div class="vista" id="vista-gastos">
@@ -537,13 +544,6 @@ button.mini.danger{color:var(--danger);}
     </div>
 
     <div class="cfg-section">
-      <h2>💳 Compromisos</h2>
-      <p class="meta">Cuotas e importes mensuales fijos.</p>
-      <div id="compromisosList"></div>
-      <button type="button" class="mini" id="btnNuevoCompromiso" style="margin-top:10px">+ Agregar</button>
-    </div>
-
-    <div class="cfg-section">
       <h2>🎙 API key de Claude (para voz)</h2>
       <p class="meta">Se guarda solo en este dispositivo (localStorage). No la compartas. Usá una clave con límites de uso.</p>
       <div style="display:flex;gap:8px;margin-top:8px;">
@@ -551,6 +551,16 @@ button.mini.danger{color:var(--danger);}
         <button type="button" id="btnGuardarApiKey" class="primary" style="flex:0 0 auto;">Guardar</button>
       </div>
     </div>
+  </div>
+
+  <!-- ── COMPROMISOS ── -->
+  <div class="vista" id="vista-compromisos" hidden>
+    <section>
+      <h2>💳 Compromisos</h2>
+      <p class="meta">Cuotas e importes mensuales fijos.</p>
+      <div id="compromisosList"></div>
+      <button type="button" class="mini" id="btnNuevoCompromiso" style="margin-top:10px">+ Agregar</button>
+    </section>
   </div>
 </main>
 
@@ -1051,13 +1061,14 @@ function initApp() {
 // PESTAÑAS
 // ═══════════════════════════════════════════════════════
 function mostrarVista(v) {
-  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista===v));
+  document.querySelectorAll('.tabs button, .tabs-sec button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista===v));
   document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-'+v);
   try { localStorage.setItem(SK+'-vista', v); } catch{}
   if (v==='evolucion') iniciarEvolucion();
   if (v==='config') renderConfig();
+  if (v==='compromisos') renderCompromisos();
 }
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
+document.querySelectorAll('.tabs button, .tabs-sec button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
 
 // ═══════════════════════════════════════════════════════
 // RENDER PRINCIPAL
@@ -1274,7 +1285,6 @@ function renderVinculos(){
 function renderConfig(){
   renderCfgCats();
   renderReglasLista();
-  renderCompromisos();
   fillCatSelect('reglaCat');
   const apiKey=ls.get(APIKEY_K)||'';
   $('cfgApiKey').value=apiKey?'••••••••••••':'';
