@@ -324,6 +324,33 @@ button.mini.danger{color:var(--danger);}
   </div>
 </div>
 
+<!-- ── MODAL PAGO DE CUOTA ── -->
+<div class="overlay" id="pagoModal" hidden>
+  <div class="wiz-box" style="max-width:360px;">
+    <h2 id="pagoModalTit" style="margin:0 0 14px;font-size:1rem;"></h2>
+    <div class="wiz-field">
+      <label>Cuenta con la que se pagó</label>
+      <select id="pagoMedio"></select>
+    </div>
+    <div class="wiz-field">
+      <label>Importe realmente pagado</label>
+      <input type="text" inputmode="decimal" id="pagoImporte" placeholder="0">
+    </div>
+    <div class="wiz-field">
+      <label>Fecha</label>
+      <input type="date" id="pagoFecha">
+    </div>
+    <label style="display:flex;flex-direction:row;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:16px;font-size:.85rem;color:var(--text);">
+      <input type="checkbox" id="pagoEstim" style="width:auto;margin:0;flex-shrink:0;margin-top:2px;">
+      Usar este importe como cuota estimada de los próximos meses
+    </label>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnConfirmarPago">Confirmar pago</button>
+      <button type="button" onclick="cerrarPagoModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ MAIN APP ══════════════════ -->
 <main id="app" hidden>
   <div class="app-hdr">
@@ -783,6 +810,9 @@ function cargar() {
     if (g.soloHistorial === undefined) g.soloHistorial = false;
   });
   data.compromisos ||= [];
+  // Migración: vincular compromisos existentes a ítems de patrimonio (idempotente)
+  const _MAPA_VCL={'035100726062':'Crédito Santander 1','035100786211':'Crédito Santander 2','035100815669':'Crédito Santander 3','Edesur 28/sep':'Créditos MP 1','Edesur 29/ago':'Créditos MP 2','Préstamo personal 03/ago':'Créditos MP 3','Edesur 31/jul':'Créditos MP 4'};
+  data.compromisos.forEach(c=>{if(!c.itemNombre&&_MAPA_VCL[c.nombre])c.itemNombre=_MAPA_VCL[c.nombre];});
   return data;
 }
 
@@ -809,13 +839,13 @@ function disponibleHoy(){return MEDIOS_NO_TARJETA.reduce((s,m)=>{const sd=saldoD
 function sembrarCompromisos(){
   if(estado.compromisos.length>0) return;
   estado.compromisos=[
-    {id:nuevoId(),nombre:'035100726062',entidad:'Santander',monto:166523.52,pendientes:3,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'035100786211',entidad:'Santander',monto:86125.21,pendientes:8,proxVenc:mkFecha(2026,10,20),tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'035100815669',entidad:'Santander',monto:326746.32,pendientes:10,proxVenc:mkFecha(2026,11,10),tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'Edesur 31/jul',entidad:'Mercado Pago',monto:175752.93,pendientes:1,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'Edesur 28/sep',entidad:'Mercado Pago',monto:135235.32,pendientes:3,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'Edesur 29/ago',entidad:'Mercado Pago',monto:74923.09,pendientes:5,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'Préstamo personal 03/ago',entidad:'Mercado Pago',monto:40020.48,pendientes:4,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false},
+    {id:nuevoId(),nombre:'035100726062',entidad:'Santander',monto:166523.52,pendientes:3,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Crédito Santander 1'},
+    {id:nuevoId(),nombre:'035100786211',entidad:'Santander',monto:86125.21,pendientes:8,proxVenc:mkFecha(2026,10,20),tipo:'cuota',estimado:false,itemNombre:'Crédito Santander 2'},
+    {id:nuevoId(),nombre:'035100815669',entidad:'Santander',monto:326746.32,pendientes:10,proxVenc:mkFecha(2026,11,10),tipo:'cuota',estimado:false,itemNombre:'Crédito Santander 3'},
+    {id:nuevoId(),nombre:'Edesur 31/jul',entidad:'Mercado Pago',monto:175752.93,pendientes:1,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 4'},
+    {id:nuevoId(),nombre:'Edesur 28/sep',entidad:'Mercado Pago',monto:135235.32,pendientes:3,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 1'},
+    {id:nuevoId(),nombre:'Edesur 29/ago',entidad:'Mercado Pago',monto:74923.09,pendientes:5,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 2'},
+    {id:nuevoId(),nombre:'Préstamo personal 03/ago',entidad:'Mercado Pago',monto:40020.48,pendientes:4,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 3'},
     {id:nuevoId(),nombre:'Movilidad DLO',entidad:'Mastercard MP',monto:142223.46,pendientes:16,proxVenc:null,tipo:'cuota',estimado:false},
     {id:nuevoId(),nombre:'Resumen actual',entidad:'Visa Santander',monto:4636839.24,pendientes:1,proxVenc:null,tipo:'resumen',estimado:false,pagoMinimo:810850},
     {id:nuevoId(),nombre:'Préstamo Boris',entidad:'Boris',monto:725000,pendientes:6,proxVenc:mkFecha(2027,1,31),tipo:'cuota',estimado:true},
@@ -842,6 +872,7 @@ function renderCompromisos(){
       <div class="comp-btns">
         <button type="button" class="mini" onclick="editarCompromiso('${esc(c.id)}')">Editar</button>
         <button type="button" class="mini" onclick="pagarCompromiso('${esc(c.id)}')">✓ Pagada</button>
+        ${c.ultimoPago?`<button type="button" class="mini" onclick="deshacerPago('${esc(c.id)}')">↩ Deshacer</button>`:''}
         <button type="button" class="mini danger" onclick="borrarCompromiso('${esc(c.id)}')">×</button>
       </div>
     </div>`).join('');
@@ -935,6 +966,10 @@ function pagarCompromiso(id){
     if(!isNaN(m)&&m>0) c.monto=m;
     const fechaN=prompt('Nueva fecha de vencimiento (YYYY-MM-DD) o vacío:',c.proxVenc||'');
     if(fechaN!==null) c.proxVenc=fechaN.trim()||null;
+    guardar(); renderCompromisos();
+    if(_evolReady) rChartIC();
+  } else if(c.itemNombre){
+    abrirPagoModal(id);
   } else {
     c.pendientes=Math.max(0,c.pendientes-1);
     if(c.proxVenc) c.proxVenc=addMeses(c.proxVenc,1);
@@ -944,9 +979,9 @@ function pagarCompromiso(id){
       if(_evolReady) rChartIC();
       return;
     }
+    guardar(); renderCompromisos();
+    if(_evolReady) rChartIC();
   }
-  guardar(); renderCompromisos();
-  if(_evolReady) rChartIC();
 }
 
 function borrarCompromiso(id){
@@ -958,6 +993,93 @@ function borrarCompromiso(id){
 
 function agregarCompromiso(){
   abrirCompModal(null);
+}
+
+// ── PAGO VINCULADO ───────────────────────────────────────
+let _pagoModalId=null,_pagoModalCuotaNominal=0;
+
+function sugerirMedio(entidad){
+  if(entidad==='Santander') return 'Banco Santander';
+  if(entidad==='Mercado Pago') return 'Mercado Pago';
+  return MEDIOS[0];
+}
+
+function abrirPagoModal(id){
+  const c=estado.compromisos.find(x=>x.id===id);
+  if(!c) return;
+  _pagoModalId=id;
+  _pagoModalCuotaNominal=c.monto;
+  $('pagoModalTit').textContent='Pagar cuota: '+c.nombre;
+  const sugerido=sugerirMedio(c.entidad);
+  $('pagoMedio').innerHTML=MEDIOS.map(m=>`<option${m===sugerido?' selected':''}>${esc(m)}</option>`).join('');
+  $('pagoImporte').value=c.monto;
+  $('pagoFecha').value=hoy();
+  $('pagoEstim').checked=false;
+  $('pagoImporte').oninput=()=>{
+    const v=parseMonto($('pagoImporte').value);
+    $('pagoEstim').checked=!isNaN(v)&&Math.abs(v-_pagoModalCuotaNominal)>0.005;
+  };
+  $('pagoModal').removeAttribute('hidden');
+  $('pagoImporte').focus();
+}
+
+function cerrarPagoModal(){
+  $('pagoModal').setAttribute('hidden','');
+  _pagoModalId=null;
+}
+
+$('btnConfirmarPago').onclick=function(){
+  const c=estado.compromisos.find(x=>x.id===_pagoModalId);
+  if(!c) return;
+  const medio=$('pagoMedio').value;
+  const importePagado=parseMonto($('pagoImporte').value);
+  if(isNaN(importePagado)||importePagado<=0){alert('Importe inválido.');return;}
+  const fecha=$('pagoFecha').value||hoy();
+  const usarEstim=$('pagoEstim').checked;
+  const cuotaNominal=_pagoModalCuotaNominal;
+
+  // Crear gasto
+  const gasto={id:nuevoId(),creado:Date.now(),monto:importePagado,fecha,categoria:'Pago de créditos',medio,descripcion:'Cuota '+c.nombre,tipo:'gasto',soloHistorial:false};
+  estado.gastos.push(gasto);
+
+  // Bajar item.monto por la cuota nominal
+  const it=estado.items.find(x=>x.nombre===c.itemNombre);
+  const itemMontoAnterior=it?it.monto:0;
+  if(it) it.monto=Math.max(0,it.monto-cuotaNominal);
+
+  // Guardar estado anterior para deshacer
+  const undo={gastoId:gasto.id,cuotaMontoAnterior:cuotaNominal,itemMontoAnterior,pendientesAnterior:c.pendientes,proxVencAnterior:c.proxVenc};
+
+  // Actualizar compromiso
+  c.pendientes=Math.max(0,c.pendientes-1);
+  if(c.proxVenc) c.proxVenc=addMeses(c.proxVenc,1);
+  if(usarEstim) c.monto=importePagado;
+
+  if(c.pendientes===0){
+    if(it) it.monto=0;
+    estado.compromisos=estado.compromisos.filter(x=>x.id!==c.id);
+  } else {
+    c.ultimoPago=undo;
+  }
+
+  cerrarPagoModal();
+  guardar(); render(); renderCompromisos();
+  if(_evolReady){rChartIC();rChartD();}
+};
+
+function deshacerPago(id){
+  const c=estado.compromisos.find(x=>x.id===id);
+  if(!c||!c.ultimoPago) return;
+  const u=c.ultimoPago;
+  estado.gastos=estado.gastos.filter(g=>g.id!==u.gastoId);
+  const it=estado.items.find(x=>x.nombre===c.itemNombre);
+  if(it) it.monto=u.itemMontoAnterior;
+  c.monto=u.cuotaMontoAnterior;
+  c.pendientes=u.pendientesAnterior;
+  c.proxVenc=u.proxVencAnterior;
+  delete c.ultimoPago;
+  guardar(); render(); renderCompromisos();
+  if(_evolReady){rChartIC();rChartD();}
 }
 // ── FIN COMPROMISOS ──────────────────────────────────────
 
@@ -1694,7 +1816,7 @@ function rChartB(){
 
 function rChartG(){
   const byMes={};
-  for(const g of estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto')){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
+  for(const g of estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos')){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
   const entries=Object.entries(byMes).sort(([a],[b])=>a.localeCompare(b)).slice(-6);
   if(!entries.length){if(_ci['cG']){_ci['cG'].destroy();delete _ci['cG'];}return;}
   const allCats=[...new Set(entries.flatMap(([,c])=>Object.keys(c)))];

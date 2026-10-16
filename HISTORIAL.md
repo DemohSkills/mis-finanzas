@@ -30,6 +30,8 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Que el asistente marque todo como hecho no equivale a probado: probar la lógica con node y confirmar en el celular.
 - No leer `index.html` completo; buscar con grep y leer por tramos.
 
+- 16/10: "✓ Pagada" en compromisos vinculados a ítems de patrimonio ahora abre un modal de confirmación con cuenta de pago, importe realmente pagado, fecha y opción de actualizar cuota estimada. Al confirmar: crea un gasto categoría "Pago de créditos" en la cuenta elegida, baja el saldo del ítem por la cuota nominal, avanza pendientes y proxVenc. Botón "↩ Deshacer" revierte todo. Compromisos sin vínculo conservan comportamiento anterior. Categoría "Pago de créditos" excluida del gráfico de gastos por categoría. Lógica verificada con node (pago 167000 desde Banco Santander sobre cuota 166523.52: item 500000→333476.48, neto baja 476.48, pendientes 3→2; deshacer restaura estado original).
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.
