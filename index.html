@@ -1489,7 +1489,7 @@ $('btnVoz').onclick = () => {
 };
 
 async function parsearVoz(transcript, apiKey){
-  const prompt = `Analizá este texto y extraé: monto (número positivo, sin separadores), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve, y tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto"}`;
+  const prompt = `Analizá este texto y extraé: monto (número positivo, sin separadores), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve, tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":""}`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -1501,7 +1501,7 @@ async function parsearVoz(transcript, apiKey){
       },
       body:JSON.stringify({
         model:'claude-haiku-4-5',
-        max_tokens:200,
+        max_tokens:250,
         messages:[{role:'user',content:prompt}],
       })
     });
@@ -1511,15 +1511,18 @@ async function parsearVoz(transcript, apiKey){
     const match=text.match(/\{[\s\S]*\}/);
     if(!match) throw new Error('No JSON');
     const parsed=JSON.parse(match[0]);
-    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, parsed.tipo||'gasto');
+    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, parsed.tipo||'gasto', parsed.categoria||'');
   } catch(err){
     $('voiceStatus').textContent='Error al procesar: '+err.message;
   }
 }
 
-function mostrarConfirmVoz(monto, medio, desc, tipo='gasto'){
+function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA=''){
   const isIng = tipo==='ingreso';
-  const catAuto = isIng ? getCatsIncome()[0] : (aplicarRegla(desc) || getCats()[0]);
+  const lista = isIng ? getCatsIncome() : getCats();
+  const reglaCat = aplicarRegla(desc);
+  const catIAExacta = catIA ? (lista.find(c=>c.toLowerCase()===catIA.toLowerCase())||null) : null;
+  const catAuto = reglaCat || catIAExacta || lista.find(c=>c==='Otros/Varios') || lista[0];
   const cont = $('voiceConfirm');
   cont.hidden = false;
   cont.innerHTML = `
