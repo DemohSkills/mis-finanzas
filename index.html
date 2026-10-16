@@ -57,6 +57,8 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .saldo .monto{font-size:1.2rem;font-weight:600;font-variant-numeric:tabular-nums;}
 .saldo button{margin-top:6px;font-size:.78rem;padding:2px 8px;}
 #saldos{display:block;}
+.div-resumen{border:0;border-top:1px solid var(--border);margin:14px 0;}
+
 .saldos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:10px;}
 .saldo-grupo-titulo{font-size:.78rem;margin:12px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
 .saldo-activo{border-left:4px solid var(--ok);}
@@ -373,12 +375,19 @@ button.mini.danger{color:var(--danger);}
     </button>
   </div>
 
+  <section class="saldos-top">
+    <h2>Saldos por medio de pago</h2>
+    <div class="saldos" id="saldos"></div>
+  </section>
+  <hr class="div-resumen">
+
   <div class="resumen">
     <div class="stat"><div class="lbl">Activos</div><div class="val pos" id="totActivos"></div></div>
     <div class="stat"><div class="lbl">Deudas</div><div class="val neg" id="totDeudas"></div></div>
     <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
     <div class="stat"><div class="lbl">Var. 7 días</div><div class="val" id="var7d">—</div></div>
   </div>
+  <hr class="div-resumen">
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-vista="gastos">Movim.</button>
@@ -393,11 +402,6 @@ button.mini.danger{color:var(--danger);}
 
   <!-- ── GASTOS ── -->
   <div class="vista" id="vista-gastos">
-    <section>
-      <h2>Saldos por medio de pago</h2>
-      <div class="saldos" id="saldos"></div>
-    </section>
-
     <section>
       <div class="csv-actions no-print">
         <button type="button" class="mini" id="btnExportCSV">⬇ Exportar CSV</button>
