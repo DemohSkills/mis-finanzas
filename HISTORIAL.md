@@ -38,6 +38,8 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 
 - 18/10: botón de voz convertido en FAB (flotante global). El botón inline de la solapa Movim. fue eliminado. Se agregó `<div id="fabVoz">` con `position:fixed` antes de `</body>`, visible en todas las solapas. `voiceStatus` y `voiceConfirm` se movieron al FAB. CSS: `.fab-voz-btn` 56px circular con animación de pulso en estado `listening`. Se oculta automáticamente cuando hay un overlay/modal abierto (`body:has(.overlay:not([hidden])) #fabVoz{display:none}`), en impresión, y respeta `env(safe-area-inset-bottom)`. Lógica JS de voz sin cambios. Test node verifica: un solo btnVoz, ids no duplicados, FAB en el DOM.
 
+- 18/10: (A) secciones plegables en Movim. + (B) botón ojo para ocultar montos. (A) "Cargar movimiento" (form) envuelto en `<details id="det-form">` cerrado por defecto; "Historial de movimientos" en `<details id="det-historial">` abierto por defecto. Estado persistido en localStorage (`finanzas-v1-det-*`). Al iniciar edición el form se abre automáticamente. (B) Botón 👁/🙈 en la barra superior junto a Actualizar. Agrega clase `body.ocultar`; todos los montos en pesos de saldos, resumen, patrimonio, compromisos (Evolución) y vínculos se envuelven en `<span class="amt">` vía `fmtV()` y se ocultan con CSS (`font-size:0 + ::after "••••••"`). Var 7 días también oculta. Gráficos y canvases no enmascarados. Export CSV y backup nunca usan fmtV. Estado del ojo en localStorage (`finanzas-v1-ocultar`). Test node: todos los assertions pasaron.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.

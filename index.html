@@ -68,6 +68,17 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .saldo-etiqueta{font-size:.7rem;color:var(--muted);margin-bottom:1px;}
 details.saldo-grupo-otros>summary{cursor:pointer;list-style:none;user-select:none;}
 details.saldo-grupo-otros>summary::-webkit-details-marker{display:none;}
+/* Collapsible sections */
+details.section-collapse>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;gap:6px;padding:0;}
+details.section-collapse>summary::-webkit-details-marker{display:none;}
+details.section-collapse>summary .det-arrow{font-size:.75rem;transition:transform .15s;flex-shrink:0;}
+details.section-collapse[open]>summary .det-arrow{transform:rotate(90deg);}
+details.section-collapse>summary h2{margin:0;flex:1;}
+details.section-collapse[open]>summary{margin-bottom:12px;}
+/* Eye — ocultar montos */
+.eye-btn{font-size:1.1rem;padding:5px 8px;line-height:1;}
+body.ocultar .amt{font-size:0!important;letter-spacing:0!important;vertical-align:middle;}
+body.ocultar .amt::after{content:"••••••";font-size:14px;letter-spacing:1px;color:var(--muted);}
 /* Forms */
 form{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);}
@@ -381,6 +392,7 @@ button.mini.danger{color:var(--danger);}
         <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg><span>Actualizar</span>
     </button>
+    <button class="eye-btn" id="btnOjo" type="button" title="Ocultar montos" aria-label="Ocultar montos">👁</button>
   </div>
 
   <section class="saldos-top">
@@ -419,7 +431,8 @@ button.mini.danger{color:var(--danger);}
       </div>
       <div id="importPreview" hidden></div>
 
-      <h2 id="formTitulo">Cargar movimiento</h2>
+      <details id="det-form" class="section-collapse">
+        <summary><span class="det-arrow">▶</span><h2 id="formTitulo">Cargar movimiento</h2></summary>
       <form id="form" autocomplete="off">
         <label class="full">Tipo de movimiento
           <select id="tipo">
@@ -450,11 +463,14 @@ button.mini.danger{color:var(--danger);}
           <button type="button" id="btnCancelar" hidden>Cancelar</button>
         </div>
       </form>
+      </details>
     </section>
 
     <section>
-      <div class="row"><h2>Historial</h2><span class="meta" id="total"></span></div>
-      <div id="historial"></div>
+      <details id="det-historial" class="section-collapse" open>
+        <summary><div style="display:flex;align-items:center;gap:6px;flex:1"><span class="det-arrow">▶</span><h2 style="margin:0">Historial de movimientos</h2></div><span class="meta" id="total"></span></summary>
+        <div id="historial"></div>
+      </details>
     </section>
   </div>
 
@@ -647,6 +663,7 @@ const BACKUP_DK  = 'finanzas-v1-backup-date';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:0,maximumFractionDigits:2});
+const fmtV = n => `<span class="amt">${fmt(n)}</span>`;
 const hoy = () => new Date().toLocaleDateString('sv');
 const fechaCorta = f => f.split('-').reverse().join('/');
 const nuevoId = () => crypto.randomUUID?.() || String(Date.now()+Math.random());
@@ -896,7 +913,7 @@ function renderCompromisos(){
         ${fin?'<span class="comp-est">Finalizado ✓</span>':c.estimado?'<span class="comp-est">estimado</span>':''}
       </div>
       <div class="comp-det">
-        <span class="neg">${fmt(c.monto)}</span>
+        <span class="neg">${fmtV(c.monto)}</span>
         <span class="comp-meta">${fin?'Finalizado':c.pendientes+' pend'+(c.pendientes===1?'':'.')+(c.proxVenc?' · '+fechaCorta(c.proxVenc):' · sin fecha')}</span>
       </div>
       <div class="comp-btns">
@@ -1238,9 +1255,9 @@ function render() {
 
 function renderResumen() {
   const t = totales();
-  $('totActivos').textContent = fmt(t.activos);
-  $('totDeudas').textContent  = fmt(t.deudas);
-  $('totNeto').textContent    = fmt(t.neto);
+  $('totActivos').innerHTML = fmtV(t.activos);
+  $('totDeudas').innerHTML  = fmtV(t.deudas);
+  $('totNeto').innerHTML    = fmtV(t.neto);
   $('totNeto').className      = 'val '+(t.neto<0?'neg':'pos');
 }
 
@@ -1261,7 +1278,7 @@ function renderSaldos() {
     const montoMostrado = tipo==='deuda' ? Math.abs(s) : s;
     const colorCls = tipo==='activo' ? ' pos' : tipo==='deuda' ? ' neg' : (s<0?' neg':'');
     const etiqueta = tipo==='deuda' ? `<div class="saldo-etiqueta">Deuda total</div>` : '';
-    div.innerHTML = `<div class="nombre">${esc(m)}</div>${etiqueta}<div class="monto${colorCls}">${fmt(montoMostrado)}</div><button type="button">Ajustar saldo</button>`;
+    div.innerHTML = `<div class="nombre">${esc(m)}</div>${etiqueta}<div class="monto${colorCls}">${fmtV(montoMostrado)}</div><button type="button">Ajustar saldo</button>`;
     div.querySelector('button').onclick = () => ajustarSaldo(m);
     return div;
   }
@@ -1308,7 +1325,7 @@ function renderHistorial() {
   if (!lista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste movimientos.</div>'; $('total').textContent=''; return; }
   const totalGastos = lista.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
   const totalIngresos = lista.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
-  $('total').textContent=`${lista.length} movimiento${lista.length>1?'s':''} · Gastos: ${fmt(totalGastos)} · Ingresos: ${fmt(totalIngresos)}`;
+  $('total').innerHTML=`${lista.length} movimiento${lista.length>1?'s':''} · Gastos: ${fmtV(totalGastos)} · Ingresos: ${fmtV(totalIngresos)}`;
   for (const g of lista) {
     const isIng = (g.tipo||'gasto')==='ingreso';
     const div=document.createElement('div');
@@ -1319,7 +1336,7 @@ function renderHistorial() {
           <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
           <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
         </div>
-        <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmt(g.monto)}</div>
+        <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmtV(g.monto)}</div>
       </div>
       <div class="btns">
         <button type="button" class="mini" data-a="editar">Editar</button>
@@ -1355,6 +1372,7 @@ function empezarEdicion(id) {
   $('btnGuardar').textContent='Actualizar movimiento';
   $('btnCancelar').hidden=false;
   renderHistorial();
+  const _df=document.getElementById('det-form'); if(_df) _df.open=true;
   $('form').scrollIntoView({behavior:'smooth',block:'center'});
   $('monto').focus();
 }
@@ -1409,12 +1427,12 @@ function renderLista(contId, tipo) {
     cont.insertAdjacentHTML('beforeend',`<h3>${esc(g)}</h3>`);
     for(const it of items){ total+=it.monto; cont.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId)); }
   }
-  cont.insertAdjacentHTML('beforeend',`<div class="subtotal"><span>Total ${tipo==='activo'?'activos':'deudas'}</span><span class="num ${tipo==='activo'?'pos':'neg'}">${fmt(total)}</span></div>`);
+  cont.insertAdjacentHTML('beforeend',`<div class="subtotal"><span>Total ${tipo==='activo'?'activos':'deudas'}</span><span class="num ${tipo==='activo'?'pos':'neg'}">${fmtV(total)}</span></div>`);
 }
 
 function filaItem(nombre,monto,persona,onEdit,editando){
   const div=document.createElement('div'); div.className='item'+(editando?' editando':'');
-  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmt(monto)}</span><button type="button" class="edit" title="Editar">✎</button>`;
+  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>`;
   div.querySelector('button').onclick=onEdit; return div;
 }
 
@@ -1464,10 +1482,10 @@ function renderVinculos(){
   if(!porPersona.size){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
   const personas=[...porPersona].map(([nombre,items])=>({nombre,items,neto:items.reduce((s,it)=>s+(it.tipo==='activo'?it.monto:-it.monto),0)})).sort((a,b)=>Math.abs(b.neto)-Math.abs(a.neto));
   for(const p of personas){
-    const txt=p.neto>0?`Te debe ${fmt(p.neto)}`:p.neto<0?`Le debés ${fmt(-p.neto)}`:'Sin saldo pendiente';
+    const txt=p.neto>0?`Te debe ${fmtV(p.neto)}`:p.neto<0?`Le debés ${fmtV(-p.neto)}`:'Sin saldo pendiente';
     const div=document.createElement('div'); div.className='persona';
     div.innerHTML=`<div class="row"><span class="nombre">${esc(p.nombre)}</span><span class="estado num ${p.neto>0?'pos':p.neto<0?'neg':'meta'}">${txt}</span></div>
-    <ul>${p.items.map(it=>`<li><span>${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmt(it.monto)}</span></li>`).join('')}</ul>`;
+    <ul>${p.items.map(it=>`<li><span>${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span></li>`).join('')}</ul>`;
     cont.appendChild(div);
   }
 }
@@ -1853,7 +1871,7 @@ function varSieteDias(){
 function renderVar7d(){
   const v=varSieteDias(); const el=$('var7d');
   if(!v||!isFinite(v.pct)){el.textContent='—';el.className='val';return;}
-  el.textContent=(v.pct>=0?'+':'')+v.pct.toFixed(1)+'%';
+  el.innerHTML='<span class="amt">'+((v.pct>=0?'+':'')+v.pct.toFixed(1)+'%')+'</span>';
   el.className='val '+(v.pct>=0?'pos':'neg');
 }
 
@@ -1916,12 +1934,12 @@ function rChartIC(){
   const b=$('evBadgeIC');b.textContent=difTotal>=0?'▲ Cubre':'▼ Déficit';b.className='ev-badge '+(difTotal>=0?'up':'dn');
   const visaMin=visaC?visaC.pagoMinimo||visaC.monto:0;
   $('evBrow').innerHTML=
-    `<div class="bcard"><div class="bl">💚 Cobrado en el mes</div><div class="bv pos">+${fmt(ingresosMes)}</div></div>`+
-    `<div class="bcard"><div class="bl">🔜 Por cobrar</div><div class="bv pos">+${fmt(porCobrar)}</div></div>`+
-    `<div class="bcard"><div class="bl">🏦 Disponible hoy</div><div class="bv pos">+${fmt(dispon)}</div></div>`+
-    `<div class="bcard"><div class="bl">📤 Compromisos</div><div class="bv neg">−${fmt(totalCmp)}</div></div>`+
-    `<div class="bcard" style="flex-basis:100%"><div class="bl">⚖️ Con total Visa ${visaC?fmt(visaC.monto):''}</div><div class="bv ${difTotal>=0?'pos':'neg'}">${difTotal>=0?'✓ Cubre':'Faltan '+fmt(Math.abs(difTotal))}</div></div>`+
-    (visaC?`<div class="bcard" style="flex-basis:100%"><div class="bl">⚖️ Con mínimo Visa ${fmt(visaMin)}</div><div class="bv ${difMin>=0?'pos':'neg'}">${difMin>=0?'✓ Cubre':'Faltan '+fmt(Math.abs(difMin))}</div></div>`:'');
+    `<div class="bcard"><div class="bl">💚 Cobrado en el mes</div><div class="bv pos">+${fmtV(ingresosMes)}</div></div>`+
+    `<div class="bcard"><div class="bl">🔜 Por cobrar</div><div class="bv pos">+${fmtV(porCobrar)}</div></div>`+
+    `<div class="bcard"><div class="bl">🏦 Disponible hoy</div><div class="bv pos">+${fmtV(dispon)}</div></div>`+
+    `<div class="bcard"><div class="bl">📤 Compromisos</div><div class="bv neg">−${fmtV(totalCmp)}</div></div>`+
+    `<div class="bcard" style="flex-basis:100%"><div class="bl">⚖️ Con total Visa ${visaC?fmtV(visaC.monto):''}</div><div class="bv ${difTotal>=0?'pos':'neg'}">${difTotal>=0?'✓ Cubre':'Faltan '+fmtV(Math.abs(difTotal))}</div></div>`+
+    (visaC?`<div class="bcard" style="flex-basis:100%"><div class="bl">⚖️ Con mínimo Visa ${fmtV(visaMin)}</div><div class="bv ${difMin>=0?'pos':'neg'}">${difMin>=0?'✓ Cubre':'Faltan '+fmtV(Math.abs(difMin))}</div></div>`:'');
   // Colores por entidad
   const entPalette={'Santander':'#60a5fa','Mercado Pago':'#4ade80','Mastercard MP':'#fbbf24','Visa Santander':'#f87171','Boris':'#c084fc'};
   const entColor=(e,i)=>entPalette[e]||S7[i%S7.length];
@@ -2006,6 +2024,41 @@ function wireEvents(){
     addCatIncome(nombre); renderCfgCats(); fillCatSelect('categoria', null, true);
   };
 }
+
+// ═══════════════════════════════════════════════════════
+// SECCIONES PLEGABLES
+// ═══════════════════════════════════════════════════════
+(function(){
+  const SK_DET='finanzas-v1-det';
+  function initDet(id,defOpen){
+    const el=document.getElementById(id); if(!el) return;
+    let open=defOpen;
+    try{const v=localStorage.getItem(SK_DET+'-'+id);if(v!==null)open=JSON.parse(v);}catch{}
+    el.open=open;
+    el.addEventListener('toggle',()=>{try{localStorage.setItem(SK_DET+'-'+id,JSON.stringify(el.open));}catch{}});
+  }
+  initDet('det-form',false);
+  initDet('det-historial',true);
+})();
+
+// ═══════════════════════════════════════════════════════
+// OJO — OCULTAR MONTOS
+// ═══════════════════════════════════════════════════════
+(function(){
+  const SK_OJO='finanzas-v1-ocultar';
+  let oculto=false;
+  try{oculto=JSON.parse(localStorage.getItem(SK_OJO))===true;}catch{}
+  function aplicarOjo(){
+    document.body.classList.toggle('ocultar',oculto);
+    const btn=document.getElementById('btnOjo');if(!btn)return;
+    btn.textContent=oculto?'🙈':'👁';
+    btn.title=oculto?'Mostrar montos':'Ocultar montos';
+    btn.setAttribute('aria-label',oculto?'Mostrar montos':'Ocultar montos');
+  }
+  const btnO=document.getElementById('btnOjo');
+  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();};
+  aplicarOjo();
+})();
 
 // ═══════════════════════════════════════════════════════
 // BOOT
