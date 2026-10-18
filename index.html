@@ -35,20 +35,18 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .refresh-btn:hover{border-color:var(--accent);color:var(--accent);}
 .refresh-btn svg{transition:transform .7s;}
 .refresh-btn.spin svg{transform:rotate(360deg);}
-/* Tabs */
-.tabs{display:flex;gap:4px;margin-bottom:16px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5;flex-wrap:wrap;}
-.tabs button{flex:1;min-width:55px;font-size:.82rem;display:flex;align-items:center;justify-content:center;text-align:center;}
+/* Tabs — barra única, sticky, scroll horizontal en móvil */
+.tabs{display:flex;gap:4px;margin-bottom:16px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;flex-wrap:nowrap;}
+.tabs::-webkit-scrollbar{display:none;}
+.tabs button{flex:0 0 auto;min-width:55px;font-size:.82rem;display:flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap;}
 .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
-/* Segunda fila de navegación */
-.tabs-sec{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;}
-.tabs-sec button{font-size:.75rem;padding:4px 12px;flex:0 0 calc(25% - 3px);min-width:0;text-align:center;}
-.tabs-sec button[aria-selected=true]{background:var(--muted);border-color:var(--muted);color:var(--bg);font-weight:600;}
+@media(min-width:540px){.tabs{flex-wrap:wrap;overflow-x:visible;}}
 .vista[hidden]{display:none;}
 /* KPI */
 .resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;}
 .stat .lbl{font-size:.75rem;color:var(--muted);}
-.stat .val{font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;margin-top:2px;}
+.stat .val{font-size:clamp(.75rem,3.5vw,1.05rem);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
 @media(max-width:600px){.resumen{grid-template-columns:1fr 1fr;}}
 /* Saldos */
 .saldos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
@@ -59,7 +57,8 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 #saldos{display:block;}
 .div-resumen{border:0;border-top:1px solid var(--border);margin:14px 0;}
 
-.saldos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:10px;}
+.saldos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:10px;}
+@media(max-width:480px){.saldos-grid{grid-template-columns:1fr 1fr;}}
 .saldo-grupo-titulo{font-size:.78rem;margin:12px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
 .saldo-activo{border-left:4px solid var(--ok);}
 .saldo-activo .monto{color:var(--ok);}
@@ -395,33 +394,33 @@ button.mini.danger{color:var(--danger);}
     <button class="eye-btn" id="btnOjo" type="button" title="Ocultar montos" aria-label="Ocultar montos">👁</button>
   </div>
 
-  <section class="saldos-top">
-    <h2>Saldos por medio de pago</h2>
-    <div class="saldos" id="saldos"></div>
-  </section>
-  <hr class="div-resumen">
-
-  <div class="resumen">
-    <div class="stat"><div class="lbl">Activos</div><div class="val pos" id="totActivos"></div></div>
-    <div class="stat"><div class="lbl">Deudas</div><div class="val neg" id="totDeudas"></div></div>
-    <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
-    <div class="stat"><div class="lbl">Var. 7 días</div><div class="val" id="var7d">—</div></div>
-  </div>
-  <hr class="div-resumen">
-
   <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-vista="inicio">Inicio</button>
     <button type="button" role="tab" data-vista="gastos">Movim.</button>
-    <button type="button" role="tab" data-vista="vinculos">Vínculos</button>
+    <button type="button" role="tab" data-vista="vinculos">Vínculos Comerciales</button>
     <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
     <button type="button" role="tab" data-vista="evolucion">Evolución</button>
     <button type="button" role="tab" data-vista="config">⚙️</button>
-  </nav>
-  <nav class="tabs-sec" role="tablist" aria-label="Funciones">
     <button type="button" role="tab" data-vista="compromisos">💳 Compromisos</button>
   </nav>
 
+  <!-- ── INICIO ── -->
+  <div class="vista" id="vista-inicio">
+    <section class="saldos-top">
+      <h2>Saldos por medio de pago</h2>
+      <div class="saldos" id="saldos"></div>
+    </section>
+    <hr class="div-resumen">
+    <div class="resumen">
+      <div class="stat"><div class="lbl">Activos</div><div class="val pos" id="totActivos"></div></div>
+      <div class="stat"><div class="lbl">Deudas</div><div class="val neg" id="totDeudas"></div></div>
+      <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
+      <div class="stat"><div class="lbl">Var. 7 días</div><div class="val" id="var7d">—</div></div>
+    </div>
+  </div>
+
   <!-- ── GASTOS ── -->
-  <div class="vista" id="vista-gastos">
+  <div class="vista" id="vista-gastos" hidden>
     <section>
       <div class="csv-actions no-print">
         <button type="button" class="mini" id="btnExportCSV">⬇ Exportar CSV</button>
@@ -477,7 +476,7 @@ button.mini.danger{color:var(--danger);}
   <!-- ── VÍNCULOS ── -->
   <div class="vista vista-vinculos" id="vista-vinculos" hidden>
     <section>
-      <h2>Compromisos con personas</h2>
+      <h2>Vínculos Comerciales</h2>
       <div id="vinculos"></div>
       <p class="meta">Para sumar a alguien acá, asignale una persona a un activo o deuda en la pestaña Patrimonio.</p>
     </section>
@@ -1222,8 +1221,8 @@ function initApp() {
   fillCatSelect('reglaCat');
   guardarSnap();
   resetForm(); resetFormItem();
-  let v='gastos';
-  try { v = localStorage.getItem(SK+'-vista') || 'gastos'; } catch{}
+  let v='inicio';
+  try { v = localStorage.getItem(SK+'-vista') || 'inicio'; } catch{}
   mostrarVista(v);
   render();
   wireEvents();
@@ -1234,14 +1233,14 @@ function initApp() {
 // PESTAÑAS
 // ═══════════════════════════════════════════════════════
 function mostrarVista(v) {
-  document.querySelectorAll('.tabs button, .tabs-sec button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista===v));
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista===v));
   document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-'+v);
   try { localStorage.setItem(SK+'-vista', v); } catch{}
   if (v==='evolucion') iniciarEvolucion();
   if (v==='config') renderConfig();
   if (v==='compromisos') renderCompromisos();
 }
-document.querySelectorAll('.tabs button, .tabs-sec button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
 
 // ═══════════════════════════════════════════════════════
 // RENDER PRINCIPAL
