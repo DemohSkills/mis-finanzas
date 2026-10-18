@@ -575,7 +575,8 @@ button.mini.danger{color:var(--danger);}
       <h2>💾 Copia de seguridad</h2>
       <p class="meta">Exportá todos tus datos. No incluye PIN ni API key.</p>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-        <button type="button" class="mini" id="btnExportBackup">⬇ Copia de seguridad</button>
+        <button type="button" class="mini" id="btnExportBackup">⬇ Descargar</button>
+        <button type="button" class="mini" id="btnShareBackup">📤 Compartir</button>
         <button type="button" class="mini" id="btnImportBackup">⬆ Restaurar</button>
         <input type="file" id="backupFile" accept=".json" hidden>
       </div>
@@ -1758,7 +1759,7 @@ function confirmarImport(rows){
 // ═══════════════════════════════════════════════════════
 // BACKUP / RESTORE
 // ═══════════════════════════════════════════════════════
-function exportarBackup(){
+function buildBackupBlob(){
   const backup={
     version:1, fecha:hoy(),
     estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])]},
@@ -1767,19 +1768,25 @@ function exportarBackup(){
     catsIncome:ls.get(CATS_INC_K)||[],
     reglas:getReglas(),
   };
-  const json=JSON.stringify(backup,null,2);
-  const blob=new Blob([json],{type:'application/json;charset=utf-8'});
-  const fname=`finanzas-backup-${hoy()}.json`;
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});
+  return {blob, fname:`finanzas-backup-${hoy()}.json`};
+}
+function ocultarBannerBackup(){const b=document.getElementById('bannerBackup');if(b)b.remove();}
+function _marcarBackupHoy(){try{ls.set(BACKUP_DK,hoy());}catch{} actualizarInfoBackup(); ocultarBannerBackup();}
+function descargarBackup(){const {blob,fname}=buildBackupBlob(); descargarBlob(blob,fname); _marcarBackupHoy();}
+async function compartirBackup(){
+  const {blob,fname}=buildBackupBlob();
   if(navigator.share&&navigator.canShare){
     const file=new File([blob],fname,{type:'application/json'});
     if(navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:'Backup Finanzas'}).catch(()=>descargarBlob(blob,fname));
-      ls.set(BACKUP_DK,hoy()); actualizarInfoBackup(); return;
+      try{await navigator.share({files:[file],title:'Backup finanzas'}); _marcarBackupHoy();}
+      catch(e){if(e.name!=='AbortError'){descargarBlob(blob,fname); _marcarBackupHoy();}}
+      return;
     }
   }
-  descargarBlob(blob,fname);
-  ls.set(BACKUP_DK,hoy()); actualizarInfoBackup();
+  descargarBlob(blob,fname); _marcarBackupHoy();
 }
+function exportarBackup(){descargarBackup();}
 
 function descargarBlob(blob,fname){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
@@ -1821,16 +1828,21 @@ function actualizarInfoBackup(){
   el.textContent = d ? `Último backup: ${d}` : 'Sin backups exportados en este dispositivo.';
 }
 
+let _bannerBackupMostrado=false;
 function verificarAvisoBackup(){
+  if(_bannerBackupMostrado) return;
   const d=ls.get(BACKUP_DK);
-  if(!d) return; // sin backups previos: no molestar la primera vez
-  const hace=Math.floor((Date.now()-new Date(d).getTime())/864e5);
-  if(hace>7){
-    const warn=document.createElement('div');
-    warn.className='backup-warn';
-    warn.innerHTML=`⚠️ El último backup fue hace ${hace} días. <button type="button" class="mini" onclick="mostrarVista('config');this.closest('.backup-warn').remove()">Ir a ⚙️</button>`;
-    document.querySelector('main').prepend(warn);
-  }
+  if(d===hoy()) return;
+  _bannerBackupMostrado=true;
+  const banner=document.createElement('div');
+  banner.id='bannerBackup';
+  banner.className='backup-warn';
+  banner.innerHTML=`💾 Backup de hoy pendiente.
+    <button type="button" class="mini" onclick="compartirBackup()">Compartir</button>
+    <button type="button" class="mini" onclick="descargarBackup()">Descargar</button>
+    <button type="button" class="mini" onclick="ocultarBannerBackup()">Después</button>`;
+  const vistaInicio=document.getElementById('vista-inicio');
+  if(vistaInicio) vistaInicio.prepend(banner); else document.querySelector('main').prepend(banner);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2012,6 +2024,7 @@ function wireEvents(){
   };
   $('btnNuevoCompromiso').onclick=agregarCompromiso;
   $('btnExportBackup').onclick=exportarBackup;
+  $('btnShareBackup').onclick=compartirBackup;
   $('btnImportBackup').onclick=()=>$('backupFile').click();
   $('backupFile').onchange=e=>{
     const file=e.target.files[0]; if(!file) return;
