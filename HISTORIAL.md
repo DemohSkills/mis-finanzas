@@ -36,6 +36,8 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 
 - 16/10: renderSaldos reorganizado en 3 grupos: ACTIVOS (Efectivo, Mercado Pago, Banco Santander — borde verde izquierdo, monto en verde), DEUDAS (Visa Santander, Mastercard MP — borde rojo izquierdo, monto en rojo, etiqueta "Deuda total", monto en valor absoluto), OTROS (Astropay, American Express — plegable con `<details>`, cerrado por defecto, muestra "OTROS •" si alguno tiene saldo ≠ 0). Se agregó "American Express" a MEDIOS (saldo inicial 0, tratado como tarjeta — no está en MEDIOS_NO_TARJETA, el wizard lo muestra con "(negativo si es deuda)"). Migración automática al cargar. Verificado con node.
 
+- 18/10: botón de voz convertido en FAB (flotante global). El botón inline de la solapa Movim. fue eliminado. Se agregó `<div id="fabVoz">` con `position:fixed` antes de `</body>`, visible en todas las solapas. `voiceStatus` y `voiceConfirm` se movieron al FAB. CSS: `.fab-voz-btn` 56px circular con animación de pulso en estado `listening`. Se oculta automáticamente cuando hay un overlay/modal abierto (`body:has(.overlay:not([hidden])) #fabVoz{display:none}`), en impresión, y respeta `env(safe-area-inset-bottom)`. Lógica JS de voz sin cambios. Test node verifica: un solo btnVoz, ids no duplicados, FAB en el DOM.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.
