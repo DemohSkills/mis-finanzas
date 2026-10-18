@@ -35,18 +35,25 @@ if (!fabPresente) {
   console.log('✅ (b) FAB flotante presente con position:fixed');
 }
 
-// (b2) voiceStatus y voiceConfirm fuera de cualquier .vista (deben estar en fabVoz)
-const fabVozBlock = html.match(/<div id="fabVoz"[\s\S]*?<\/div>\s*<\/body>/);
-if (!fabVozBlock) {
-  console.error('❌ (b2) No se encontró el bloque #fabVoz antes de </body>');
+// (b2) voiceStatus y voiceConfirm deben estar dentro de #fabVoz
+// El FAB debe estar antes del <script> principal (no después de </script>)
+const fabVozBlock = html.match(/<div id="fabVoz"[\s\S]*?<\/div>\s*\n?<\/div>/);
+const fabIdx  = html.indexOf('<div id="fabVoz"');
+const scrIdx  = html.indexOf('<script>');
+if (fabIdx === -1) {
+  console.error('❌ (b2) No se encontró el bloque #fabVoz');
+  errores++;
+} else if (fabIdx > scrIdx) {
+  console.error('❌ (b2) #fabVoz está DESPUÉS de <script>: btnVoz no existe al ejecutar el JS');
   errores++;
 } else {
-  const block = fabVozBlock[0];
-  if (!block.includes('id="voiceStatus"') || !block.includes('id="voiceConfirm"')) {
+  // Extraer el bloque del FAB y verificar que contenga los elementos
+  const fabSection = html.slice(fabIdx, html.indexOf('</div>', html.indexOf('</div>', fabIdx) + 1) + 6);
+  if (!fabSection.includes('id="voiceStatus"') || !fabSection.includes('id="voiceConfirm"')) {
     console.error('❌ (b2) voiceStatus o voiceConfirm no están dentro del bloque #fabVoz');
     errores++;
   } else {
-    console.log('✅ (b2) voiceStatus y voiceConfirm dentro del FAB (globales)');
+    console.log('✅ (b2) #fabVoz antes del <script> y contiene voiceStatus + voiceConfirm');
   }
 }
 

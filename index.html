@@ -611,6 +611,13 @@ button.mini.danger{color:var(--danger);}
   </div>
 </main>
 
+<!-- ══════════════════ FAB VOZ (flotante global) ══════════════════ -->
+<div id="fabVoz">
+  <div id="voiceConfirm" hidden></div>
+  <div class="fab-voz-status" id="voiceStatus"></div>
+  <button type="button" class="fab-voz-btn" id="btnVoz" aria-label="Cargar por voz">🎙</button>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════
 // CONSTANTES
@@ -2013,11 +2020,5 @@ if('serviceWorker' in navigator){
 }
 </script>
 
-<!-- ══════════════════ FAB VOZ (flotante global) ══════════════════ -->
-<div id="fabVoz">
-  <div id="voiceConfirm" hidden></div>
-  <div class="fab-voz-status" id="voiceStatus"></div>
-  <button type="button" class="fab-voz-btn" id="btnVoz" aria-label="Cargar por voz">🎙</button>
-</div>
 </body>
 </html>
