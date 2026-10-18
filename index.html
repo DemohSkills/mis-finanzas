@@ -204,7 +204,8 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
 button.mini.danger{color:var(--danger);}
 .comp-row--fin{opacity:.45;}
 /* ── Backup warning ─────────────────────────────────────────── */
-.backup-warn{background:color-mix(in srgb,var(--warn) 10%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--warn);margin-bottom:12px;display:flex;gap:7px;align-items:center;}
+.backup-warn{background:color-mix(in srgb,var(--warn) 10%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--warn);margin-bottom:12px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.backup-warn.danger{background:color-mix(in srgb,var(--danger) 12%,transparent);border-color:color-mix(in srgb,var(--danger) 35%,transparent);color:var(--danger);}
 /* ── Print / PDF ─────────────────────────────────────────────── */
 @media print{
   .tabs,.app-hdr,.refresh-btn,.acciones,button,.saldo button,.item .edit,.gasto .btns,
@@ -578,7 +579,7 @@ button.mini.danger{color:var(--danger);}
         <button type="button" class="mini" id="btnExportBackup">⬇ Descargar</button>
         <button type="button" class="mini" id="btnShareBackup">📤 Compartir</button>
         <button type="button" class="mini" id="btnImportBackup">⬆ Restaurar</button>
-        <input type="file" id="backupFile" accept=".json" hidden>
+        <input type="file" id="backupFile" accept=".json,.txt" hidden>
       </div>
       <p class="meta" id="lastBackupInfo" style="margin-top:8px"></p>
     </div>
@@ -655,7 +656,9 @@ const CATS_INC_K = 'finanzas-v1-cats-income';
 const RULES_KEY  = 'finanzas-v1-rules';
 const SNAP_KEY   = 'finanzas-v1-snaps';
 const APIKEY_K   = 'finanzas-v1-apikey';
-const BACKUP_DK  = 'finanzas-v1-backup-date';
+const BACKUP_DK      = 'finanzas-v1-backup-date';
+const BACKUP_META_K  = 'finanzas-v1-backup-meta';
+const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
 
 // ═══════════════════════════════════════════════════════
 // UTILIDADES
@@ -1759,7 +1762,7 @@ function confirmarImport(rows){
 // ═══════════════════════════════════════════════════════
 // BACKUP / RESTORE
 // ═══════════════════════════════════════════════════════
-function buildBackupBlob(){
+function buildBackupJson(){
   const backup={
     version:1, fecha:hoy(),
     estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])]},
@@ -1768,23 +1771,45 @@ function buildBackupBlob(){
     catsIncome:ls.get(CATS_INC_K)||[],
     reglas:getReglas(),
   };
-  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});
-  return {blob, fname:`finanzas-backup-${hoy()}.json`};
+  return JSON.stringify(backup,null,2);
 }
 function ocultarBannerBackup(){const b=document.getElementById('bannerBackup');if(b)b.remove();}
-function _marcarBackupHoy(){try{ls.set(BACKUP_DK,hoy());}catch{} actualizarInfoBackup(); ocultarBannerBackup();}
-function descargarBackup(){const {blob,fname}=buildBackupBlob(); descargarBlob(blob,fname); _marcarBackupHoy();}
+function pospBackup(){
+  try{ls.set(BACKUP_SNOOZE_K,new Date(Date.now()+4*3600000).toISOString());}catch{}
+  ocultarBannerBackup();
+}
+function _marcarBackupHoy(method){
+  try{ls.set(BACKUP_DK,hoy());}catch{}
+  try{ls.set(BACKUP_META_K,{ts:new Date().toISOString(),method});}catch{}
+  actualizarInfoBackup();
+  ocultarBannerBackup();
+}
+function descargarBackup(){
+  const json=buildBackupJson();
+  const fname=`finanzas-backup-${hoy()}.json`;
+  descargarBlob(new Blob([json],{type:'application/json;charset=utf-8'}),fname);
+  _marcarBackupHoy('descargado');
+}
 async function compartirBackup(){
-  const {blob,fname}=buildBackupBlob();
+  const json=buildBackupJson();
+  const fname=`finanzas-backup-${hoy()}`;
   if(navigator.share&&navigator.canShare){
-    const file=new File([blob],fname,{type:'application/json'});
+    const file=new File([json],fname+'.txt',{type:'text/plain'});
     if(navigator.canShare({files:[file]})){
-      try{await navigator.share({files:[file],title:'Backup finanzas'}); _marcarBackupHoy();}
-      catch(e){if(e.name!=='AbortError'){descargarBlob(blob,fname); _marcarBackupHoy();}}
+      try{
+        await navigator.share({files:[file],title:'Backup finanzas'});
+        _marcarBackupHoy('compartido');
+      }catch(e){
+        if(e.name!=='AbortError'){
+          descargarBlob(new Blob([json],{type:'application/json;charset=utf-8'}),fname+'.json');
+          _marcarBackupHoy('descargado');
+        }
+      }
       return;
     }
   }
-  descargarBlob(blob,fname); _marcarBackupHoy();
+  descargarBlob(new Blob([json],{type:'application/json;charset=utf-8'}),fname+'.json');
+  _marcarBackupHoy('descargado');
 }
 function exportarBackup(){descargarBackup();}
 
@@ -1824,26 +1849,52 @@ function restaurarBackup(file){
 
 function actualizarInfoBackup(){
   const el=$('lastBackupInfo'); if(!el) return;
-  const d=ls.get(BACKUP_DK);
-  el.textContent = d ? `Último backup: ${d}` : 'Sin backups exportados en este dispositivo.';
+  const meta=ls.get(BACKUP_META_K);
+  if(meta){
+    const dt=new Date(meta.ts);
+    const metodo=meta.method==='compartido'?'compartido':'descargado';
+    el.textContent=`Último backup: ${dt.toLocaleDateString('es-AR')} ${dt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} (${metodo})`;
+  } else {
+    const d=ls.get(BACKUP_DK);
+    el.textContent=d?`Último backup: ${d}`:'Sin backups exportados en este dispositivo.';
+  }
 }
 
-let _bannerBackupMostrado=false;
 function verificarAvisoBackup(){
-  if(_bannerBackupMostrado) return;
-  const d=ls.get(BACKUP_DK);
-  if(d===hoy()) return;
-  _bannerBackupMostrado=true;
+  ocultarBannerBackup();
+  const snooze=ls.get(BACKUP_SNOOZE_K);
+  if(snooze && Date.now()<new Date(snooze).getTime()) return;
+  const meta=ls.get(BACKUP_META_K);
+  const legacyDate=ls.get(BACKUP_DK);
+  let horasDesde=Infinity, textoEstado='', esCritico=false;
+  if(meta){
+    horasDesde=(Date.now()-new Date(meta.ts).getTime())/3600000;
+    const met=meta.method==='compartido'?'compartido':'descargado';
+    if(horasDesde<1){textoEstado=`Último backup: hace menos de 1 h (${met})`;}
+    else if(horasDesde<24){const h=Math.floor(horasDesde);textoEstado=`Último backup: hace ${h} h (${met})`;}
+    else{const dias=Math.floor(horasDesde/24);esCritico=horasDesde>=48;textoEstado=esCritico?`Hace ${dias} día${dias!==1?'s':''} sin backup`:`Último backup: hace ${dias} día${dias!==1?'s':''} (${met})`;}
+  } else if(legacyDate){
+    const hace=Math.floor((Date.now()-new Date(legacyDate).getTime())/864e5);
+    if(hace===0) return;
+    horasDesde=hace*24; esCritico=hace>=2;
+    textoEstado=esCritico?`Hace ${hace} día${hace!==1?'s':''} sin backup`:`Último backup: hace ${hace} día${hace!==1?'s':''} (descargado)`;
+  } else {
+    esCritico=true; textoEstado='Nunca hiciste backup';
+  }
+  if(horasDesde<24) return;
   const banner=document.createElement('div');
   banner.id='bannerBackup';
-  banner.className='backup-warn';
-  banner.innerHTML=`💾 Backup de hoy pendiente.
+  banner.className='backup-warn'+(esCritico?' danger':'');
+  banner.innerHTML=`<span style="flex:1">${textoEstado}</span>
     <button type="button" class="mini" onclick="compartirBackup()">Compartir</button>
     <button type="button" class="mini" onclick="descargarBackup()">Descargar</button>
-    <button type="button" class="mini" onclick="ocultarBannerBackup()">Después</button>`;
+    <button type="button" class="mini" onclick="pospBackup()">Después</button>`;
   const vistaInicio=document.getElementById('vista-inicio');
   if(vistaInicio) vistaInicio.prepend(banner); else document.querySelector('main').prepend(banner);
 }
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&!document.getElementById('app')?.hidden) verificarAvisoBackup();
+});
 
 // ═══════════════════════════════════════════════════════
 // PDF / PRINT
