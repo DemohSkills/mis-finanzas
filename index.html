@@ -875,6 +875,7 @@ function renderCompromisos(){
   if(!cs.length){cont.innerHTML='<div class="vacio">Sin compromisos cargados.</div>';return;}
   cont.innerHTML=cs.map(c=>{
     const fin=c.pendientes===0;
+    const abon=!fin&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoy().slice(0,7);
     return `
     <div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
       <div class="comp-info">
@@ -892,7 +893,7 @@ function renderCompromisos(){
           <button type="button" class="mini danger" onclick="borrarCompromiso('${esc(c.id)}')">Quitar</button>
         `:`
           <button type="button" class="mini" onclick="editarCompromiso('${esc(c.id)}')">Editar</button>
-          <button type="button" class="mini" onclick="pagarCompromiso('${esc(c.id)}')">✓ Pagada</button>
+          ${abon?`<button type="button" class="mini" disabled style="opacity:.75;color:var(--pos,#16a34a)">✓ Abonada</button>`:`<button type="button" class="mini" onclick="pagarCompromiso('${esc(c.id)}')">Pagar</button>`}
           ${c.ultimoPago?`<button type="button" class="mini" onclick="deshacerPago('${esc(c.id)}')">↩ Deshacer</button>`:''}
           <button type="button" class="mini danger" onclick="borrarCompromiso('${esc(c.id)}')">×</button>
         `}
