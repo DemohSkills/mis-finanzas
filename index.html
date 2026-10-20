@@ -683,6 +683,14 @@ button.mini.danger{color:var(--danger);}
         <button type="button" id="btnGuardarApiKey" class="primary" style="flex:0 0 auto;">Guardar</button>
       </div>
     </div>
+
+    <div class="cfg-section">
+      <details id="detFotos">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:4px 0;"><h2 style="margin:0">📷 Fotos del gráfico</h2></summary>
+        <p class="meta" style="margin-top:6px">Una foto diaria para los gráficos de Evolución. Se actualiza automáticamente al guardar cambios.</p>
+        <div id="fotosLista" style="margin-top:8px"></div>
+      </details>
+    </div>
   </div>
 
   <!-- ── COMPROMISOS ── -->
@@ -936,7 +944,8 @@ function cargar() {
   return data;
 }
 
-function guardar() { ls.set(SK, estado); }
+let _snapTimer = null;
+function guardar() { ls.set(SK, estado); if(estado?.patrimonioCargado){clearTimeout(_snapTimer);_snapTimer=setTimeout(guardarSnap,1500);} }
 
 // ── COMPROMISOS ─────────────────────────────────────────
 function mkFecha(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
@@ -1700,6 +1709,7 @@ function renderConfig(){
   const apiKey=ls.get(APIKEY_K)||'';
   $('cfgApiKey').value=apiKey?'••••••••••••':'';
   actualizarInfoBackup();
+  renderFotosConfig();
 }
 
 $('btnNuevaCat').onclick=()=>{
@@ -1828,7 +1838,7 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA=''){
     const cat=$('vozCat').value;
     if(cat==='__nueva__') return;
     estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:Math.round(Number(monto)*100)/100,fecha:hoy(),categoria:cat,medio,descripcion:desc,tipo,soloHistorial:false});
-    guardar(); cont.hidden=true; render();
+    guardar(); cont.hidden=true; resetForm(); render();
     $('voiceStatus').textContent='✅ Movimiento guardado.';
     setTimeout(()=>$('voiceStatus').textContent='',3000);
   };
@@ -2114,6 +2124,29 @@ function guardarSnap(){
   }};
   const filtered=snaps.filter(s=>s.d!==d); filtered.push(snap);
   ls.set(SNAP_KEY,filtered.slice(-400));
+}
+
+function renderFotosConfig(){
+  const cont=$('fotosLista'); if(!cont) return;
+  const snaps=cargarSnaps().slice().sort((a,b)=>b.d.localeCompare(a.d));
+  if(!snaps.length){cont.innerHTML='<p class="meta">Sin fotos guardadas.</p>';return;}
+  cont.innerHTML='';
+  for(const s of snaps){
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.82rem;gap:8px;';
+    const info=document.createElement('span');
+    info.innerHTML=`${esc(s.d)} · A: ${fmtV(s.a)} · D: ${fmtV(Math.abs(s.dv))} · N: ${fmtV(s.n)}`;
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='mini';btn.textContent='Borrar';
+    btn.onclick=()=>{
+      if(!confirm(`¿Borrar la foto del ${s.d}?`)) return;
+      ls.set(SNAP_KEY,cargarSnaps().filter(x=>x.d!==s.d));
+      renderFotosConfig();
+      if(_evolReady) iniciarEvolucion();
+    };
+    row.appendChild(info);row.appendChild(btn);
+    cont.appendChild(row);
+  }
 }
 
 function varSieteDias(){
