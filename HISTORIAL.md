@@ -35,6 +35,15 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 
 - 20/10/2026: botón ± Ajustar en Vínculos Comerciales. `renderVinculos` reescrito de innerHTML puro a DOM manual para poder adjuntar handlers: cada ítem del grupo "Préstamos con personas" muestra el botón "± Ajustar" (llama a `abrirAjusteModal`) y, si tiene historial, el panel plegable con los últimos 5 ajustes y el botón "↩ Deshacer último" (llama a `deshacerUltimoAjuste`). Reutiliza el modal y las funciones existentes sin duplicar lógica. `guardarAjuste` y `deshacerUltimoAjuste` ya llamaban a `renderVinculos`, por lo que Inicio, Patrimonio e Historial también se refrescan. Tests Playwright 4 nuevos casos en `ajuste-vinculos.spec.js`; suite completa 35/35.
 
+- 20/10/2026: PAQUETE 2 — secciones plegables (items 2a–2e). Cada vista de datos ahora tiene grupos colapsables con estado persistido en localStorage, usando `<details>` + `initDetDyn` (dinámica) o `initDet` (estática). Implementación:
+  - 2a Vínculos: cada tarjeta persona/standalone → `details.persona` con summary (nombre + neto). `initDetDyn` guarda clave `finanzas-v1-det-vinc-<nombre>`.
+  - 2b Patrimonio: medios y grupos → `details.pat-grp` con subtotal en summary. Form "Agregar activo/deuda" → `details#det-pat-form`. Al editar un ítem, el grupo que lo contiene se fuerza abierto. Claves `finanzas-v1-det-pat-<tipo>-<grupo>`.
+  - 2c Compromisos: sort=venc/entidad agrupa en `details.comp-mes`; sort=monto sigue en lista plana (para no romper tests). Clave `finanzas-v1-det-comp-comp-<key>`.
+  - 2d Evolución: `div.ev-card` → `details.ev-card`. `initDet` movido al boot IIFE (no espera Chart.js CDN); `iniciarEvolucion` solo agrega el listener de resize. Clave `finanzas-v1-det-det-ev-<id>`.
+  - 2e Plegar todo: `mkPlegBtn` en Vínculos, Patrimonio, Compromisos y Evolución. Usa MutationObserver con guard `if(btn.textContent !== t)` para evitar loop infinito cuando el botón está dentro del scope observado. Texto alterna "Plegar todo" / "Desplegar todo" según estado actual.
+  - Fix tests preexistentes: ajuste-prestamo/vinculos usaban `details` genérico que ahora matchea el wrapper `pat-grp`/`persona`; corregido a `details:not(.pat-grp)` / `details:not(.persona)`.
+  - 25 tests nuevos (pleg-vinculos 6, pleg-patrimonio 6, pleg-compromisos 7, pleg-evolucion 5 + ajuste de selector en 2 existentes). Suite completa: 98/98 ✓.
+
 ## Lecciones
 - Un solo pedido grande con muchas funciones gasta mucho contexto y esconde errores. Mejor una tarea por conversación (`/clear` entre tareas).
 - Que el asistente marque todo como hecho no equivale a probado: probar la lógica con node y confirmar en el celular.
