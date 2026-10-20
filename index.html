@@ -479,7 +479,16 @@ button.mini.danger{color:var(--danger);}
       <div class="stat"><div class="lbl">Activos</div><div class="val pos" id="totActivos"></div></div>
       <div class="stat"><div class="lbl">Deudas</div><div class="val neg" id="totDeudas"></div></div>
       <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
-      <div class="stat"><div class="lbl">Var. 7 días</div><div class="val" id="var7d">—</div></div>
+      <div class="stat" id="stat-var">
+        <div class="lbl" id="var-lbl">Var. 24 h</div>
+        <div class="val" id="var7d">—</div>
+        <div class="no-print" style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">
+          <button type="button" class="mini var-per-btn" data-per="1" style="font-size:.72rem;padding:2px 6px">24 h</button>
+          <button type="button" class="mini var-per-btn" data-per="7" style="font-size:.72rem;padding:2px 6px">7 d</button>
+          <button type="button" class="mini var-per-btn" data-per="30" style="font-size:.72rem;padding:2px 6px">30 d</button>
+          <button type="button" class="mini var-per-btn" data-per="90" style="font-size:.72rem;padding:2px 6px">90 d</button>
+        </div>
+      </div>
     </div>
     <div class="no-print" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
       <button type="button" class="mini" id="btnTransferirInicio">⇄ Transferir</button>
@@ -2217,19 +2226,42 @@ function renderFotosConfig(){
   }
 }
 
-function varSieteDias(){
+const VAR_PER_KEY='finanzas-v1-var-per';
+function getVarPer(){try{return parseInt(localStorage.getItem(VAR_PER_KEY)||'1',10)||1;}catch{return 1;}}
+function setVarPer(n){try{localStorage.setItem(VAR_PER_KEY,String(n));}catch{}}
+
+function varPeriodo(dias){
   const snaps=cargarSnaps(); if(!snaps.length) return null;
-  const hace7=new Date(hoy()); hace7.setDate(hace7.getDate()-7);
-  const hace7str=hace7.toLocaleDateString('sv');
-  const old=snaps.filter(s=>s.d<=hace7str).sort((a,b)=>b.d.localeCompare(a.d))[0];
+  const ref=new Date(); ref.setDate(ref.getDate()-dias);
+  const refStr=ref.toLocaleDateString('sv');
+  const sorted=snaps.slice().sort((a,b)=>a.d.localeCompare(b.d));
+  // busca la foto más próxima a refStr sin pasarla
+  const cands=sorted.filter(s=>s.d<=refStr);
+  // si no hay ninguna tan antigua, usa la más vieja disponible (siempre que sea antes de hoy)
+  const pastSnaps=cands.length?cands:sorted.filter(s=>s.d<hoy());
+  const old=pastSnaps.length?pastSnaps[pastSnaps.length-1]:null;
   if(!old) return null;
   const diff=totales().neto-old.n;
   const pct=old.n!==0?(diff/Math.abs(old.n))*100:0;
-  return{diff,pct};
+  const desde=old.d===refStr?null:old.d;
+  return{diff,pct,desde};
 }
 
 function renderVar7d(){
-  const v=varSieteDias(); const el=$('var7d');
+  const dias=getVarPer();
+  const v=varPeriodo(dias); const el=$('var7d');
+  const lbl=$('var-lbl');
+  // update label
+  if(lbl){
+    if(v&&v.desde){const p=v.desde.split('-');lbl.textContent='Desde '+p[2]+'/'+p[1];}
+    else if(dias===1)lbl.textContent='Var. 24 h';
+    else lbl.textContent='Var. '+dias+' d';
+  }
+  // highlight active btn
+  document.querySelectorAll('.var-per-btn').forEach(b=>{
+    b.style.fontWeight=+b.dataset.per===dias?'700':'';
+    b.style.textDecoration=+b.dataset.per===dias?'underline':'';
+  });
   if(!v||!isFinite(v.pct)){el.textContent='—';el.className='val';return;}
   el.innerHTML='<span class="amt">'+((v.pct>=0?'+':'')+v.pct.toFixed(1)+'%')+'</span>';
   el.className='val '+(v.pct>=0?'pos':'neg');
@@ -2443,6 +2475,7 @@ function wireEvents(){
     const file=e.target.files[0]; if(!file) return;
     restaurarBackup(file); $('backupFile').value='';
   };
+  document.querySelectorAll('.var-per-btn').forEach(b=>b.onclick=()=>{setVarPer(+b.dataset.per);renderVar7d();});
   $('btnTransferirInicio').onclick=()=>abrirTransModal('transferir');
   $('btnPagarTarjetaInicio').onclick=()=>abrirTransModal('pagar-tarjeta');
   $('btnTransferirMovim').onclick=()=>abrirTransModal('transferir');
