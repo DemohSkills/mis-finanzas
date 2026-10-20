@@ -116,7 +116,7 @@ test.describe('ajuste-vinculos', () => {
     await page.waitForSelector('#ajusteModal', { state: 'hidden' });
 
     // Abrir historial en Vínculos
-    const histDet = page.locator('#vinculos details', { hasText: 'Historial' });
+    const histDet = page.locator('#vinculos details:not(.persona)', { hasText: 'Historial' });
     await expect(histDet).toBeVisible();
     await histDet.evaluate(el => { el.open = true; });
 

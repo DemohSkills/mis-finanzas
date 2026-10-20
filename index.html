@@ -116,7 +116,7 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 /* Evolución */
 .ev-notice{background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--muted);margin-bottom:14px;display:flex;gap:7px;}
 .ev-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
-.ev-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.ev-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:0;flex-wrap:wrap;}
 .ev-hd h2{margin:0 0 2px;font-size:.9rem;}
 .ev-hd .sub{font-size:.72rem;color:var(--muted);margin:0;}
 .ev-hint{font-size:.7rem;color:var(--muted);opacity:.65;white-space:nowrap;align-self:flex-end;}
@@ -195,7 +195,7 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
 .cat-chip.custom{border-color:var(--accent);color:var(--accent);}
 /* ── Compromisos list ────────────────────────────────────────── */
 .comp-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);flex-wrap:wrap;}
-.comp-row:first-child{border-top:0;}
+.comp-row:first-child,.comp-mes .comp-row:first-of-type{border-top:0;}
 .comp-info{flex:2;min-width:120px;}
 .comp-nombre{font-size:.84rem;display:block;}
 .comp-ent{font-size:.74rem;color:var(--muted);}
@@ -205,6 +205,36 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
 .comp-btns{display:flex;gap:5px;flex-shrink:0;}
 button.mini.danger{color:var(--danger);}
 .comp-row--fin{opacity:.45;}
+/* ── Secciones plegables avanzadas ─────────────────────────── */
+.sec-hd-pleg{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.sec-hd-pleg h2{margin:0;flex:1;}
+.btn-pleg-all{font-size:.72rem;padding:2px 8px;color:var(--muted);flex-shrink:0;}
+details.persona>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+details.persona>summary::-webkit-details-marker{display:none;}
+details.persona>summary .det-arrow{font-size:.75rem;transition:transform .15s;opacity:.55;flex-shrink:0;}
+details.persona[open]>summary .det-arrow{transform:rotate(90deg);}
+details.persona[open]>summary{margin-bottom:8px;}
+details.pat-grp{margin-bottom:2px;}
+details.pat-grp>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid var(--border);}
+details.pat-grp>summary::-webkit-details-marker{display:none;}
+details.pat-grp>summary h3{margin:0;font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;flex:1;}
+details.pat-grp>summary .det-arrow{font-size:.7rem;transition:transform .15s;opacity:.55;}
+details.pat-grp[open]>summary .det-arrow{transform:rotate(90deg);}
+details.pat-grp>summary .pat-sub{font-size:.78rem;font-weight:700;white-space:nowrap;}
+details.comp-mes{margin-bottom:2px;}
+details.comp-mes>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 0 5px;border-top:1px solid var(--border);}
+details.comp-mes:first-of-type>summary{border-top:none;}
+details.comp-mes>summary::-webkit-details-marker{display:none;}
+details.comp-mes>summary .comp-mes-lbl{font-size:.8rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:5px;}
+details.comp-mes>summary .det-arrow{font-size:.7rem;transition:transform .15s;opacity:.55;}
+details.comp-mes[open]>summary .det-arrow{transform:rotate(90deg);}
+details.comp-mes>summary .comp-mes-sub{font-size:.78rem;white-space:nowrap;}
+details.ev-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+details.ev-card>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+details.ev-card>summary::-webkit-details-marker{display:none;}
+details.ev-card[open]>summary{margin-bottom:12px;}
+details.ev-card>summary .det-arrow{font-size:.75rem;transition:transform .15s;opacity:.55;align-self:center;margin-left:2px;}
+details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
 /* ── Backup warning ─────────────────────────────────────────── */
 .backup-warn{background:color-mix(in srgb,var(--warn) 10%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--warn);margin-bottom:12px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
 .backup-warn.danger{background:color-mix(in srgb,var(--danger) 12%,transparent);border-color:color-mix(in srgb,var(--danger) 35%,transparent);color:var(--danger);}
@@ -560,7 +590,7 @@ button.mini.danger{color:var(--danger);}
   <!-- ── VÍNCULOS ── -->
   <div class="vista vista-vinculos" id="vista-vinculos" hidden>
     <section>
-      <h2>Vínculos Comerciales</h2>
+      <div class="sec-hd-pleg"><h2>Vínculos Comerciales</h2><button type="button" class="mini btn-pleg-all" id="btnPlegVinc">Plegar todo</button></div>
       <div id="vinculos"></div>
       <p class="meta">Para sumar a alguien acá, asignale una persona a un activo o deuda en la pestaña Patrimonio.</p>
     </section>
@@ -568,6 +598,7 @@ button.mini.danger{color:var(--danger);}
 
   <!-- ── PATRIMONIO ── -->
   <div class="vista" id="vista-patrimonio" hidden>
+    <div class="sec-hd-pleg" style="margin-bottom:4px"><span></span><button type="button" class="mini btn-pleg-all" id="btnPlegPat">Plegar todo</button></div>
     <section>
       <h2>Activos <span class="meta">— lo que tengo o me deben</span></h2>
       <div id="listaActivos"></div>
@@ -577,74 +608,78 @@ button.mini.danger{color:var(--danger);}
       <div id="listaDeudas"></div>
     </section>
     <section>
-      <h2 id="itemTitulo">Agregar activo o deuda</h2>
-      <form id="formItem" autocomplete="off">
-        <label class="full">Nombre
-          <input type="text" id="itemNombre" maxlength="80" required placeholder="Ej: Crédito Santander 4">
-        </label>
-        <label>Tipo
-          <select id="itemTipo">
-            <option value="activo">Activo (tengo / me deben)</option>
-            <option value="deuda">Deuda (debo)</option>
-          </select>
-        </label>
-        <label>Monto
-          <input type="text" class="input-monto" id="itemMonto" inputmode="decimal">
-        </label>
-        <label>Grupo
-          <select id="itemGrupo"></select>
-        </label>
-        <label>Persona (opcional)
-          <input type="text" id="itemPersona" maxlength="40" list="personasList" placeholder="Ej: María">
-        </label>
-        <datalist id="personasList"></datalist>
-        <div class="acciones">
-          <button type="submit" class="primary" id="btnItemGuardar">Agregar</button>
-          <button type="button" id="btnItemBorrar" class="danger" hidden>Borrar</button>
-          <button type="button" id="btnItemCancelar" hidden>Cancelar</button>
-        </div>
-      </form>
+      <details id="det-pat-form" class="section-collapse">
+        <summary><span class="det-arrow">▶</span><h2 id="itemTitulo">Agregar activo o deuda</h2></summary>
+        <form id="formItem" autocomplete="off">
+          <label class="full">Nombre
+            <input type="text" id="itemNombre" maxlength="80" required placeholder="Ej: Crédito Santander 4">
+          </label>
+          <label>Tipo
+            <select id="itemTipo">
+              <option value="activo">Activo (tengo / me deben)</option>
+              <option value="deuda">Deuda (debo)</option>
+            </select>
+          </label>
+          <label>Monto
+            <input type="text" class="input-monto" id="itemMonto" inputmode="decimal">
+          </label>
+          <label>Grupo
+            <select id="itemGrupo"></select>
+          </label>
+          <label>Persona (opcional)
+            <input type="text" id="itemPersona" maxlength="40" list="personasList" placeholder="Ej: María">
+          </label>
+          <datalist id="personasList"></datalist>
+          <div class="acciones">
+            <button type="submit" class="primary" id="btnItemGuardar">Agregar</button>
+            <button type="button" id="btnItemBorrar" class="danger" hidden>Borrar</button>
+            <button type="button" id="btnItemCancelar" hidden>Cancelar</button>
+          </div>
+        </form>
+      </details>
     </section>
   </div>
 
   <!-- ── EVOLUCIÓN ── -->
   <div class="vista" id="vista-evolucion" hidden>
-    <div class="ev-notice">
-      <span>ℹ️</span>
-      <span>Los gráficos usan snapshots guardados automáticamente al abrir la app. <strong>Clic en las leyendas para mostrar/ocultar series.</strong></span>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div class="ev-notice" style="flex:1;margin-bottom:0">
+        <span>ℹ️</span>
+        <span>Los gráficos usan snapshots guardados automáticamente al abrir la app. <strong>Clic en las leyendas para mostrar/ocultar series.</strong></span>
+      </div>
+      <button type="button" class="mini btn-pleg-all" id="btnPlegEvol" style="flex-shrink:0;align-self:flex-start">Plegar todo</button>
     </div>
-    <div class="ev-card">
-      <div class="ev-hd"><div><h2>Patrimonio neto</h2><p class="sub">Evolución histórica · ARS</p></div><span class="ev-badge neu" id="evBadgeP">—</span></div>
+    <details class="ev-card" id="det-ev-cP" open>
+      <summary class="ev-hd"><div><h2>Patrimonio neto</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge neu" id="evBadgeP">—</span></summary>
       <div class="cw h200"><canvas id="cP"></canvas></div>
-    </div>
-    <div class="g2">
-      <div class="ev-card" style="margin-bottom:0">
-        <div class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="ev-hint">clic leyenda</span></div>
+    </details>
+    <div class="g2" style="margin-bottom:14px">
+      <details class="ev-card" id="det-ev-cB" style="margin-bottom:0" open>
+        <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span></summary>
         <div class="cw h160"><canvas id="cB"></canvas></div>
-      </div>
-      <div class="ev-card" style="margin-bottom:0">
-        <div class="ev-hd"><div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div><span class="ev-hint">clic leyenda</span></div>
+      </details>
+      <details class="ev-card" id="det-ev-cG" style="margin-bottom:0" open>
+        <summary class="ev-hd"><div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span></summary>
         <div class="cw h160"><canvas id="cG"></canvas></div>
-      </div>
+      </details>
     </div>
-    <div style="margin-bottom:14px"></div>
-    <div class="ev-card">
-      <div class="ev-hd"><div><h2>Ingresos vs compromisos del mes</h2><p class="sub">Mes actual · comparado vs proyección 6 meses</p></div><span class="ev-badge dn" id="evBadgeIC">—</span></div>
+    <details class="ev-card" id="det-ev-cIC" open>
+      <summary class="ev-hd"><div><h2>Ingresos vs compromisos del mes</h2><p class="sub">Mes actual · comparado vs proyección 6 meses</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeIC">—</span></summary>
       <div class="brow" id="evBrow"></div>
       <div class="g2">
         <div><div class="ev-sub">Ingresos vs compromisos</div><div class="cw h200"><canvas id="cIngD"></canvas></div></div>
         <div><div class="ev-sub">Proyección 6 meses</div><div class="cw h200"><canvas id="cCmpD"></canvas></div></div>
       </div>
-    </div>
-    <div class="ev-card">
-      <div class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="ev-hint">clic leyenda</span></div>
+    </details>
+    <details class="ev-card" id="det-ev-cD" open>
+      <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span></summary>
       <div class="cw h200"><canvas id="cD"></canvas></div>
-    </div>
-    <div class="ev-card">
-      <div class="ev-hd"><div><h2>Gastos financieros fijos</h2><p class="sub">Costos mensuales conocidos · ARS</p></div><span class="ev-badge dn" id="evBadgeF">—</span></div>
+    </details>
+    <details class="ev-card" id="det-ev-cF" open>
+      <summary class="ev-hd"><div><h2>Gastos financieros fijos</h2><p class="sub">Costos mensuales conocidos · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeF">—</span></summary>
       <div class="cw h170"><canvas id="cF"></canvas></div>
       <div class="ev-fin-grid" id="evFinGrid"></div>
-    </div>
+    </details>
   </div>
 
   <!-- ── CONFIG ── -->
@@ -711,7 +746,7 @@ button.mini.danger{color:var(--danger);}
   <!-- ── COMPROMISOS ── -->
   <div class="vista" id="vista-compromisos" hidden>
     <section>
-      <h2>💳 Compromisos</h2>
+      <div class="sec-hd-pleg"><h2>💳 Compromisos</h2><button type="button" class="mini btn-pleg-all" id="btnPlegComp">Plegar todo</button></div>
       <p class="meta">Cuotas e importes mensuales fijos.</p>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
         <label for="compSort" class="meta" style="white-space:nowrap">Ordenar:</label>
@@ -1006,19 +1041,10 @@ function sortCompromisos(cs,orden){
   }
   return arr;
 }
-function renderCompromisos(){
-  const cont=$('compromisosList');
-  if(!cont) return;
-  const sel=$('compSort');
-  const orden=sel?sel.value:getCompSort();
-  if(sel&&sel.value!==getCompSort()) setCompSort(sel.value);
-  const cs=sortCompromisos(estado.compromisos||[],orden);
-  if(!cs.length){cont.innerHTML='<div class="vacio">Sin compromisos cargados.</div>';return;}
-  cont.innerHTML=cs.map(c=>{
-    const fin=c.pendientes===0;
-    const abon=!fin&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoy().slice(0,7);
-    return `
-    <div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
+function _compRowHtml(c){
+  const fin=c.pendientes===0;
+  const abon=!fin&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoy().slice(0,7);
+  return `<div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
       <div class="comp-info">
         <span class="comp-nombre">${esc(c.nombre)}</span>
         <span class="comp-ent">${esc(c.entidad)}</span>
@@ -1040,7 +1066,53 @@ function renderCompromisos(){
         `}
       </div>
     </div>`;
-  }).join('');
+}
+const _MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function _mesLabel(ym){const[y,m]=ym.split('-');return _MESES_NOM[+m-1]+' '+y;}
+function renderCompromisos(){
+  const cont=$('compromisosList');
+  if(!cont) return;
+  const sel=$('compSort');
+  const orden=sel?sel.value:getCompSort();
+  if(sel&&sel.value!==getCompSort()) setCompSort(sel.value);
+  const cs=sortCompromisos(estado.compromisos||[],orden);
+  if(!cs.length){cont.innerHTML='<div class="vacio">Sin compromisos cargados.</div>';return;}
+  cont.innerHTML='';
+
+  // sort=monto → flat list (no month headers)
+  if(orden==='monto'){
+    cont.insertAdjacentHTML('beforeend',cs.map(_compRowHtml).join(''));
+    return;
+  }
+
+  // Group by key: venc→month, entidad→entidad
+  const grupos=new Map();
+  for(const c of cs){
+    let key;
+    if(orden==='entidad') key=c.entidad;
+    else if(c.pendientes===0) key='__fin__';
+    else if(!c.proxVenc) key='__sf__';
+    else key=c.proxVenc.slice(0,7);
+    if(!grupos.has(key)) grupos.set(key,[]);
+    grupos.get(key).push(c);
+  }
+  const ordKeys=[...grupos.keys()].sort((a,b)=>{
+    if(a==='__fin__') return 1; if(b==='__fin__') return -1;
+    if(a==='__sf__') return 1; if(b==='__sf__') return -1;
+    return a.localeCompare(b);
+  });
+  for(const key of ordKeys){
+    const items=grupos.get(key);
+    const total=items.reduce((s,c)=>s+c.monto,0);
+    const lbl=key==='__fin__'?'Finalizados':key==='__sf__'?'Sin fecha':(orden==='entidad'?key:_mesLabel(key));
+    const sk='comp-'+key.replace(/[^a-z0-9]/gi,'-');
+    const det=document.createElement('details');
+    det.className='comp-mes';
+    det.innerHTML=`<summary><span class="comp-mes-lbl"><span class="det-arrow">▶</span>${esc(lbl)}</span><span class="comp-mes-sub neg">${fmtV(total)}</span></summary>`;
+    det.insertAdjacentHTML('beforeend',items.map(_compRowHtml).join(''));
+    initDetDyn(det,'comp-'+sk,true);
+    cont.appendChild(det);
+  }
 }
 
 let _compModalId=null;
@@ -1661,26 +1733,48 @@ function renderLista(contId, tipo) {
   const medios=MEDIOS.map(m=>({m,s:saldoDe(m)})).filter(({s})=>tipo==='activo'?s>0:s<0);
   const grupos=GRUPOS.map(g=>[g,estado.items.filter(it=>it.tipo===tipo&&it.grupo===g)]).filter(([,items])=>items.length);
   let total=0;
-  if(medios.length){
-    cont.insertAdjacentHTML('beforeend',`<h3>${tipo==='activo'?'Cuentas y efectivo':'Tarjetas de crédito'}</h3>`);
-    for(const{m,s}of medios){ total+=Math.abs(s); cont.appendChild(filaItem(m,Math.abs(s),'',()=>ajustarSaldo(m),false)); }
-  }
   const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
+  const hayEditandoItem=!!editandoItemId;
+
+  if(medios.length){
+    const grpMedios=document.createElement('details');
+    grpMedios.className='pat-grp';
+    const smr=document.createElement('summary');
+    const lbl=tipo==='activo'?'Cuentas y efectivo':'Tarjetas de crédito';
+    const medioSub=medios.reduce((s,{s:v})=>s+Math.abs(v),0);
+    smr.innerHTML=`<span class="det-arrow">▶</span><h3>${lbl}</h3><span class="pat-sub ${tipo==='activo'?'pos':'neg'}">${fmtV(medioSub)}</span>`;
+    grpMedios.appendChild(smr);
+    for(const{m,s}of medios){ total+=Math.abs(s); grpMedios.appendChild(filaItem(m,Math.abs(s),'',()=>ajustarSaldo(m),false)); }
+    initDetDyn(grpMedios,'pat-'+tipo+'-cuentas',true);
+    cont.appendChild(grpMedios);
+  }
+
   for(const[g,items]of grupos){
-    cont.insertAdjacentHTML('beforeend',`<h3>${esc(g)}</h3>`);
+    let grpTotal=0; for(const it of items) grpTotal+=it.monto;
+    total+=grpTotal;
+    const hasEditing=hayEditandoItem&&items.some(it=>it.id===editandoItemId);
+    const det=document.createElement('details');
+    det.className='pat-grp';
+    const smr=document.createElement('summary');
+    smr.innerHTML=`<span class="det-arrow">▶</span><h3>${esc(g)}</h3><span class="pat-sub ${tipo==='activo'?'pos':'neg'}">${fmtV(grpTotal)}</span>`;
+    det.appendChild(smr);
     for(const it of items){
-      total+=it.monto;
       const esPrestamo=g==='Préstamos con personas'&&!!it.persona;
-      cont.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null));
+      det.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null));
       if(esPrestamo&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
-        const det=document.createElement('details');
-        det.style='margin-left:8px;font-size:.8rem;';
-        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
-        det.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
-        cont.appendChild(det);
+        const hdet=document.createElement('details');
+        hdet.style='margin-left:8px;font-size:.8rem;';
+        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        hdet.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
+        det.appendChild(hdet);
       }
     }
+    // Force open if editing an item inside this group
+    const skSuffix=g.replace(/[^a-z0-9]/gi,'-').toLowerCase();
+    initDetDyn(det,'pat-'+tipo+'-'+skSuffix,true);
+    if(hasEditing) det.open=true;
+    cont.appendChild(det);
   }
   cont.insertAdjacentHTML('beforeend',`<div class="subtotal"><span>Total ${tipo==='activo'?'activos':'deudas'}</span><span class="num ${tipo==='activo'?'pos':'neg'}">${fmtV(total)}</span></div>`);
 }
@@ -1710,6 +1804,7 @@ function editarItem(id){
   $('btnItemGuardar').textContent='Guardar cambios';
   $('btnItemBorrar').hidden=$('btnItemCancelar').hidden=false;
   mostrarVista('patrimonio'); render();
+  const _dpf=document.getElementById('det-pat-form'); if(_dpf) _dpf.open=true;
   $('formItem').scrollIntoView({behavior:'smooth',block:'center'}); $('itemMonto').focus();
 }
 
@@ -1743,10 +1838,10 @@ function renderVinculos(){
   const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
   for(const p of personas){
     const txt=p.neto>0?`Te debe ${fmtV(p.neto)}`:p.neto<0?`Le debés ${fmtV(-p.neto)}`:'Sin saldo pendiente';
-    const div=document.createElement('div'); div.className='persona';
-    const hdr=document.createElement('div'); hdr.className='row';
-    hdr.innerHTML=`<span class="nombre">${esc(p.nombre)}</span><span class="estado num ${p.neto>0?'pos':p.neto<0?'neg':'meta'}">${txt}</span>`;
-    div.appendChild(hdr);
+    const card=document.createElement('details'); card.className='persona';
+    const smr=document.createElement('summary');
+    smr.innerHTML=`<span class="nombre">${esc(p.nombre)}</span><span class="estado num ${p.neto>0?'pos':p.neto<0?'neg':'meta'}">${txt}</span><span class="det-arrow">▶</span>`;
+    card.appendChild(smr);
     const ul=document.createElement('ul');
     for(const it of p.items){
       const li=document.createElement('li');
@@ -1762,17 +1857,21 @@ function renderVinculos(){
       }
       ul.appendChild(li);
     }
-    div.appendChild(ul);
-    cont.appendChild(div);
+    card.appendChild(ul);
+    const sk='vinc-'+p.nombre.replace(/[^a-z0-9]/gi,'-').toLowerCase();
+    initDetDyn(card,sk,true);
+    cont.appendChild(card);
   }
   for(const it of standalone){
     const neto=it.tipo==='activo'?it.monto:-it.monto;
     const txt=neto>0?`Te debe ${fmtV(neto)}`:neto<0?`Le debés ${fmtV(-neto)}`:'Sin saldo pendiente';
-    const div=document.createElement('div'); div.className='persona';
-    const hdr=document.createElement('div'); hdr.className='row';
-    hdr.innerHTML=`<span class="nombre">${esc(it.nombre)}<span class="sub-label">${esc(it.persona)}</span></span><span class="estado num ${neto>0?'pos':neto<0?'neg':'meta'}">${txt}</span>`;
-    div.appendChild(hdr);
-    cont.appendChild(div);
+    const card=document.createElement('details'); card.className='persona';
+    const smr=document.createElement('summary');
+    smr.innerHTML=`<span class="nombre">${esc(it.nombre)}<span class="sub-label">${esc(it.persona)}</span></span><span class="estado num ${neto>0?'pos':neto<0?'neg':'meta'}">${txt}</span><span class="det-arrow">▶</span>`;
+    card.appendChild(smr);
+    const sk='vinc-sa-'+it.id.replace(/[^a-z0-9]/gi,'-').toLowerCase();
+    initDetDyn(card,sk,true);
+    cont.appendChild(card);
   }
 }
 
@@ -2379,8 +2478,21 @@ function rChartF(){
   mkChart('cF',{type:'bar',data:{labels:items.map(d=>d.label),datasets:[{label:'Gasto mensual',data:items.map(d=>d.value),backgroundColor:items.map(d=>d.color),borderRadius:4,barPercentage:.6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{label:c=>' $'+fmtM(c.parsed.x)+'/mes'}}},scales:{x:{ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}},y:{ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}}}}});
 }
 
-let _evolReady=false;
-function iniciarEvolucion(){withChartJs(()=>{rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;});}
+let _evolReady=false,_evolDetInited=false;
+function iniciarEvolucion(){
+  withChartJs(()=>{
+    rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;
+    if(!_evolDetInited){
+      _evolDetInited=true;
+      const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cD',['cD']],['det-ev-cF',['cF']]];
+      for(const[id,cids]of evDets){
+        const el=$(id); if(!el) continue;
+        initDetDyn(el,id,true);
+        el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
+      }
+    }
+  });
+}
 
 // ═══════════════════════════════════════════════════════
 // TRANSFERENCIAS ENTRE CUENTAS
@@ -2492,6 +2604,13 @@ function wireEvents(){
 // ═══════════════════════════════════════════════════════
 // SECCIONES PLEGABLES
 // ═══════════════════════════════════════════════════════
+function initDetDyn(el,sfx,defOpen){
+  const k='finanzas-v1-det-'+sfx;
+  let open=defOpen;
+  try{const v=ls.get(k);if(v!==null)open=v;}catch{}
+  el.open=open;
+  el.addEventListener('toggle',()=>{try{ls.set(k,el.open);}catch{}});
+}
 (function(){
   const SK_DET='finanzas-v1-det';
   function initDet(id,defOpen){
@@ -2503,6 +2622,31 @@ function wireEvents(){
   }
   initDet('det-form',false);
   initDet('det-historial',true);
+  initDet('det-pat-form',true);
+
+  // ── Botones "Plegar todo / Desplegar todo" ──────────────────
+  function mkPlegBtn(btnId, getScopeEl){
+    const btn=document.getElementById(btnId); if(!btn) return;
+    function update(){
+      const dets=[...getScopeEl().querySelectorAll('details')];
+      const anyOpen=dets.some(d=>d.open);
+      const t=anyOpen?'Plegar todo':'Desplegar todo';
+      if(btn.textContent!==t) btn.textContent=t;  // guard: prevents infinite loop
+    }
+    btn.onclick=()=>{
+      const dets=[...getScopeEl().querySelectorAll('details')];
+      const anyOpen=dets.some(d=>d.open);
+      dets.forEach(d=>{ d.open=!anyOpen; });
+      update();
+    };
+    const obs=new MutationObserver(update);
+    obs.observe(getScopeEl(),{childList:true,subtree:true,attributes:true,attributeFilter:['open']});
+    update();
+  }
+  mkPlegBtn('btnPlegVinc',  ()=>document.getElementById('vinculos'));
+  mkPlegBtn('btnPlegPat',   ()=>document.getElementById('vista-patrimonio'));
+  mkPlegBtn('btnPlegComp',  ()=>document.getElementById('compromisosList'));
+  mkPlegBtn('btnPlegEvol',  ()=>document.getElementById('vista-evolucion'));
 })();
 
 // ═══════════════════════════════════════════════════════

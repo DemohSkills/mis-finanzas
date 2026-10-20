@@ -130,7 +130,7 @@ test.describe('ajuste-prestamo', () => {
     await page.waitForSelector('#ajusteModal', { state: 'hidden' });
 
     // Verificar que el historial aparece y abrir el details
-    const histDet = page.locator('#listaDeudas details', { hasText: 'Historial' });
+    const histDet = page.locator('#listaDeudas details:not(.pat-grp)', { hasText: 'Historial' });
     await expect(histDet).toBeVisible();
     await histDet.evaluate(el => { el.open = true; });
 
