@@ -2237,9 +2237,11 @@ function varPeriodo(dias){
   const sorted=snaps.slice().sort((a,b)=>a.d.localeCompare(b.d));
   // busca la foto más próxima a refStr sin pasarla
   const cands=sorted.filter(s=>s.d<=refStr);
-  // si no hay ninguna tan antigua, usa la más vieja disponible (siempre que sea antes de hoy)
-  const pastSnaps=cands.length?cands:sorted.filter(s=>s.d<hoy());
-  const old=pastSnaps.length?pastSnaps[pastSnaps.length-1]:null;
+  // caso normal: usa la más reciente dentro de cands (más cercana a refStr)
+  // caso fallback: usa la más vieja disponible anterior a hoy
+  const old=cands.length
+    ?cands[cands.length-1]
+    :sorted.filter(s=>s.d<hoy())[0]||null;
   if(!old) return null;
   const diff=totales().neto-old.n;
   const pct=old.n!==0?(diff/Math.abs(old.n))*100:0;
