@@ -111,6 +111,7 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .persona .estado{font-weight:700;}
 .persona ul{list-style:none;margin:8px 0 0;padding:0;}
 .persona li{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);padding:2px 0;}
+.persona .sub-label{font-size:.82rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
 /* Evolución */
 .ev-notice{background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--muted);margin-bottom:14px;display:flex;gap:7px;}
 .ev-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
@@ -1575,10 +1576,12 @@ $('btnItemCancelar').onclick=()=>{ resetFormItem(); render(); };
 // ─── Vínculos ────────────────────────────────────────────────
 function renderVinculos(){
   const porPersona=new Map();
-  for(const it of estado.items){ if(!it.persona) continue; if(!porPersona.has(it.persona)) porPersona.set(it.persona,[]); porPersona.get(it.persona).push(it); }
-  $('personasList').innerHTML=[...porPersona.keys()].map(p=>`<option value="${esc(p)}">`).join('');
+  for(const it of estado.items){ if(!it.persona||it.grupo!=='Préstamos con personas') continue; if(!porPersona.has(it.persona)) porPersona.set(it.persona,[]); porPersona.get(it.persona).push(it); }
+  const todasPersonas=new Set(estado.items.filter(it=>!!it.persona).map(it=>it.persona));
+  $('personasList').innerHTML=[...todasPersonas].map(p=>`<option value="${esc(p)}">`).join('');
   const cont=$('vinculos'); cont.innerHTML='';
-  if(!porPersona.size){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
+  const standalone=estado.items.filter(it=>!!it.persona&&it.grupo!=='Préstamos con personas');
+  if(!porPersona.size&&!standalone.length){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
   const personas=[...porPersona].map(([nombre,items])=>({nombre,items,neto:items.reduce((s,it)=>s+(it.tipo==='activo'?it.monto:-it.monto),0)})).sort((a,b)=>Math.abs(b.neto)-Math.abs(a.neto));
   const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
   for(const p of personas){
@@ -1589,23 +1592,29 @@ function renderVinculos(){
     div.appendChild(hdr);
     const ul=document.createElement('ul');
     for(const it of p.items){
-      const esPrestamo=it.grupo==='Préstamos con personas'&&!!it.persona;
       const li=document.createElement('li');
-      li.innerHTML=`<span>${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span>${esPrestamo?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}`;
-      if(esPrestamo){
-        li.querySelector('button').onclick=()=>abrirAjusteModal(it.id);
-        if(it.historial?.length){
-          const ultimos=[...it.historial].reverse().slice(0,5);
-          const det=document.createElement('details');
-          det.style='margin-left:8px;font-size:.8rem;';
-          det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
-          det.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
-          li.appendChild(det);
-        }
+      li.innerHTML=`<span>${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span><button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>`;
+      li.querySelector('button').onclick=()=>abrirAjusteModal(it.id);
+      if(it.historial?.length){
+        const ultimos=[...it.historial].reverse().slice(0,5);
+        const det=document.createElement('details');
+        det.style='margin-left:8px;font-size:.8rem;';
+        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        det.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
+        li.appendChild(det);
       }
       ul.appendChild(li);
     }
     div.appendChild(ul);
+    cont.appendChild(div);
+  }
+  for(const it of standalone){
+    const neto=it.tipo==='activo'?it.monto:-it.monto;
+    const txt=neto>0?`Te debe ${fmtV(neto)}`:neto<0?`Le debés ${fmtV(-neto)}`:'Sin saldo pendiente';
+    const div=document.createElement('div'); div.className='persona';
+    const hdr=document.createElement('div'); hdr.className='row';
+    hdr.innerHTML=`<span class="nombre">${esc(it.nombre)}<span class="sub-label">${esc(it.persona)}</span></span><span class="estado num ${neto>0?'pos':neto<0?'neg':'meta'}">${txt}</span>`;
+    div.appendChild(hdr);
     cont.appendChild(div);
   }
 }
