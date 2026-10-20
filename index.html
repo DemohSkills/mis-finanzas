@@ -287,7 +287,7 @@ button.mini.danger{color:var(--danger);}
         </div>
         <div class="wiz-field">
           <label>Persona (opcional)</label>
-          <input type="text" id="wiPersona" placeholder="Ej: Boris" maxlength="40">
+          <input type="text" id="wiPersona" placeholder="Ej: Juan" maxlength="40">
         </div>
         <div class="wiz-actions">
           <button type="submit" class="primary" style="flex:0 0 auto;padding:8px 16px;">+ Agregar</button>
@@ -512,7 +512,7 @@ button.mini.danger{color:var(--danger);}
           <select id="itemGrupo"></select>
         </label>
         <label>Persona (opcional)
-          <input type="text" id="itemPersona" maxlength="40" list="personasList" placeholder="Ej: Vero">
+          <input type="text" id="itemPersona" maxlength="40" list="personasList" placeholder="Ej: María">
         </label>
         <datalist id="personasList"></datalist>
         <div class="acciones">
@@ -864,9 +864,6 @@ function cargar() {
     if (g.soloHistorial === undefined) g.soloHistorial = false;
   });
   data.compromisos ||= [];
-  // Migración: vincular compromisos existentes a ítems de patrimonio (idempotente)
-  const _MAPA_VCL={'035100726062':'Crédito Santander 1','035100786211':'Crédito Santander 2','035100815669':'Crédito Santander 3','Edesur 28/sep':'Créditos MP 1','Edesur 29/ago':'Créditos MP 2','Préstamo personal 03/ago':'Créditos MP 3','Edesur 31/jul':'Créditos MP 4'};
-  data.compromisos.forEach(c=>{if(!c.itemNombre&&_MAPA_VCL[c.nombre])c.itemNombre=_MAPA_VCL[c.nombre];});
   return data;
 }
 
@@ -890,22 +887,6 @@ function compromisosMes(mesStr){
 const MEDIOS_NO_TARJETA=['Banco Santander','Mercado Pago','Astropay','Efectivo'];
 function disponibleHoy(){return MEDIOS_NO_TARJETA.reduce((s,m)=>{const sd=saldoDe(m);return s+(sd>0?sd:0);},0);}
 
-function sembrarCompromisos(){
-  if(estado.compromisos.length>0) return;
-  estado.compromisos=[
-    {id:nuevoId(),nombre:'035100726062',entidad:'Santander',monto:166523.52,pendientes:3,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Crédito Santander 1'},
-    {id:nuevoId(),nombre:'035100786211',entidad:'Santander',monto:86125.21,pendientes:8,proxVenc:mkFecha(2026,10,20),tipo:'cuota',estimado:false,itemNombre:'Crédito Santander 2'},
-    {id:nuevoId(),nombre:'035100815669',entidad:'Santander',monto:326746.32,pendientes:10,proxVenc:mkFecha(2026,11,10),tipo:'cuota',estimado:false,itemNombre:'Crédito Santander 3'},
-    {id:nuevoId(),nombre:'Edesur 31/jul',entidad:'Mercado Pago',monto:175752.93,pendientes:1,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 4'},
-    {id:nuevoId(),nombre:'Edesur 28/sep',entidad:'Mercado Pago',monto:135235.32,pendientes:3,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 1'},
-    {id:nuevoId(),nombre:'Edesur 29/ago',entidad:'Mercado Pago',monto:74923.09,pendientes:5,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 2'},
-    {id:nuevoId(),nombre:'Préstamo personal 03/ago',entidad:'Mercado Pago',monto:40020.48,pendientes:4,proxVenc:mkFecha(2026,10,16),tipo:'cuota',estimado:false,itemNombre:'Créditos MP 3'},
-    {id:nuevoId(),nombre:'Movilidad DLO',entidad:'Mastercard MP',monto:142223.46,pendientes:16,proxVenc:null,tipo:'cuota',estimado:false},
-    {id:nuevoId(),nombre:'Resumen actual',entidad:'Visa Santander',monto:4636839.24,pendientes:1,proxVenc:null,tipo:'resumen',estimado:false,pagoMinimo:810850},
-    {id:nuevoId(),nombre:'Préstamo Boris',entidad:'Boris',monto:725000,pendientes:6,proxVenc:mkFecha(2027,1,31),tipo:'cuota',estimado:true},
-  ];
-  guardar();
-}
 
 function renderCompromisos(){
   const cont=$('compromisosList');
@@ -1225,7 +1206,6 @@ function arrancarApp() {
 }
 
 function initApp() {
-  sembrarCompromisos();
   fillCatSelect('categoria');
   $('medio').innerHTML = MEDIOS.map(m=>`<option>${m}</option>`).join('');
   $('itemGrupo').innerHTML = GRUPOS.map(g=>`<option>${g}</option>`).join('');
