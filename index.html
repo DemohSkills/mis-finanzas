@@ -81,6 +81,7 @@ body.ocultar .amt::after{content:"••••••";font-size:14px;letter-spac
 /* Forms */
 form{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);}
+label[hidden]{display:none!important;}
 label.full{grid-column:1/-1;}
 input,select{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 10px;width:100%;}
 .acciones{grid-column:1/-1;display:flex;gap:8px;}
@@ -506,6 +507,8 @@ button.mini.danger{color:var(--danger);}
           <select id="tipo">
             <option value="gasto">💸 Gasto</option>
             <option value="ingreso">💰 Ingreso</option>
+            <option value="transferir" class="opt-trans">⇄ Transferir</option>
+            <option value="pagar-tarjeta" class="opt-trans">💳 Pagar tarjeta</option>
           </select>
         </label>
         <label>Monto
@@ -514,11 +517,14 @@ button.mini.danger{color:var(--danger);}
         <label>Fecha
           <input type="date" id="fecha" required>
         </label>
-        <label>Categoría
+        <label id="categoriaLabel">Categoría
           <select id="categoria" required></select>
         </label>
-        <label>Medio de pago
+        <label id="medioLabel">Medio de pago
           <select id="medio" required></select>
+        </label>
+        <label id="formDestinoLabel" hidden>Destino
+          <select id="formDestino"></select>
         </label>
         <label class="full">Descripción (opcional)
           <input type="text" id="descripcion" maxlength="120" placeholder="Ej: nafta, súper, luz…">
@@ -1349,6 +1355,7 @@ function arrancarApp() {
 function initApp() {
   fillCatSelect('categoria');
   $('medio').innerHTML = MEDIOS.map(m=>`<option>${m}</option>`).join('');
+  $('formDestino').innerHTML = MEDIOS.map(m=>`<option>${m}</option>`).join('');
   $('itemGrupo').innerHTML = GRUPOS.map(g=>`<option>${g}</option>`).join('');
   fillCatSelect('reglaCat');
   guardarSnap();
@@ -1520,6 +1527,13 @@ function resetForm() {
   $('btnCancelar').hidden=true;
   $('soloHistorialLabel').hidden=true;
   $('tipo').value='gasto';
+  // Restore transfer options visibility
+  for(const opt of $('tipo').querySelectorAll('.opt-trans')) opt.hidden=false;
+  // Restore field labels and visibility
+  $('categoriaLabel').hidden=false;
+  $('medioLabel').firstChild.textContent='Medio de pago';
+  $('formDestinoLabel').hidden=true;
+  $('medio').innerHTML=MEDIOS.map(m=>`<option>${m}</option>`).join('');
   fillCatSelect('categoria');
 }
 
@@ -1527,6 +1541,8 @@ function empezarEdicion(id) {
   const g=estado.gastos.find(x=>x.id===id); if(!g) return;
   editandoId=id;
   const isIng=(g.tipo||'gasto')==='ingreso';
+  // In edit mode: hide transfer options (transfers are edited by delete + re-add)
+  for(const opt of $('tipo').querySelectorAll('.opt-trans')) opt.hidden=true;
   $('tipo').value=g.tipo||'gasto';
   $('monto').value=fmtInput(g.monto); $('fecha').value=g.fecha;
   fillCatSelect('categoria', g.categoria, isIng);
@@ -1558,17 +1574,41 @@ $('descripcion').addEventListener('input', () => {
 });
 
 $('tipo').addEventListener('change', () => {
-  const isIng = $('tipo').value === 'ingreso';
-  fillCatSelect('categoria', null, isIng);
+  const v = $('tipo').value;
+  const isIng = v === 'ingreso';
+  const isTrans = v === 'transferir' || v === 'pagar-tarjeta';
+  const isTP = v === 'pagar-tarjeta';
+  // Fields only for regular movements
+  $('categoriaLabel').hidden = isTrans;
+  $('soloHistorialLabel').hidden = isTrans || !editandoId;
+  // Medio label and options
+  $('medioLabel').firstChild.textContent = isTrans ? 'Origen' : 'Medio de pago';
+  if (isTrans) {
+    $('medio').innerHTML = (isTP ? MEDIOS_CUENTA : MEDIOS).map(m=>`<option>${m}</option>`).join('');
+    $('formDestino').innerHTML = (isTP ? MEDIOS_TARJETA : MEDIOS).map(m=>`<option>${m}</option>`).join('');
+    $('formDestinoLabel').hidden = false;
+    $('btnGuardar').textContent = isTP ? 'Pagar tarjeta' : 'Transferir';
+  } else {
+    $('medio').innerHTML = MEDIOS.map(m=>`<option>${m}</option>`).join('');
+    $('formDestinoLabel').hidden = true;
+    $('btnGuardar').textContent = editandoId ? 'Actualizar movimiento' : 'Guardar movimiento';
+    fillCatSelect('categoria', null, isIng);
+  }
 });
 
 $('form').addEventListener('submit', e => {
   e.preventDefault();
+  const tipo = $('tipo').value || 'gasto';
   const monto=Math.round(readMonto('monto')*100)/100;
   if(!(monto>0)) return alert('Ingresá un monto mayor a 0 (ej: 1.234,56)');
+  if(tipo==='transferir'||tipo==='pagar-tarjeta'){
+    const origen=$('medio').value, destino=$('formDestino').value;
+    const fecha=$('fecha').value, nota=$('descripcion').value.trim();
+    if(_ejecutarTransf(origen,destino,monto,fecha,nota,tipo)) resetForm();
+    return;
+  }
   let cat = $('categoria').value;
   if (cat === '__nueva__') return;
-  const tipo = $('tipo').value || 'gasto';
   const soloHistorial = $('soloHistorialLabel').hidden ? false : $('soloHistorial').checked;
   const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial };
   if(editandoId) { Object.assign(estado.gastos.find(x=>x.id===editandoId), datos); }
@@ -2302,28 +2342,33 @@ function abrirTransModal(mode='transferir'){
 }
 function cerrarTransModal(){ $('transModal').hidden=true; }
 
-function guardarTransferencia(){
-  const origen=$('transOrigen').value;
-  const destino=$('transDestino').value;
-  const monto=Math.round(readMonto('transMonto')*100)/100;
-  const fecha=$('transFecha').value;
-  const nota=$('transNota').value.trim();
-  if(origen===destino) return alert('El origen y el destino no pueden ser iguales.');
-  if(!(monto>0)) return alert('Ingresá un monto mayor a 0 (ej: 1.234,56)');
-  const esTP=_transMode==='pagar-tarjeta';
+function _ejecutarTransf(origen,destino,monto,fecha,nota,mode){
+  if(origen===destino) { alert('El origen y el destino no pueden ser iguales.'); return false; }
+  if(!(monto>0)) { alert('Ingresá un monto mayor a 0 (ej: 1.234,56)'); return false; }
+  const esTP=mode==='pagar-tarjeta';
   const categoria=esTP?'Pago de Visa/MP':'Transferencia entre cuentas';
   if(!MEDIOS_TARJETA.includes(origen)){
     const sal=saldoDe(origen);
-    if(sal-monto<0&&!confirm(`El saldo de ${origen} quedaría en ${fmt(sal-monto)}. ¿Continuar de todas formas?`)) return;
+    if(sal-monto<0&&!confirm(`El saldo de ${origen} quedaría en ${fmt(sal-monto)}. ¿Continuar de todas formas?`)) return false;
   }
   const transferId=nuevoId();
   const desc=nota||(esTP?`Pago ${destino}`:`${origen} → ${destino}`);
   const now=Date.now();
   estado.gastos.push({id:nuevoId(),creado:now,  monto,fecha,categoria,medio:origen, descripcion:desc,tipo:'gasto',  soloHistorial:false,transferencia:true,transferId});
   estado.gastos.push({id:nuevoId(),creado:now+1,monto,fecha,categoria,medio:destino,descripcion:desc,tipo:'ingreso',soloHistorial:false,transferencia:true,transferId});
-  guardar(); guardarSnap(); cerrarTransModal();
+  guardar(); guardarSnap();
   render(); renderCompromisos();
   if(_evolReady){rChartIC();rChartG();rChartD();}
+  return true;
+}
+
+function guardarTransferencia(){
+  const origen=$('transOrigen').value;
+  const destino=$('transDestino').value;
+  const monto=Math.round(readMonto('transMonto')*100)/100;
+  const fecha=$('transFecha').value;
+  const nota=$('transNota').value.trim();
+  if(_ejecutarTransf(origen,destino,monto,fecha,nota,_transMode)) cerrarTransModal();
 }
 
 function borrarTransferencia(transferId){
