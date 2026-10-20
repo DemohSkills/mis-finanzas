@@ -383,6 +383,36 @@ button.mini.danger{color:var(--danger);}
   </div>
 </div>
 
+<div class="overlay" id="ajusteModal" hidden>
+  <div class="wiz-box" style="max-width:360px;">
+    <h2 id="ajusteModalTit" style="margin:0 0 14px;font-size:1rem;"></h2>
+    <div class="wiz-field">
+      <label>Acción</label>
+      <select id="ajusteAccion"></select>
+    </div>
+    <div class="wiz-field">
+      <label>Monto</label>
+      <input type="text" class="input-monto" inputmode="decimal" id="ajusteMonto" placeholder="0">
+    </div>
+    <div class="wiz-field">
+      <label>Cuenta / Medio de pago</label>
+      <select id="ajusteMedio"></select>
+    </div>
+    <div class="wiz-field">
+      <label>Fecha</label>
+      <input type="date" id="ajusteFecha">
+    </div>
+    <div class="wiz-field">
+      <label>Nota (opcional)</label>
+      <input type="text" id="ajusteNota" maxlength="80" placeholder="Ej: por la cena del sábado">
+    </div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnGuardarAjuste">Guardar</button>
+      <button type="button" onclick="cerrarAjusteModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ MAIN APP ══════════════════ -->
 <main id="app" hidden>
   <div class="app-hdr">
@@ -864,6 +894,7 @@ function cargar() {
     if (g.soloHistorial === undefined) g.soloHistorial = false;
   });
   data.compromisos ||= [];
+  for (const it of data.items) if (!it.historial) it.historial = [];
   return data;
 }
 
@@ -1123,6 +1154,69 @@ function deshacerPago(id){
   guardar(); render(); renderCompromisos();
   if(_evolReady){rChartIC();rChartD();}
 }
+// ── AJUSTE PRÉSTAMOS ─────────────────────────────────────
+let _ajusteItemId = null;
+
+function abrirAjusteModal(itId) {
+  const it = estado.items.find(x => x.id === itId); if (!it) return;
+  _ajusteItemId = itId;
+  const acciones = it.tipo === 'deuda'
+    ? [['Me prestó más','prestoMas'],['Le devolví','devolvi']]
+    : [['Le presté más','preste'],['Me devolvió','devolvio']];
+  $('ajusteAccion').innerHTML = acciones.map(([l,v]) => `<option value="${v}">${l}</option>`).join('');
+  $('ajusteModalTit').textContent = '± Ajustar: ' + it.nombre;
+  $('ajusteMedio').innerHTML = MEDIOS.map(m => `<option>${esc(m)}</option>`).join('');
+  $('ajusteFecha').value = hoy();
+  $('ajusteMonto').value = '';
+  $('ajusteNota').value = '';
+  $('ajusteModal').removeAttribute('hidden');
+  $('ajusteMonto').focus();
+}
+
+function cerrarAjusteModal() {
+  $('ajusteModal').setAttribute('hidden', '');
+  _ajusteItemId = null;
+}
+
+function guardarAjuste() {
+  const it = estado.items.find(x => x.id === _ajusteItemId); if (!it) return;
+  const monto = Math.round(readMonto('ajusteMonto') * 100) / 100;
+  if (!(monto > 0)) return alert('Ingresá un monto mayor a 0 (ej: 1.234,56)');
+  const accion = $('ajusteAccion').value;
+  const medio  = $('ajusteMedio').value;
+  const fecha  = $('ajusteFecha').value;
+  const nota   = $('ajusteNota').value.trim();
+  const descs  = { prestoMas:'Me prestó más: '+it.nombre, devolvi:'Le devolví a: '+it.nombre, preste:'Le presté más a: '+it.nombre, devolvio:'Me devolvió: '+it.nombre };
+  let tipoMov;
+  if      (accion === 'prestoMas') { it.monto += monto;                         tipoMov = 'ingreso'; }
+  else if (accion === 'devolvi')   { it.monto = Math.max(0, it.monto - monto);  tipoMov = 'gasto';   }
+  else if (accion === 'preste')    { it.monto += monto;                         tipoMov = 'gasto';   }
+  else if (accion === 'devolvio')  { it.monto = Math.max(0, it.monto - monto);  tipoMov = 'ingreso'; }
+  const gastoId = nuevoId();
+  estado.gastos.push({ id:gastoId, creado:Date.now(), monto, fecha, categoria:'Préstamos entre personas', medio, descripcion:nota||descs[accion]||'', tipo:tipoMov, soloHistorial:false, transferencia:true });
+  if (!it.historial) it.historial = [];
+  it.historial.push({ id:nuevoId(), fecha, accion, monto, medio, gastoId });
+  cerrarAjusteModal();
+  guardar(); guardarSnap();
+  renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+  renderVinculos(); renderResumen(); renderHistorial();
+}
+
+function deshacerUltimoAjuste(itId) {
+  const it = estado.items.find(x => x.id === itId); if (!it || !it.historial?.length) return;
+  const entrada = it.historial[it.historial.length - 1];
+  if (!confirm('¿Deshacer el último ajuste de ' + it.nombre + '?')) return;
+  estado.gastos = estado.gastos.filter(x => x.id !== entrada.gastoId);
+  const { accion, monto: m } = entrada;
+  if (accion === 'prestoMas' || accion === 'preste') it.monto = Math.max(0, it.monto - m);
+  else it.monto += m;
+  it.historial.pop();
+  guardar(); guardarSnap();
+  renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+  renderVinculos(); renderResumen(); renderHistorial();
+}
+
+$('btnGuardarAjuste').onclick = guardarAjuste;
 // ── FIN COMPROMISOS ──────────────────────────────────────
 
 function saldoDe(medio) {
@@ -1313,8 +1407,8 @@ function renderHistorial() {
   const cont=$('historial'); cont.innerHTML='';
   const lista=[...estado.gastos].sort((a,b) => b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
   if (!lista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste movimientos.</div>'; $('total').textContent=''; return; }
-  const totalGastos = lista.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
-  const totalIngresos = lista.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
+  const totalGastos = lista.filter(g=>(g.tipo||'gasto')==='gasto'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
+  const totalIngresos = lista.filter(g=>(g.tipo||'gasto')==='ingreso'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   $('total').innerHTML=`${lista.length} movimiento${lista.length>1?'s':''} · Gastos: ${fmtV(totalGastos)} · Ingresos: ${fmtV(totalIngresos)}`;
   for (const g of lista) {
     const isIng = (g.tipo||'gasto')==='ingreso';
@@ -1413,17 +1507,32 @@ function renderLista(contId, tipo) {
     cont.insertAdjacentHTML('beforeend',`<h3>${tipo==='activo'?'Cuentas y efectivo':'Tarjetas de crédito'}</h3>`);
     for(const{m,s}of medios){ total+=Math.abs(s); cont.appendChild(filaItem(m,Math.abs(s),'',()=>ajustarSaldo(m),false)); }
   }
+  const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
   for(const[g,items]of grupos){
     cont.insertAdjacentHTML('beforeend',`<h3>${esc(g)}</h3>`);
-    for(const it of items){ total+=it.monto; cont.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId)); }
+    for(const it of items){
+      total+=it.monto;
+      const esPrestamo=g==='Préstamos con personas'&&!!it.persona;
+      cont.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null));
+      if(esPrestamo&&it.historial?.length){
+        const ultimos=[...it.historial].reverse().slice(0,5);
+        const det=document.createElement('details');
+        det.style='margin-left:8px;font-size:.8rem;';
+        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        det.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
+        cont.appendChild(det);
+      }
+    }
   }
   cont.insertAdjacentHTML('beforeend',`<div class="subtotal"><span>Total ${tipo==='activo'?'activos':'deudas'}</span><span class="num ${tipo==='activo'?'pos':'neg'}">${fmtV(total)}</span></div>`);
 }
 
-function filaItem(nombre,monto,persona,onEdit,editando){
+function filaItem(nombre,monto,persona,onEdit,editando,onAjustar){
   const div=document.createElement('div'); div.className='item'+(editando?' editando':'');
-  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>`;
-  div.querySelector('button').onclick=onEdit; return div;
+  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}`;
+  div.querySelector('.edit').onclick=onEdit;
+  if(onAjustar) div.querySelectorAll('button')[1].onclick=onAjustar;
+  return div;
 }
 
 function resetFormItem(){
@@ -1629,10 +1738,10 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA=''){
 // CSV IMPORT / EXPORT
 // ═══════════════════════════════════════════════════════
 function exportarCSV(){
-  const rows=[['Fecha','Descripcion','Categoria','Monto','MedioDePago','Tipo','SoloHistorial']];
+  const rows=[['Fecha','Descripcion','Categoria','Monto','MedioDePago','Tipo','SoloHistorial','Transferencia']];
   for(const g of estado.gastos){
     rows.push([fechaCorta(g.fecha), `"${(g.descripcion||'').replace(/"/g,'""')}"`, g.categoria,
-      g.monto.toFixed(2), g.medio, g.tipo||'gasto', g.soloHistorial?'true':'false']);
+      g.monto.toFixed(2), g.medio, g.tipo||'gasto', g.soloHistorial?'true':'false', g.transferencia?'true':'false']);
   }
   const csv=rows.map(r=>r.join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
@@ -1957,7 +2066,7 @@ function rChartB(){
 
 function rChartG(){
   const byMes={};
-  for(const g of estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos')){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
+  for(const g of estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos'&&!g.transferencia)){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
   const entries=Object.entries(byMes).sort(([a],[b])=>a.localeCompare(b)).slice(-6);
   if(!entries.length){if(_ci['cG']){_ci['cG'].destroy();delete _ci['cG'];}return;}
   const allCats=[...new Set(entries.flatMap(([,c])=>Object.keys(c)))];
@@ -1968,7 +2077,7 @@ function rChartG(){
 function rChartIC(){
   const mesActual=hoy().slice(0,7);
   // Ingresos cobrados del mes (incluye soloHistorial)
-  const ingresosMes=estado.gastos.filter(g=>g.tipo==='ingreso'&&g.fecha&&g.fecha.slice(0,7)===mesActual).reduce((s,g)=>s+g.monto,0);
+  const ingresosMes=estado.gastos.filter(g=>g.tipo==='ingreso'&&g.fecha&&g.fecha.slice(0,7)===mesActual&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   // Por cobrar: items activos de 'Cobros pendientes'
   const porCobrar=estado.items.filter(it=>it.tipo==='activo'&&it.grupo==='Cobros pendientes').reduce((s,it)=>s+it.monto,0);
   // Compromisos del mes
