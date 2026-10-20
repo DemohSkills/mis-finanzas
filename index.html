@@ -704,6 +704,14 @@ button.mini.danger{color:var(--danger);}
     <section>
       <h2>💳 Compromisos</h2>
       <p class="meta">Cuotas e importes mensuales fijos.</p>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        <label for="compSort" class="meta" style="white-space:nowrap">Ordenar:</label>
+        <select id="compSort" class="mini" style="flex:1;max-width:220px">
+          <option value="venc">Fecha de vencimiento</option>
+          <option value="entidad">Cuenta / entidad</option>
+          <option value="monto">Monto (mayor primero)</option>
+        </select>
+      </div>
       <div id="compromisosList"></div>
       <button type="button" class="mini" id="btnNuevoCompromiso" style="margin-top:10px">+ Agregar</button>
     </section>
@@ -972,10 +980,30 @@ const MEDIOS_NO_TARJETA=['Banco Santander','Mercado Pago','Astropay','Efectivo']
 function disponibleHoy(){return MEDIOS_NO_TARJETA.reduce((s,m)=>{const sd=saldoDe(m);return s+(sd>0?sd:0);},0);}
 
 
+const COMP_SORT_KEY='finanzas-v1-comp-sort';
+function getCompSort(){try{return localStorage.getItem(COMP_SORT_KEY)||'venc';}catch{return'venc';}}
+function setCompSort(v){try{localStorage.setItem(COMP_SORT_KEY,v);}catch{}}
+function sortCompromisos(cs,orden){
+  const arr=[...cs];
+  if(orden==='entidad') arr.sort((a,b)=>a.entidad.localeCompare(b.entidad,'es')||a.nombre.localeCompare(b.nombre,'es'));
+  else if(orden==='monto') arr.sort((a,b)=>b.monto-a.monto);
+  else{ // venc: próxima primero, sin fecha al final
+    arr.sort((a,b)=>{
+      if(!a.proxVenc&&!b.proxVenc) return 0;
+      if(!a.proxVenc) return 1;
+      if(!b.proxVenc) return -1;
+      return a.proxVenc.localeCompare(b.proxVenc);
+    });
+  }
+  return arr;
+}
 function renderCompromisos(){
   const cont=$('compromisosList');
   if(!cont) return;
-  const cs=estado.compromisos||[];
+  const sel=$('compSort');
+  const orden=sel?sel.value:getCompSort();
+  if(sel&&sel.value!==getCompSort()) setCompSort(sel.value);
+  const cs=sortCompromisos(estado.compromisos||[],orden);
   if(!cs.length){cont.innerHTML='<div class="vacio">Sin compromisos cargados.</div>';return;}
   cont.innerHTML=cs.map(c=>{
     const fin=c.pendientes===0;
@@ -2406,6 +2434,7 @@ function wireEvents(){
     reader.readAsText(file,'UTF-8');
     $('csvFile').value='';
   };
+  const _cs=$('compSort'); if(_cs){_cs.value=getCompSort();_cs.onchange=()=>{setCompSort(_cs.value);renderCompromisos();};}
   $('btnNuevoCompromiso').onclick=agregarCompromiso;
   $('btnExportBackup').onclick=exportarBackup;
   $('btnShareBackup').onclick=compartirBackup;
