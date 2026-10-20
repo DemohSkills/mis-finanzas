@@ -414,6 +414,37 @@ button.mini.danger{color:var(--danger);}
   </div>
 </div>
 
+<!-- ══════════════════ TRANSFERENCIA MODAL ══════════════════ -->
+<div class="overlay" id="transModal" hidden>
+  <div class="wiz-box" style="max-width:360px;">
+    <h2 id="transModalTit" style="margin:0 0 14px;font-size:1rem;"></h2>
+    <div class="wiz-field">
+      <label>Origen</label>
+      <select id="transOrigen"></select>
+    </div>
+    <div class="wiz-field">
+      <label>Destino</label>
+      <select id="transDestino"></select>
+    </div>
+    <div class="wiz-field">
+      <label>Monto</label>
+      <input type="text" class="input-monto" inputmode="decimal" id="transMonto" placeholder="0">
+    </div>
+    <div class="wiz-field">
+      <label>Fecha</label>
+      <input type="date" id="transFecha">
+    </div>
+    <div class="wiz-field">
+      <label>Nota (opcional)</label>
+      <input type="text" id="transNota" maxlength="80" placeholder="Ej: pago mensual">
+    </div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnGuardarTrans">Guardar</button>
+      <button type="button" onclick="cerrarTransModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ MAIN APP ══════════════════ -->
 <main id="app" hidden>
   <div class="app-hdr">
@@ -449,6 +480,10 @@ button.mini.danger{color:var(--danger);}
       <div class="stat"><div class="lbl">Patrimonio neto</div><div class="val" id="totNeto"></div></div>
       <div class="stat"><div class="lbl">Var. 7 días</div><div class="val" id="var7d">—</div></div>
     </div>
+    <div class="no-print" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <button type="button" class="mini" id="btnTransferirInicio">⇄ Transferir</button>
+      <button type="button" class="mini" id="btnPagarTarjetaInicio">💳 Pagar tarjeta</button>
+    </div>
   </div>
 
   <!-- ── GASTOS ── -->
@@ -459,6 +494,8 @@ button.mini.danger{color:var(--danger);}
         <button type="button" class="mini" id="btnImportCSV">⬆ Importar CSV</button>
         <input type="file" id="csvFile" accept=".csv" hidden>
         <button type="button" class="mini" id="btnExportPDF">🖨 Informe PDF</button>
+        <button type="button" class="mini" id="btnTransferirMovim">⇄ Transferir</button>
+        <button type="button" class="mini" id="btnPagarTarjetaMovim">💳 Pagar tarjeta</button>
       </div>
       <div id="importPreview" hidden></div>
 
@@ -1411,7 +1448,41 @@ function renderHistorial() {
   const totalGastos = lista.filter(g=>(g.tipo||'gasto')==='gasto'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   const totalIngresos = lista.filter(g=>(g.tipo||'gasto')==='ingreso'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   $('total').innerHTML=`${lista.length} movimiento${lista.length>1?'s':''} · Gastos: ${fmtV(totalGastos)} · Ingresos: ${fmtV(totalIngresos)}`;
+
+  // Build transfer pairs map
+  const transPairs={};
+  for(const g of lista){ if(g.transferId){ if(!transPairs[g.transferId]) transPairs[g.transferId]=[]; transPairs[g.transferId].push(g); } }
+  const seenTrans=new Set();
+
   for (const g of lista) {
+    if(g.transferId){
+      if(seenTrans.has(g.transferId)) continue;
+      seenTrans.add(g.transferId);
+      const par=transPairs[g.transferId]||[];
+      if(par.length===2){
+        const orig=par.find(p=>(p.tipo||'gasto')==='gasto')||par[0];
+        const dest=par.find(p=>(p.tipo||'gasto')==='ingreso')||par[1];
+        const div=document.createElement('div');
+        div.className='gasto';
+        div.innerHTML=`
+          <div class="row">
+            <div class="info">
+              <div class="desc">⇄ ${esc(orig.medio)} → ${esc(dest.medio)}<span class="chip hist">transferencia</span></div>
+              <div class="meta">${fechaCorta(orig.fecha)} · ${esc(orig.categoria)}${orig.descripcion&&orig.descripcion!==orig.medio+' → '+dest.medio&&orig.descripcion!=='Pago '+dest.medio?` · ${esc(orig.descripcion)}`:''}  </div>
+            </div>
+            <div class="importe">${fmtV(orig.monto)}</div>
+          </div>
+          <div class="btns">
+            <button type="button" class="mini" data-a="editar-trans">Editar</button>
+            <button type="button" class="mini danger" data-a="borrar-trans">Borrar</button>
+          </div>`;
+        div.querySelector('[data-a=editar-trans]').onclick=()=>alert('Para editar una transferencia, borrala y volvé a cargarla.');
+        div.querySelector('[data-a=borrar-trans]').onclick=()=>borrarTransferencia(g.transferId);
+        cont.appendChild(div);
+        continue;
+      }
+      // Orphan transfer — fall through to normal render
+    }
     const isIng = (g.tipo||'gasto')==='ingreso';
     const div=document.createElement('div');
     div.className='gasto'+(g.id===editandoId?' editando':'');
@@ -2177,6 +2248,64 @@ let _evolReady=false;
 function iniciarEvolucion(){withChartJs(()=>{rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;});}
 
 // ═══════════════════════════════════════════════════════
+// TRANSFERENCIAS ENTRE CUENTAS
+// ═══════════════════════════════════════════════════════
+const MEDIOS_TARJETA=['Visa Santander','Mastercard MP','American Express'];
+const MEDIOS_CUENTA =['Banco Santander','Mercado Pago','Astropay','Efectivo'];
+let _transMode='transferir';
+
+function abrirTransModal(mode='transferir'){
+  _transMode=mode;
+  const esTP=mode==='pagar-tarjeta';
+  $('transModalTit').textContent=esTP?'💳 Pagar tarjeta':'⇄ Transferir';
+  const origOpts=esTP?MEDIOS_CUENTA:MEDIOS;
+  const destOpts=esTP?MEDIOS_TARJETA:MEDIOS;
+  $('transOrigen').innerHTML=origOpts.map(m=>`<option>${esc(m)}</option>`).join('');
+  $('transDestino').innerHTML=destOpts.map(m=>`<option>${esc(m)}</option>`).join('');
+  $('transMonto').value='';
+  $('transFecha').value=hoy();
+  $('transNota').value='';
+  $('transModal').hidden=false;
+}
+function cerrarTransModal(){ $('transModal').hidden=true; }
+
+function guardarTransferencia(){
+  const origen=$('transOrigen').value;
+  const destino=$('transDestino').value;
+  const monto=Math.round(readMonto('transMonto')*100)/100;
+  const fecha=$('transFecha').value;
+  const nota=$('transNota').value.trim();
+  if(origen===destino) return alert('El origen y el destino no pueden ser iguales.');
+  if(!(monto>0)) return alert('Ingresá un monto mayor a 0 (ej: 1.234,56)');
+  const esTP=_transMode==='pagar-tarjeta';
+  const categoria=esTP?'Pago de Visa/MP':'Transferencia entre cuentas';
+  if(!MEDIOS_TARJETA.includes(origen)){
+    const sal=saldoDe(origen);
+    if(sal-monto<0&&!confirm(`El saldo de ${origen} quedaría en ${fmt(sal-monto)}. ¿Continuar de todas formas?`)) return;
+  }
+  const transferId=nuevoId();
+  const desc=nota||(esTP?`Pago ${destino}`:`${origen} → ${destino}`);
+  const now=Date.now();
+  estado.gastos.push({id:nuevoId(),creado:now,  monto,fecha,categoria,medio:origen, descripcion:desc,tipo:'gasto',  soloHistorial:false,transferencia:true,transferId});
+  estado.gastos.push({id:nuevoId(),creado:now+1,monto,fecha,categoria,medio:destino,descripcion:desc,tipo:'ingreso',soloHistorial:false,transferencia:true,transferId});
+  guardar(); guardarSnap(); cerrarTransModal();
+  render(); renderCompromisos();
+  if(_evolReady){rChartIC();rChartG();rChartD();}
+}
+
+function borrarTransferencia(transferId){
+  const par=estado.gastos.filter(g=>g.transferId===transferId);
+  const ref=par[0]||{};
+  if(!confirm(`¿Borrar la transferencia de ${fmt(ref.monto||0)}?`)) return;
+  estado.gastos=estado.gastos.filter(g=>g.transferId!==transferId);
+  guardar(); guardarSnap();
+  render(); renderCompromisos();
+  if(_evolReady){rChartIC();rChartG();rChartD();}
+}
+
+$('btnGuardarTrans').onclick=guardarTransferencia;
+
+// ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
 // ═══════════════════════════════════════════════════════
 function wireEvents(){
@@ -2207,6 +2336,10 @@ function wireEvents(){
     const file=e.target.files[0]; if(!file) return;
     restaurarBackup(file); $('backupFile').value='';
   };
+  $('btnTransferirInicio').onclick=()=>abrirTransModal('transferir');
+  $('btnPagarTarjetaInicio').onclick=()=>abrirTransModal('pagar-tarjeta');
+  $('btnTransferirMovim').onclick=()=>abrirTransModal('transferir');
+  $('btnPagarTarjetaMovim').onclick=()=>abrirTransModal('pagar-tarjeta');
   $('btnNuevaCatIngreso').onclick=()=>{
     const nombre=prompt('Nombre de la nueva categoría de ingreso:')?.trim();
     if(!nombre) return;
