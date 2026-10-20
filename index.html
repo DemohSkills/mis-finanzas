@@ -2487,7 +2487,6 @@ function iniciarEvolucion(){
       const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cD',['cD']],['det-ev-cF',['cF']]];
       for(const[id,cids]of evDets){
         const el=$(id); if(!el) continue;
-        initDetDyn(el,id,true);
         el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
       }
     }
@@ -2623,6 +2622,8 @@ function initDetDyn(el,sfx,defOpen){
   initDet('det-form',false);
   initDet('det-historial',true);
   initDet('det-pat-form',true);
+  // ev-cards son HTML estático → inicializar estado aquí, no depender de Chart.js
+  ['det-ev-cP','det-ev-cB','det-ev-cG','det-ev-cIC','det-ev-cD','det-ev-cF'].forEach(id=>initDet(id,true));
 
   // ── Botones "Plegar todo / Desplegar todo" ──────────────────
   function mkPlegBtn(btnId, getScopeEl){
