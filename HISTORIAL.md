@@ -133,6 +133,12 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - `estado.importaciones['Mercado Pago']` guardado tras importar.
   - 21 tests Playwright en `tests/importar-mp.spec.js` con fixtures sintéticos. Suite completa: 209/209. Rama: trabajo-nocturno.
 
+- 21/10/2026: tres ajustes en `index.html` (rama trabajo-nocturno):
+  - **Gastos fijos "cada N meses":** campos `cadaMeses` (1/2/3/6/12; default 1) y `mesBase` ('YYYY-MM') en compromisos tipo 'fijo'. Modal de alta/edición: select "Se repite" y, si > 1, input month "Próximo mes de pago". `_fijoMesCorresponde(fijo, mesStr)` devuelve `true` si `(mes − mesBase)` es múltiplo de `cadaMeses` (válido hacia atrás y adelante). `renderCompromisos` filtra cada mes de la ventana con ese helper en los tres modos de sort. La fila muestra "· cada N meses". Sin `cadaMeses` el comportamiento es mensual (compatible con backups existentes).
+  - **Cobré descripción sin `$$`:** `guardarCobre` usaba `` `bruto $${fmt(bruto)}` `` produciendo `$$ 640.487`. Corregido a `${fmt(bruto).replace(/ /g,' ')}`: elimina el `$` duplicado y reemplaza el espacio de no separación (` `) de `fmt()` por espacio común.
+  - **Subtotal del mes en Compromisos para tipo 'resumen':** `cuotaTotal` ahora suma `Math.max(0, c.monto − _sumaPagadoCiclo(c))` en lugar de `c.monto` para compromisos tipo 'resumen'. Si está abonado por completo contribuye 0. Compromisos tipo 'cuota' sin cambio.
+  - 9 tests nuevos: `tests/fijos-bimestral.spec.js` (8 casos: función pura, integración en vista, texto "cada N meses", backward-compat), `tests/cobre.spec.js` (1 caso: sin `$$` ni ` `), `tests/comp-resumen.spec.js` (2 casos: subtotal parcial y subtotal cero). Suite completa: 271/271 ✓.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.

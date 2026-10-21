@@ -332,3 +332,35 @@ test.describe('resumen: compatibilidad backup sin cierre', () => {
     expect(chipParc).toBe(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// SUBTOTAL DEL MES: suma lo que resta por pagar en tipo resumen
+// ─────────────────────────────────────────────────────────────
+test.describe('resumen: subtotal del mes usa resto por pagar', () => {
+  test('resumen parcialmente pagado: subtotal muestra monto − pagado', async ({ page }) => {
+    // monto=100000, pagado=30000 → resta 70000
+    const pago = { ...buildPago(30000), id: 'pg-sub-1' };
+    const estado = buildEstado({ pagos: [pago] });
+    await seedAndUnlock(page, estado);
+    await goToCompromisos(page);
+    // El summary del grupo debe mostrar ~70000, no 100000
+    const sub = page.locator('.comp-mes .comp-mes-sub').first();
+    await expect(sub).toBeVisible();
+    const txt = await sub.textContent();
+    expect(txt).toContain('70');
+    expect(txt).not.toMatch(/100\.000|100,000/);
+  });
+
+  test('resumen completamente pagado: subtotal del grupo es 0', async ({ page }) => {
+    // monto=100000, pagado=100000 → resta 0
+    const pago = { ...buildPago(100000), id: 'pg-sub-2' };
+    const estado = buildEstado({ pagos: [pago] });
+    await seedAndUnlock(page, estado);
+    await goToCompromisos(page);
+    const sub = page.locator('.comp-mes .comp-mes-sub').first();
+    await expect(sub).toBeVisible();
+    const txt = await sub.textContent();
+    // subtotal = 0 → "$ 0" o similar
+    expect(txt).toMatch(/\$ 0|0,00/);
+  });
+});

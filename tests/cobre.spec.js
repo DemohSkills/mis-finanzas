@@ -198,7 +198,34 @@ test.describe('cobre', () => {
     expect(est.items.find(it => it.nombre === 'Delux sueldo').historial).toHaveLength(0);
   });
 
-  test('(g) backup viejo sin historial: compatibilidad, no rompe', async ({ page }) => {
+  test('(g) descripción con retención no contiene $$ ni  ', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await abrirPatrimonio(page);
+
+    await page.locator('#listaActivos button', { hasText: 'Cobré' }).click();
+    await page.waitForSelector('#cobreModal:not([hidden])');
+
+    // Bruto 640487, neto 600000 → retención 40487
+    await page.fill('#cobreBruto', '640487');
+    await page.fill('#cobreNeto', '600000');
+    await page.selectOption('#cobreMedio', 'Mercado Pago');
+
+    await page.click('#btnGuardarCobre');
+    await page.waitForSelector('#cobreModal', { state: 'hidden' });
+
+    const est = await getEstado(page);
+    const mov = est.gastos.find(g => g.tipo === 'ingreso');
+    expect(mov).toBeTruthy();
+    // sin $$ (signo doble)
+    expect(mov.descripcion).not.toContain('$$');
+    // sin   (espacio de no separación)
+    expect(mov.descripcion).not.toContain(' ');
+    // contiene los montos correctamente
+    expect(mov.descripcion).toMatch(/bruto/);
+    expect(mov.descripcion).toMatch(/retenci/);
+  });
+
+  test('(h) backup viejo sin historial: compatibilidad no rompe', async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     // Ítem sin campo historial (backup viejo)

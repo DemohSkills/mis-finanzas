@@ -492,6 +492,20 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
           <option value="">Sin especificar</option>
         </select>
       </div>
+      <div class="wiz-field">
+        <label>Se repite</label>
+        <select id="fijoRepite">
+          <option value="1">Todos los meses</option>
+          <option value="2">Cada 2 meses</option>
+          <option value="3">Cada 3 meses</option>
+          <option value="6">Cada 6 meses</option>
+          <option value="12">Cada 12 meses</option>
+        </select>
+      </div>
+      <div id="fijoMesBaseWrap" class="wiz-field" hidden>
+        <label>Próximo mes de pago</label>
+        <input type="month" id="fijoMesBase">
+      </div>
       <div class="wiz-actions" style="margin-top:16px;">
         <button type="submit" class="primary">Guardar</button>
         <button type="button" onclick="cerrarFijoModal()">Cancelar</button>
@@ -1329,7 +1343,7 @@ function renderCompromisos(){
 
   if(orden==='monto'){
     if(cs.length) cont.insertAdjacentHTML('beforeend',cs.map(_compRowHtml).join(''));
-    if(fijosList.length) fijoMeses.forEach(mes=>fijosList.forEach(f=>cont.insertAdjacentHTML('beforeend',_fijoRowHtml(f,mes))));
+    if(fijosList.length) fijoMeses.forEach(mes=>fijosList.filter(f=>_fijoMesCorresponde(f,mes)).forEach(f=>cont.insertAdjacentHTML('beforeend',_fijoRowHtml(f,mes))));
     return;
   }
 
@@ -1346,9 +1360,12 @@ function renderCompromisos(){
   }
   if(fijosList.length){
     if(orden==='venc'){
-      fijoMeses.forEach(mes=>{if(!grupos.has(mes))grupos.set(mes,{cuotas:[],fijos:[]});grupos.get(mes).fijos=fijosList;});
+      fijoMeses.forEach(mes=>{
+        const ff=fijosList.filter(f=>_fijoMesCorresponde(f,mes));
+        if(ff.length){if(!grupos.has(mes))grupos.set(mes,{cuotas:[],fijos:[]});grupos.get(mes).fijos=ff;}
+      });
     } else {
-      grupos.set('__fijos__',{cuotas:[],fijos:fijosList});
+      grupos.set('__fijos__',{cuotas:[],fijos:fijosList.filter(f=>_fijoMesCorresponde(f,todayYM))});
     }
   }
   const ordKeys=[...grupos.keys()].sort((a,b)=>{
@@ -1372,7 +1389,10 @@ function renderCompromisos(){
       }
     }
     const {cuotas,fijos}=grupos.get(key);
-    const cuotaTotal=cuotas.reduce((s,c)=>s+c.monto,0);
+    const cuotaTotal=cuotas.reduce((s,c)=>{
+      if(c.tipo==='resumen') return s+Math.max(0,c.monto-_sumaPagadoCiclo(c));
+      return s+c.monto;
+    },0);
     const fijoTotal=fijos.reduce((s,f)=>s+f.monto,0);
     const total=cuotaTotal+fijoTotal;
     const lbl=key==='__fin__'?'Finalizados':key==='__sf__'?'Sin fecha':key==='__fijos__'?'Gastos Fijos':(orden==='entidad'?key:_mesLabel(key));
@@ -1615,6 +1635,13 @@ function _fijoEstadoMes(fijo,mesStr){
   if(fijoFechaEnMes(fijo.diaMes,mesStr)<hoy()) return 'vencido';
   return 'pendiente';
 }
+function _fijoMesCorresponde(fijo,mesStr){
+  const n=fijo.cadaMeses||1;
+  if(n===1||!fijo.mesBase) return true;
+  const[yb,mb]=fijo.mesBase.split('-').map(Number);
+  const[ys,ms]=mesStr.split('-').map(Number);
+  return((ys-yb)*12+(ms-mb))%n===0;
+}
 function _fijoRowHtml(fijo,mesStr){
   const est=_fijoEstadoMes(fijo,mesStr);
   const pagado=est==='pagado',vencido=est==='vencido';
@@ -1631,7 +1658,7 @@ function _fijoRowHtml(fijo,mesStr){
     </div>
     <div class="comp-det">
       <span class="neg">${fmtV(fijo.monto)}</span>
-      <span class="comp-meta">Día ${fijo.diaMes}${fijo.medioPago?' · '+esc(fijo.medioPago):''}</span>
+      <span class="comp-meta">Día ${fijo.diaMes}${fijo.medioPago?' · '+esc(fijo.medioPago):''}${(fijo.cadaMeses||1)>1?' · cada '+fijo.cadaMeses+' meses':''}</span>
     </div>
     <div class="comp-btns">
       ${pagado
@@ -1652,12 +1679,20 @@ function abrirFijoModal(id){
   fillCatSelect('fijoCat',f?.categoria||'Otros/Varios');
   $('fijoMedioPago').innerHTML='<option value="">Sin especificar</option>'+
     MEDIOS.map(m=>`<option${m===(f?.medioPago||'')?' selected':''}>${esc(m)}</option>`).join('');
+  const _toggleMesBase=()=>{
+    const n=parseInt($('fijoRepite').value)||1;
+    n>1?$('fijoMesBaseWrap').removeAttribute('hidden'):$('fijoMesBaseWrap').setAttribute('hidden','');
+  };
+  $('fijoRepite').onchange=_toggleMesBase;
   if(esNuevo){
     $('fijoNombreWrap').removeAttribute('hidden');
     $('fijoNombre').value='';$('fijoMonto').value='';$('fijoDiaMes').value='1';
+    $('fijoRepite').value='1';$('fijoMesBase').value='';$('fijoMesBaseWrap').setAttribute('hidden','');
   } else {
     $('fijoNombreWrap').setAttribute('hidden','');
     $('fijoMonto').value=fmtInput(f.monto);$('fijoDiaMes').value=f.diaMes;
+    $('fijoRepite').value=String(f.cadaMeses||1);$('fijoMesBase').value=f.mesBase||'';
+    _toggleMesBase();
   }
   $('fijoModal').removeAttribute('hidden');
   (esNuevo?$('fijoNombre'):$('fijoMonto')).focus();
@@ -1672,14 +1707,18 @@ $('fijoForm').onsubmit=function(e){
   if(isNaN(dia)||dia<1||dia>31){alert('Día del mes inválido (1–31).');return;}
   const cat=$('fijoCat').value;
   const medio=$('fijoMedioPago').value;
+  const cadaMeses=parseInt($('fijoRepite').value)||1;
+  const mesBase=cadaMeses>1?($('fijoMesBase').value||null):null;
   if(!_fijoModalId){
     const nombre=$('fijoNombre').value.trim();
     if(!nombre){alert('Ingresá un nombre.');return;}
-    estado.compromisos.push({id:nuevoId(),tipo:'fijo',nombre,categoria:cat,monto:m,estimado:true,diaMes:dia,medioPago:medio||null,palabrasClave:'',activo:true,pagos:{}});
+    estado.compromisos.push({id:nuevoId(),tipo:'fijo',nombre,categoria:cat,monto:m,estimado:true,diaMes:dia,medioPago:medio||null,palabrasClave:'',activo:true,pagos:{},cadaMeses:cadaMeses>1?cadaMeses:undefined,mesBase:mesBase||undefined});
   } else {
     const f=(estado.compromisos||[]).find(x=>x.id===_fijoModalId);
     if(!f) return;
     f.monto=m;f.diaMes=dia;f.categoria=cat;f.medioPago=medio||null;
+    if(cadaMeses>1){f.cadaMeses=cadaMeses;f.mesBase=mesBase||f.mesBase||null;}
+    else{delete f.cadaMeses;delete f.mesBase;}
   }
   cerrarFijoModal();guardar();renderCompromisos();
   if(_evolReady) rChartIC();
@@ -1871,7 +1910,7 @@ function guardarCobre() {
   const nota  = $('cobreNota').value.trim();
   const ret   = Math.round((bruto - neto) * 100) / 100;
   let desc = 'Cobro: ' + it.nombre;
-  if (ret > 0) desc += ` (bruto $${fmt(bruto)}, retención $${fmt(ret)})`;
+  if (ret > 0) desc += ` (bruto ${fmt(bruto).replace(/ /g,' ')}, retención ${fmt(ret).replace(/ /g,' ')})`;
   const gastoId = nuevoId();
   estado.gastos.push({ id:gastoId, creado:Date.now(), monto:neto, fecha, categoria:'Sueldo/Honorarios', medio, descripcion:nota||desc, tipo:'ingreso', soloHistorial:false });
   it.monto = Math.max(0, Math.round((it.monto - bruto) * 100) / 100);
@@ -3957,6 +3996,7 @@ window._getEstado = () => estado;
 window._guardar = () => guardar();
 window.fijoFechaEnMes = fijoFechaEnMes;
 window._fijoEstadoMes = _fijoEstadoMes;
+window._fijoMesCorresponde = _fijoMesCorresponde;
 window.abrirFijoModal = abrirFijoModal;
 window.cerrarFijoModal = cerrarFijoModal;
 window.borrarFijo = borrarFijo;
