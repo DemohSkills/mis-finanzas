@@ -674,7 +674,7 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
     <details class="ev-card" id="det-ev-cD" open>
       <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cD" style="font-size:.7rem">Mostrar todo</button><button type="button" id="btnCfgD" class="mini" style="font-size:.75rem" title="Configurar series">⚙</button></summary>
       <div class="cw h200"><canvas id="cD"></canvas></div>
-      <div id="cfgDPanel" hidden style="padding:6px 2px 2px;display:flex;flex-wrap:wrap;gap:10px;">
+      <div id="cfgDPanel" style="display:none;padding:6px 2px 2px;flex-wrap:wrap;gap:10px;">
         <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Visa Santander" checked> Visa Santander</label>
         <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Mastercard MP" checked> Mastercard MP</label>
         <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Boris MP" checked> Boris MP</label>
@@ -806,6 +806,7 @@ const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
+window.fmt = fmt;
 const fmtV = n => `<span class="amt">${fmt(n)}</span>`;
 const hoy = () => new Date().toLocaleDateString('sv');
 const fechaCorta = f => f.split('-').reverse().join('/');
@@ -2377,7 +2378,7 @@ function renderVar7d(){
 // ═══════════════════════════════════════════════════════
 // CHART.JS LAZY LOAD + CHARTS
 // ═══════════════════════════════════════════════════════
-const _ci={};let _cjsLoading=false,_cjsCbs=[];
+const _ci={};window._ci=_ci;let _cjsLoading=false,_cjsCbs=[];
 const _CHART_VIS_K='finanzas-v1-chart-vis';
 function getChartVis(id){try{const s=localStorage.getItem(_CHART_VIS_K+'-'+id);return s?JSON.parse(s):null;}catch{return null;}}
 function setChartVis(id,hidden){try{localStorage.setItem(_CHART_VIS_K+'-'+id,JSON.stringify(hidden));}catch{}}
@@ -2403,7 +2404,7 @@ function initCfgD(){
     cb.onchange=()=>{const c=_ci['cD'];if(!c)return;const i=c.data.datasets.findIndex(d=>d.label===cb.dataset.series);if(i<0)return;if(cb.checked)c.show(i);else c.hide(i);const hidden=c.data.datasets.map((ds,j)=>c.isDatasetVisible(j)?null:ds.label).filter(Boolean);if(hidden.length)setChartVis('cD',hidden);else clearChartVis('cD');};
   });
   const btnCfg=$('btnCfgD');
-  if(btnCfg&&!btnCfg._inited){btnCfg._inited=true;btnCfg.onclick=()=>{panel.hidden=!panel.hidden;if(!panel.hidden)syncCbs();};}
+  if(btnCfg&&!btnCfg._inited){btnCfg._inited=true;btnCfg.onclick=()=>{const showing=panel.style.display!=='none';panel.style.display=showing?'none':'flex';if(!showing)syncCbs();};}
 }
 function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;return Object.entries(m).sort(([a],[b])=>a.localeCompare(b)).slice(-12).map(([mes,s])=>({mes,...s}));}
 
