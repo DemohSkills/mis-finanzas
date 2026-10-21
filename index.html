@@ -105,6 +105,11 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .item .nom{flex:1;min-width:0;overflow-wrap:anywhere;}
 .item .edit{padding:2px 8px;font-size:.8rem;}
 .chip{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:99px;border:1px solid var(--border);color:var(--muted);margin-left:4px;}
+.chip.vencido{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger);}
+.comp-hoy-div{display:flex;align-items:center;gap:8px;padding:2px 0;margin:4px 0;}
+.comp-hoy-div hr{flex:1;border:none;border-top:1px solid var(--border);margin:0;}
+.comp-hoy-div span{font-size:.75rem;color:var(--muted);white-space:nowrap;}
+#busqMov{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:.9rem;flex:1;min-width:0;}
 .subtotal{display:flex;justify-content:space-between;font-weight:700;padding:8px 4px 0;border-top:2px solid var(--border);margin-top:4px;}
 /* Vínculos */
 .persona{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
@@ -579,6 +584,14 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
       </details>
     </section>
 
+    <section class="no-print" style="padding-bottom:0">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="search" id="busqMov" placeholder="pizza 15/10 >100000" autocomplete="off">
+        <button type="button" class="mini" id="busqLimpiar" title="Limpiar búsqueda">✕</button>
+      </div>
+      <div id="busqSummary" class="meta" style="padding:3px 2px;font-size:.8rem;min-height:1.1em"></div>
+    </section>
+
     <section>
       <details id="det-historial" class="section-collapse" open>
         <summary><div style="display:flex;align-items:center;gap:6px;flex:1"><span class="det-arrow">▶</span><h2 style="margin:0">Historial de movimientos</h2></div><span class="meta" id="total"></span></summary>
@@ -672,7 +685,7 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
       </div>
     </details>
     <details class="ev-card" id="det-ev-cD" open>
-      <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cD" style="font-size:.7rem">Mostrar todo</button><button type="button" id="btnCfgD" class="mini" style="font-size:.75rem" title="Configurar series">⚙</button></summary>
+      <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cD" style="font-size:.7rem">Mostrar todo</button><button type="button" id="btnValsD" class="mini" style="font-size:.7rem">Valores</button><button type="button" id="btnCfgD" class="mini" style="font-size:.75rem" title="Configurar series">⚙</button></summary>
       <div class="cw h200"><canvas id="cD"></canvas></div>
       <div id="cfgDPanel" style="display:none;padding:6px 2px 2px;flex-wrap:wrap;gap:10px;">
         <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Visa Santander" checked> Visa Santander</label>
@@ -834,6 +847,9 @@ document.addEventListener('focusout', e => {
   if (!isNaN(v)) e.target.value = fmtInput(v);
 });
 const ls = { get: k => { try{return JSON.parse(localStorage.getItem(k));}catch{return null;} }, set: (k,v) => { try{localStorage.setItem(k,JSON.stringify(v));}catch{} } };
+function _normT(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function _parseBusqTok(q){return q.trim().split(/\s+/).filter(Boolean).map(tok=>{if(/^\d{1,2}\/\d{1,2}$/.test(tok)){const[d,m]=tok.split('/');return{t:'f',v:'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0')};}if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(tok)){const[d,m,y]=tok.split('/');return{t:'fd',v:y+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0')};}if(/^\d{1,2}\/\d{4}$/.test(tok)){const[m,y]=tok.split('/');return{t:'fm',v:y+'-'+m.padStart(2,'0')};}if(/^\d{4}-\d{2}-\d{2}$/.test(tok))return{t:'fd',v:tok};if(/^>[0-9.,]+$/.test(tok)){const v=parseMonto(tok.slice(1));return isNaN(v)?{t:'tx',v:_normT(tok)}:{t:'ig',v};}if(/^<[0-9.,]+$/.test(tok)){const v=parseMonto(tok.slice(1));return isNaN(v)?{t:'tx',v:_normT(tok)}:{t:'il',v};}const nm=parseMonto(tok);if(!isNaN(nm)&&/^[0-9.,]+$/.test(tok))return{t:'ie',v:nm};return{t:'tx',v:_normT(tok)};});}
+function filtrarMovimientos(q,lista){if(!q.trim())return lista;const toks=_parseBusqTok(q);return lista.filter(g=>toks.every(tok=>{if(tok.t==='f')return g.fecha.slice(4)===tok.v;if(tok.t==='fd')return g.fecha===tok.v;if(tok.t==='fm')return g.fecha.slice(0,7)===tok.v;if(tok.t==='ig')return g.monto>tok.v;if(tok.t==='il')return g.monto<tok.v;if(tok.t==='ie')return Math.abs(g.monto-tok.v)<0.01;if(tok.t==='tx')return _normT(g.descripcion||'').includes(tok.v)||_normT(g.categoria||'').includes(tok.v)||_normT(g.medio||'').includes(tok.v);return true;}));}
 
 // ═══════════════════════════════════════════════════════
 // CATEGORÍAS
@@ -1051,12 +1067,16 @@ function sortCompromisos(cs,orden){
 }
 function _compRowHtml(c){
   const fin=c.pendientes===0;
-  const abon=!fin&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoy().slice(0,7);
+  const hoyStr=hoy();
+  const abon=!fin&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoyStr.slice(0,7);
+  const venc=!fin&&!abon&&!!c.proxVenc&&c.proxVenc<hoyStr;
+  const diasVenc=venc?Math.round((new Date(hoyStr)-new Date(c.proxVenc))/864e5):0;
   return `<div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
       <div class="comp-info">
         <span class="comp-nombre">${esc(c.nombre)}</span>
         <span class="comp-ent">${esc(c.entidad)}</span>
         ${fin?'<span class="comp-est">Finalizado ✓</span>':c.estimado?'<span class="comp-est">estimado</span>':''}
+        ${venc?`<span class="chip vencido">Vencido hace ${diasVenc} día${diasVenc===1?'':'s'}</span>`:''}
       </div>
       <div class="comp-det">
         <span class="neg">${fmtV(c.monto)}</span>
@@ -1109,7 +1129,20 @@ function renderCompromisos(){
     if(a==='__sf__') return 1; if(b==='__sf__') return -1;
     return a.localeCompare(b);
   });
+  const _todayYM=orden==='venc'?hoy().slice(0,7):null;
+  const _hoyDivStr=hoy().slice(8)+'/'+hoy().slice(5,7);
+  let _hoyInserted=false;
   for(const key of ordKeys){
+    if(_todayYM&&!_hoyInserted){
+      const isSpecial=key==='__fin__'||key==='__sf__';
+      if(isSpecial||key>=_todayYM){
+        _hoyInserted=true;
+        const divHoy=document.createElement('div');
+        divHoy.className='comp-hoy-div';
+        divHoy.innerHTML=`<hr><span>Hoy · ${_hoyDivStr}</span><hr>`;
+        cont.appendChild(divHoy);
+      }
+    }
     const items=grupos.get(key);
     const total=items.reduce((s,c)=>s+c.monto,0);
     const lbl=key==='__fin__'?'Finalizados':key==='__sf__'?'Sin fecha':(orden==='entidad'?key:_mesLabel(key));
@@ -1120,6 +1153,12 @@ function renderCompromisos(){
     det.insertAdjacentHTML('beforeend',items.map(_compRowHtml).join(''));
     initDetDyn(det,'comp-'+sk,true);
     cont.appendChild(det);
+  }
+  if(_todayYM&&!_hoyInserted){
+    const divHoy=document.createElement('div');
+    divHoy.className='comp-hoy-div';
+    divHoy.innerHTML=`<hr><span>Hoy · ${_hoyDivStr}</span><hr>`;
+    cont.appendChild(divHoy);
   }
 }
 
@@ -1576,11 +1615,26 @@ function ajustarSaldo(medio) {
 
 function renderHistorial() {
   const cont=$('historial'); cont.innerHTML='';
-  const lista=[...estado.gastos].sort((a,b) => b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
-  if (!lista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste movimientos.</div>'; $('total').textContent=''; return; }
-  const totalGastos = lista.filter(g=>(g.tipo||'gasto')==='gasto'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
-  const totalIngresos = lista.filter(g=>(g.tipo||'gasto')==='ingreso'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
-  $('total').innerHTML=`${lista.length} movimiento${lista.length>1?'s':''} · Gastos: ${fmtV(totalGastos)} · Ingresos: ${fmtV(totalIngresos)}`;
+  const query=($('busqMov')?.value||'').trim();
+  const allLista=[...estado.gastos].sort((a,b) => b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
+  const lista=query?filtrarMovimientos(query,allLista):allLista;
+  const sumEl=$('busqSummary');
+  if(sumEl){
+    if(query){
+      const transCount=new Set(lista.filter(g=>g.transferencia&&g.transferId).map(g=>g.transferId)).size;
+      const norm=lista.filter(g=>!g.transferencia);
+      const gG=norm.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
+      const gI=norm.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
+      let stxt=`${lista.length} resultado${lista.length!==1?'s':''} · Gastos ${fmtV(gG)} · Ingresos ${fmtV(gI)}`;
+      if(transCount) stxt+=` · ${transCount} transferencia${transCount>1?'s':''}`;
+      sumEl.innerHTML=stxt;
+    } else sumEl.innerHTML='';
+  }
+  if (!allLista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste movimientos.</div>'; $('total').textContent=''; return; }
+  const totalGastos = allLista.filter(g=>(g.tipo||'gasto')==='gasto'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
+  const totalIngresos = allLista.filter(g=>(g.tipo||'gasto')==='ingreso'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
+  $('total').innerHTML=`${allLista.length} movimiento${allLista.length>1?'s':''} · Gastos: ${fmtV(totalGastos)} · Ingresos: ${fmtV(totalIngresos)}`;
+  if (!lista.length) { cont.innerHTML='<div class="vacio">Sin resultados para esa búsqueda.</div>'; return; }
 
   // Build transfer pairs map
   const transPairs={};
@@ -2384,6 +2438,9 @@ const _CHART_VIS_K='finanzas-v1-chart-vis';
 function getChartVis(id){try{const s=localStorage.getItem(_CHART_VIS_K+'-'+id);return s?JSON.parse(s):null;}catch{return null;}}
 function setChartVis(id,hidden){try{localStorage.setItem(_CHART_VIS_K+'-'+id,JSON.stringify(hidden));}catch{}}
 function clearChartVis(id){try{localStorage.removeItem(_CHART_VIS_K+'-'+id);}catch{}}
+const _VALS_K='finanzas-v1-chart-vals';
+function getChartVals(){try{return JSON.parse(localStorage.getItem(_VALS_K))===true;}catch{return false;}}
+function setChartVals(v){try{localStorage.setItem(_VALS_K,JSON.stringify(v));}catch{}}
 function withChartJs(cb){if(typeof Chart!=='undefined'){cb();return;}_cjsCbs.push(cb);if(!_cjsLoading){_cjsLoading=true;const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';s.onload=()=>{const fns=_cjsCbs.splice(0);fns.forEach(f=>f());};document.head.appendChild(s);}}
 function mkChart(id,cfg){if(_ci[id]){_ci[id].destroy();delete _ci[id];}const cv=document.getElementById(id);if(!cv)return null;_ci[id]=new Chart(cv,cfg);return _ci[id];}
 const CV=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -2392,7 +2449,7 @@ const fmtM=n=>{const a=Math.abs(n);const v=a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?
 const mesNom=mes=>['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+mes.split('-')[1]-1];
 function ttO(){return{backgroundColor:CV('--card'),titleColor:CV('--text'),bodyColor:CV('--muted'),borderColor:CV('--border'),borderWidth:1,padding:10,cornerRadius:8,usePointStyle:true,boxPadding:4};}
 function axO(yFmt,stacked=false){const t=CV('--muted'),g=CV('--border');return{x:{stacked,ticks:{color:t},grid:{color:g,lineWidth:.5},border:{display:false}},y:{stacked,ticks:{color:t,callback:yFmt},grid:{color:g,lineWidth:.5},border:{display:false}}};}
-function legO(pos='bottom',chartId=null){const labels={color:CV('--muted'),boxWidth:10,padding:10,font:{size:10},usePointStyle:true};const base={position:pos,labels};if(!chartId)return base;return{...base,onClick:(e,item,legend)=>{const ci=legend.chart,idx=item.datasetIndex;if(ci.isDatasetVisible(idx))ci.hide(idx);else ci.show(idx);const hidden=ci.data.datasets.map((ds,i)=>ci.isDatasetVisible(i)?null:ds.label).filter(Boolean);if(hidden.length)setChartVis(chartId,hidden);else clearChartVis(chartId);if(_cfgDSync)_cfgDSync();}};}
+function legO(pos='bottom',chartId=null){const labels={color:CV('--muted'),boxWidth:12,boxHeight:12,padding:10,font:{size:10},usePointStyle:true};const base={position:pos,labels};if(!chartId)return base;return{...base,onClick:(e,item,legend)=>{const ci=legend.chart,idx=item.datasetIndex;if(ci.isDatasetVisible(idx))ci.hide(idx);else ci.show(idx);const hidden=ci.data.datasets.map((ds,i)=>ci.isDatasetVisible(i)?null:ds.label).filter(Boolean);if(hidden.length)setChartVis(chartId,hidden);else clearChartVis(chartId);if(_cfgDSync)_cfgDSync();}};}
 function applyChartVis(id){const chart=_ci[id];if(!chart)return;const hidden=getChartVis(id);if(!hidden||!hidden.length)return;chart.data.datasets.forEach((ds,i)=>{if(hidden.includes(ds.label))chart.hide(i);});}
 function showAllChartSeries(id){clearChartVis(id);const chart=_ci[id];if(!chart)return;chart.data.datasets.forEach((_,i)=>chart.show(i));if(_cfgDSync)_cfgDSync();}
 let _cfgDSync=null;
@@ -2486,8 +2543,33 @@ function rChartD(){
   const todaySnap={d:hoyStr,n:t.neto,a:t.activos,dv:t.deudas,dd:{vs:Math.abs(saldoDe('Visa Santander')),mc:Math.abs(saldoDe('Mastercard MP')),bm:fi('Boris MP'),cm:fi('Créditos MP 1')+fi('Créditos MP 2')+fi('Créditos MP 3')+fi('Créditos MP 4')}};
   const data=!raw.length?[todaySnap]:raw[raw.length-1].d===hoyStr?raw:[...raw,todaySnap];
   const labels=data.map(s=>s.d.slice(5).split('-').reverse().join('/'));
-  const ln=(label,key,color,dash=[])=>({label,data:data.map(s=>s.dd?.[key]||0),borderColor:color,fill:false,tension:.3,borderWidth:2,borderDash:dash,pointBackgroundColor:color,pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=10?3:1,pointHoverRadius:5});
-  mkChart('cD',{type:'line',data:{labels,datasets:[ln('Visa Santander','vs','#f87171'),ln('Boris MP','bm','#fb923c',[5,4]),ln('Mastercard MP','mc','#fbbf24'),ln('Créditos MP','cm','#38bdf8',[2,2])]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{...legO('bottom','cD'),labels:{...legO().labels,pointStyle:'line'}},tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))}}); applyChartVis('cD'); initCfgD();
+  const ln=(label,key,color,dash=[])=>({label,data:data.map(s=>s.dd?.[key]||0),borderColor:color,fill:false,tension:.3,borderWidth:2,borderDash:dash,pointStyle:'line',pointBackgroundColor:color,pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=10?3:1,pointHoverRadius:5});
+  const genLabels=chart=>chart.data.datasets.map((ds,i)=>{
+    const lastV=ds.data[ds.data.length-1]??0;
+    const oculto=document.body.classList.contains('ocultar');
+    return{text:ds.label+(oculto?'':' · '+fmtM(lastV)),fillStyle:ds.borderColor,strokeStyle:ds.borderColor,lineWidth:ds.borderWidth||2,lineDash:ds.borderDash||[],pointStyle:'line',hidden:!chart.isDatasetVisible(i),datasetIndex:i};
+  });
+  const dLabPlugin={id:'cDLab',afterDatasetsDraw(chart){
+    if(document.body.classList.contains('ocultar'))return;
+    const showAll=getChartVals();
+    const{ctx}=chart;
+    chart.data.datasets.forEach((ds,i)=>{
+      if(!chart.isDatasetVisible(i))return;
+      const meta=chart.getDatasetMeta(i);
+      const pts=meta.data;
+      const indices=showAll?pts.map((_,j)=>j):(pts.length?[pts.length-1]:[]);
+      indices.forEach(pi=>{
+        const v=ds.data[pi];if(!v)return;
+        const pt=pts[pi];
+        ctx.save();ctx.font='9px sans-serif';ctx.fillStyle=ds.borderColor;ctx.textAlign='center';ctx.textBaseline='bottom';
+        ctx.fillText('$'+fmtM(v),pt.x,pt.y-3);
+        ctx.restore();
+      });
+    });
+  }};
+  mkChart('cD',{type:'line',data:{labels,datasets:[ln('Visa Santander','vs','#f87171'),ln('Boris MP','bm','#fb923c',[5,4]),ln('Mastercard MP','mc','#fbbf24'),ln('Créditos MP','cm','#38bdf8',[2,2])]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{...legO('bottom','cD'),labels:{...legO().labels,generateLabels:genLabels}},tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))},plugins:[dLabPlugin]}); applyChartVis('cD'); initCfgD();
+  const btnV=$('btnValsD');
+  if(btnV){btnV.textContent=getChartVals()?'Valores ✓':'Valores';if(!btnV._inited){btnV._inited=true;btnV.onclick=()=>{setChartVals(!getChartVals());rChartD();};}}
 }
 
 function rChartF(){
@@ -2606,6 +2688,14 @@ function wireEvents(){
     reader.readAsText(file,'UTF-8');
     $('csvFile').value='';
   };
+  // Buscador de movimientos
+  let _busqTimer=null;
+  const busqEl=$('busqMov');
+  if(busqEl){
+    busqEl.addEventListener('input',()=>{clearTimeout(_busqTimer);_busqTimer=setTimeout(()=>renderHistorial(),200);});
+    busqEl.addEventListener('search',()=>renderHistorial());
+    $('busqLimpiar').onclick=()=>{busqEl.value='';renderHistorial();busqEl.focus();};
+  }
   const _cs=$('compSort'); if(_cs){_cs.value=getCompSort();_cs.onchange=()=>{setCompSort(_cs.value);renderCompromisos();};}
   $('btnNuevoCompromiso').onclick=agregarCompromiso;
   $('btnExportBackup').onclick=exportarBackup;
@@ -2692,7 +2782,7 @@ function initDetDyn(el,sfx,defOpen){
     btn.setAttribute('aria-label',oculto?'Mostrar montos':'Ocultar montos');
   }
   const btnO=document.getElementById('btnOjo');
-  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();};
+  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();if(typeof _evolReady!=='undefined'&&_evolReady)rChartD();};
   aplicarOjo();
 })();
 
