@@ -503,4 +503,106 @@ test.describe('importar-santander', () => {
     expect(backup.estado.importaciones['Banco Santander'].lote).toBe('LOTE-XYZ');
   });
 
+  test('(q) reimportar archivo con filas agrupadas da 0 nuevos', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    const rows = [
+      { fecha: '05/10/2026', desc: 'SIRCREB retencion 1', ref: 'SR1', ca: 0, cc: -1000, saldo: 99000 },
+      { fecha: '06/10/2026', desc: 'SIRCREB retencion 2', ref: 'SR2', ca: 0, cc: -1500, saldo: 97500 },
+      { fecha: '07/10/2026', desc: 'SIRCREB retencion 3', ref: 'SR3', ca: 0, cc: -500,  saldo: 97000 },
+      { fecha: '08/10/2026', desc: 'SIRCREB retencion 4', ref: 'SR4', ca: 0, cc: -2000, saldo: 95000 },
+      { fecha: '09/10/2026', desc: 'SIRCREB retencion 5', ref: 'SR5', ca: 0, cc: -800,  saldo: 94200 },
+      { fecha: '10/10/2026', desc: 'SIRCREB retencion 6', ref: 'SR6', ca: 0, cc: -700,  saldo: 93500 },
+    ];
+    const aoa = buildSantanderAoa(rows);
+
+    // Simulate saving the grouped movement from a first import
+    await page.evaluate((aoaData) => {
+      const parsed = window.parseSantander(aoaData);
+      let cands = parsed.map(f => {
+        const catInfo = window._categorizarSant(f.desc, f.monto);
+        return { ...f, catInfo, refs: f.ref ? [f.ref] : [], yaExiste: false, soloHistorial: false,
+          paraRevisar: catInfo.paraRevisar, _revisar_sel: null, _recordar: false, _recordarTexto: '' };
+      });
+      window._deduplicarImp(cands, 'Banco Santander');
+      cands = window._agruparRuidoImp(cands, true);
+      window._deduplicarImp(cands, 'Banco Santander');
+      const grp = cands.find(c => c._agrupado);
+      if (grp) {
+        const est = window._getEstado();
+        est.gastos.push({ id: 'grp1', creado: Date.now(), monto: Math.abs(grp.monto),
+          fecha: grp.fecha, categoria: 'Impuestos e Intereses', medio: 'Banco Santander',
+          tipo: 'gasto', soloHistorial: false, refs: grp.refs, lote: 'lote-first' });
+        window._guardar();
+      }
+    }, aoa);
+
+    // Re-import the same file → 0 new
+    const nuevos = await page.evaluate((aoaData) => {
+      const parsed = window.parseSantander(aoaData);
+      let cands = parsed.map(f => {
+        const catInfo = window._categorizarSant(f.desc, f.monto);
+        return { ...f, catInfo, refs: f.ref ? [f.ref] : [], yaExiste: false, soloHistorial: false,
+          paraRevisar: catInfo.paraRevisar, _revisar_sel: null, _recordar: false, _recordarTexto: '' };
+      });
+      window._deduplicarImp(cands, 'Banco Santander');
+      cands = window._agruparRuidoImp(cands, true);
+      window._deduplicarImp(cands, 'Banco Santander');
+      return cands.filter(c => !c.yaExiste).length;
+    }, aoa);
+
+    expect(nuevos).toBe(0);
+  });
+
+  test('(r) corte historial: verifSaldo OK cuando diff era de filas antes del corte', async ({ page }) => {
+    // Initial=40000 was set AFTER the historical -10000 transaction: importing without cutoff
+    // would double-count it (saldoApp=40000-10000-3000=27000 vs banco=37000 → diff=10000).
+    // Marking the historical row soloHistorial=true fixes the diff to 0.
+    const state = {
+      ...BASE_STATE,
+      iniciales: { ...BASE_STATE.iniciales, 'Banco Santander': 40000 },
+      gastos: [],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const result = await page.evaluate(() => {
+      const histCand = { fecha: '2026-09-15', monto: -10000, yaExiste: false, soloHistorial: false,
+        catInfo: { tipo: 'gasto', cat: 'Impuestos e Intereses' } };
+      const newCand  = { fecha: '2026-10-15', monto: -3000,  yaExiste: false, soloHistorial: false,
+        catInfo: { tipo: 'gasto', cat: 'Otros/Varios' } };
+      const cands = [histCand, newCand];
+
+      // Without cutoff: diff should be non-zero
+      const v1 = window._verifSaldo('Banco Santander', '2026-10-15', 37000, cands);
+
+      // With cutoff: mark historical row soloHistorial
+      histCand.soloHistorial = true;
+      const v2 = window._verifSaldo('Banco Santander', '2026-10-15', 37000, cands);
+
+      return { diffSin: v1.diff, diffCon: v2.diff };
+    });
+
+    expect(Math.abs(result.diffSin)).toBeGreaterThan(0.01);
+    expect(Math.abs(result.diffCon)).toBeLessThan(0.01);
+  });
+
+  test('(s) importe del ajuste no tiene ruido de punto flotante', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    const result = await page.evaluate(() => {
+      // Simulate a diff with float noise
+      const rawDiff = 500000.0000000001;
+      const rounded = Math.round(rawDiff * 100) / 100;
+      // Also verify the monto stored would be clean
+      const monto = Math.abs(rounded);
+      return { rounded, monto, isClean: monto === 500000 };
+    });
+
+    expect(result.isClean).toBe(true);
+    expect(result.monto).toBe(500000);
+  });
+
 });

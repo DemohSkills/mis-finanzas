@@ -2895,8 +2895,9 @@ function _deduplicarImp(candidatos, medio) {
   for (const c of candidatos) {
     c.yaExiste = false;
     if (c.ref) {
-      const idx = pool.findIndex(g => Array.isArray(g.refs) && g.refs.includes(c.ref));
-      if (idx >= 0) { c.yaExiste = true; pool.splice(idx, 1); continue; }
+      // Never consume from pool on ref match: one grouped movement covers many refs
+      const found = existentes.some(g => Array.isArray(g.refs) && g.refs.includes(c.ref));
+      if (found) { c.yaExiste = true; continue; }
     }
     const bMonto = Math.abs(c.monto);
     const idx = pool.findIndex(g => {
@@ -2958,6 +2959,7 @@ function _verifSaldo(medio, fechaFinal, saldoBanco, candidatosNuevos) {
 
 // ── Render preview modal ───────────────────────────────
 let _impCandidatos = [], _impMedio = '', _impSaldoInfo = null, _impAgrupar = true, _impHistHasta = '';
+let _impSaldoFinal = 0, _impFechaFinal = '';
 
 function _renderImpPreview() {
   const cands = _impCandidatos;
@@ -2972,7 +2974,7 @@ function _renderImpPreview() {
       : `⚠️ Diferencia de ${fmt(Math.abs(sI.diff))} (app ${fmt(sI.saldoApp)} vs banco ${fmt(sI.saldoBanco)})`}
     </div>
     ${Math.abs(sI.diff)>=0.01?`<div class="imp-saldo-actions">
-      <button type="button" class="mini" id="btnImpAjuste">Importar y crear ajuste "${fmt(sI.diff)}"</button>
+      <button type="button" class="mini" id="btnImpAjuste">Importar y crear ajuste "${fmt(Math.round(sI.diff*100)/100)}"</button>
     </div>`:''}` : '';
 
   let paraRevHtml = '';
@@ -3073,7 +3075,12 @@ function _renderImpPreview() {
     _renderImpPreview();
   };
   const histEl = $('impHistHasta');
-  if (histEl) histEl.onchange = () => { _impHistHasta = histEl.value; };
+  if (histEl) histEl.onchange = () => {
+    _impHistHasta = histEl.value;
+    for (const c of _impCandidatos) c.soloHistorial = !!(_impHistHasta && c.fecha < _impHistHasta);
+    _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
+    _renderImpPreview();
+  };
   const btnConf = $('btnConfirmarImp');
   if (btnConf) btnConf.onclick = () => _confirmarImpBanco(false);
   const btnAjuste = $('btnImpAjuste');
@@ -3094,7 +3101,7 @@ function _confirmarImpBanco(conAjuste) {
   addCatIncome('Ingresos extras');
   for (const c of _impCandidatos) {
     if (c.yaExiste) continue;
-    const soloH = _impHistHasta && c.fecha < _impHistHasta;
+    const soloH = !!c.soloHistorial;
     const tipo = c.catInfo.tipo;
     const cat = c.catInfo.cat;
     const monto = Math.abs(c.monto);
@@ -3159,7 +3166,7 @@ function _confirmarImpBanco(conAjuste) {
   }
   // Optional adjustment for balance diff
   if (conAjuste && _impSaldoInfo && Math.abs(_impSaldoInfo.diff) >= 0.01) {
-    const diff = _impSaldoInfo.diff;
+    const diff = Math.round(_impSaldoInfo.diff * 100) / 100;
     estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto:Math.abs(diff), fecha:fechaFinal,
       categoria:'Otros/Varios', medio:_impMedio,
       descripcion:'Diferencia sin identificar', tipo:diff>0?'ingreso':'gasto',
@@ -3243,9 +3250,9 @@ function abrirImportModal() {
       _deduplicarImp(_impCandidatos, _impMedio);
       _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
       _deduplicarImp(_impCandidatos, _impMedio);
-      const saldoFinal = parsed[parsed.length-1].saldo;
-      const fechaFinal = parsed[parsed.length-1].fecha;
-      _impSaldoInfo = _verifSaldo(_impMedio, fechaFinal, saldoFinal, _impCandidatos);
+      _impSaldoFinal = parsed[parsed.length-1].saldo;
+      _impFechaFinal = parsed[parsed.length-1].fecha;
+      _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
       _renderImpPreview();
     } catch (err) { $('impStatus').textContent = `❌ ${err.message}`; }
     fileEl.value = '';

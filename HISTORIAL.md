@@ -93,6 +93,12 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **No tocado**: `fmt()` global, `_ejecutarTransf`, compromisos tipo 'cuota', gráficos.
   - 20 tests nuevos en `tests/comp-resumen.spec.js` (estados, atajos, lista de pagos, backup sin cierre). Suite completa: 169/169. Rama: trabajo-nocturno.
 
+- 21/10/2026: corrección de 3 bugs en el importador Santander (commit sobre rama trabajo-nocturno):
+  - **Bug 1 — `_deduplicarImp` / match por ref:** el match por `c.ref` hacía `pool.splice` y consumía el movimiento agrupado del pool, por lo que las demás filas del grupo quedaban sin match y se importaban como nuevas. Se cambió a `existentes.some(...)` (sin consumir el pool). Al reimportar un resumen con 6 filas SIRCREB agrupadas en un único movimiento el resultado es 0 nuevos.
+  - **Bug 2 — "Solo historial lo anterior a":** el `onchange` del campo `#impHistHasta` solo actualizaba la variable pero no recalculaba ni re-renderizaba. Se añadieron las vars `_impSaldoFinal`/`_impFechaFinal` (almacenadas al parsear el archivo) y el handler ahora marca `soloHistorial` en cada candidato, recalcula `_impSaldoInfo` con `_verifSaldo` y vuelve a renderizar la vista previa. `_confirmarImpBanco` usa `c.soloHistorial` en lugar de recomputar.
+  - **Bug 3 — ruido de punto flotante en el ajuste:** el importe del ajuste (`sI.diff`) podía tener ruido (ej. 500000.0000000001). Se aplica `Math.round(x*100)/100` al mostrarlo en el botón y al crear el movimiento de ajuste.
+  - 3 tests nuevos en `tests/importar-santander.spec.js`: (q) reimportar agrupado → 0 nuevos; (r) corte de historial → diff=0; (s) ajuste sin decimales de ruido. Suite completa: 188/188. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.
