@@ -281,15 +281,70 @@ details.imp-sec>summary{cursor:pointer;list-style:none;display:flex;align-items:
 details.imp-sec>summary::-webkit-details-marker{display:none;}
 details.imp-sec>summary .det-arrow{font-size:.7rem;transition:transform .15s;opacity:.55;}
 details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
+/* ── Informe view ────────────────────────────────────────────── */
+#informeView{display:none;position:fixed;inset:0;z-index:200;background:#fff;color:#000;overflow:auto;flex-direction:column;}
+#informeView.inf-open{display:flex;}
+.inf-controls{background:#f4f6fa;border-bottom:1px solid #ccc;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;flex-shrink:0;}
+.inf-controls label{font-size:.82rem;color:#1e293b;display:flex;flex-direction:column;gap:3px;min-width:0;}
+.inf-controls input[type=date],.inf-controls select{font:inherit;font-size:.82rem;border:1px solid #ccc;border-radius:6px;padding:4px 8px;background:#fff;color:#000;}
+.inf-cbx{flex-direction:row!important;align-items:center!important;gap:5px!important;cursor:pointer;}
+.inf-cbx input[type=checkbox]{width:auto;flex-shrink:0;}
+.inf-ctrl-btns{display:flex;gap:6px;margin-left:auto;align-items:flex-end;}
+.inf-ctrl-btns button{font:inherit;font-size:.82rem;padding:5px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#000;cursor:pointer;}
+.inf-ctrl-btns button.primary{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:600;}
+#informePrint{padding:16px;flex:1;}
+/* Informe content styles */
+.inf-page{page-break-after:always;padding-bottom:8px;}
+.inf-page:last-child{page-break-after:auto;}
+.inf-titulo{font-size:18pt;font-weight:700;margin:0 0 3px;color:#000;}
+.inf-sub{font-size:9pt;color:#64748b;margin:0 0 18px;}
+.inf-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+@media(max-width:600px){.inf-kpis{grid-template-columns:1fr 1fr;}}
+.inf-kpi{border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;background:#fff;}
+.inf-kpi .lbl{font-size:8pt;color:#64748b;}
+.inf-kpi .val{font-size:14pt;font-weight:700;margin-top:2px;color:#000;}
+.inf-kpi .val.pos{color:#16a34a;}
+.inf-kpi .val.neg{color:#dc2626;}
+.inf-kpi .var{font-size:7.5pt;color:#64748b;margin-top:2px;}
+.inf-bars-wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;}
+@media(max-width:500px){.inf-bars-wrap{grid-template-columns:1fr;}}
+.inf-bars-sec h3{font-size:9pt;font-weight:700;color:#1e293b;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;}
+.inf-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:8pt;}
+.inf-bar-lbl{width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;color:#1e293b;}
+.inf-bar-track{flex:1;background:#f1f5f9;border-radius:3px;height:10px;overflow:hidden;}
+.inf-bar-fill{height:100%;border-radius:3px;}
+.inf-bar-fill.gasto{background:#dc2626;}
+.inf-bar-fill.ingreso{background:#16a34a;}
+.inf-bar-val{font-size:7.5pt;white-space:nowrap;color:#64748b;min-width:80px;text-align:right;}
+.inf-h2{font-size:12pt;font-weight:700;margin:0 0 10px;color:#000;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}
+.inf-h3{font-size:10pt;font-weight:700;margin:14px 0 6px;color:#1e293b;}
+.inf-tbl{width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:12px;}
+.inf-tbl th{background:#f1f5f9;padding:4px 7px;text-align:left;font-weight:600;border-bottom:1px solid #e2e8f0;color:#1e293b;}
+.inf-tbl td{padding:3px 7px;border-bottom:1px solid #f1f5f9;color:#000;}
+.inf-tbl tr:last-child td{border-bottom:none;}
+.inf-tbl .pos{color:#16a34a;font-weight:600;}
+.inf-tbl .neg{color:#dc2626;font-weight:600;}
+.inf-tbl .r{text-align:right;}
+.inf-det-tbl{width:100%;border-collapse:collapse;font-size:8pt;margin-bottom:12px;}
+.inf-det-tbl thead th{background:#f1f5f9;padding:4px 7px;text-align:left;font-weight:600;border-bottom:1px solid #e2e8f0;color:#1e293b;}
+.inf-det-tbl tbody td{padding:3px 7px;border-bottom:1px solid #f8fafc;color:#000;}
+.inf-det-tbl tbody tr:nth-child(even) td{background:#f9fafb;}
+.inf-det-tbl .pos{color:#16a34a;}
+.inf-det-tbl .neg{color:#dc2626;}
+.inf-det-tbl .r{text-align:right;}
 /* ── Print / PDF ─────────────────────────────────────────────── */
 @media print{
-  .tabs,.app-hdr,.refresh-btn,.acciones,button,.saldo button,.item .edit,.gasto .btns,
-  .ev-notice,.csv-actions,.cfg-section,.vista-config,.vista-vinculos,.no-print,#fabVoz{display:none!important;}
-  body{background:#fff;color:#000;font-size:11pt;}
-  main{max-width:100%;padding:0;}
-  section,.ev-card{border:1px solid #ccc;page-break-inside:avoid;margin-bottom:10px;}
-  h1{font-size:14pt;margin-bottom:8px;}
-  .resumen{grid-template-columns:repeat(4,1fr);}
+  body>*{display:none!important;}
+  #informeView{display:flex!important;position:static!important;overflow:visible!important;}
+  .inf-controls{display:none!important;}
+  @page{size:A4;margin:12mm;}
+  #informePrint{padding:0;}
+  .inf-page{page-break-after:always;}
+  .inf-page:last-child{page-break-after:auto;}
+  .inf-kpi,.inf-bar-row{page-break-inside:avoid;}
+  .inf-det-tbl thead{display:table-header-group;}
+  .inf-det-tbl tr{page-break-inside:avoid;}
+  body{background:#fff;color:#000;}
 }
 </style>
 </head>
@@ -714,7 +769,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
         <button type="button" class="mini" id="btnExportCSV">⬇ Exportar CSV</button>
         <button type="button" class="mini" id="btnImportCSV">⬆ Importar CSV</button>
         <input type="file" id="csvFile" accept=".csv" hidden>
-        <button type="button" class="mini" id="btnExportPDF">🖨 Informe PDF</button>
+        <button type="button" class="mini" id="btnExportPDF">📄 Informe</button>
         <button type="button" class="mini" id="btnTransferirMovim">⇄ Transferir</button>
         <button type="button" class="mini" id="btnPagarTarjetaMovim">💳 Pagar tarjeta</button>
       </div>
@@ -880,6 +935,12 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   <!-- ── CONFIG ── -->
   <div class="vista vista-config" id="vista-config" hidden>
     <div class="cfg-section">
+      <h2>📄 Informe financiero</h2>
+      <p class="meta">Generá un informe imprimible con resumen, situación y detalle de movimientos.</p>
+      <button type="button" class="mini" id="btnInformeConfig" style="margin-top:8px;">📄 Informe</button>
+    </div>
+
+    <div class="cfg-section">
       <h2>🏦 Importar resumen bancario</h2>
       <p class="meta">Importá movimientos desde el resumen de tu banco. Parseo local: el archivo no se sube a ningún servidor.</p>
       <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar movimientos del banco</button>
@@ -966,6 +1027,44 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
     </section>
   </div>
 </main>
+
+<!-- ══════════════════ INFORME VIEW ══════════════════ -->
+<div id="informeView" aria-label="Informe financiero">
+  <div class="inf-controls" id="infControls">
+    <label>Desde
+      <input type="date" id="infDesde">
+    </label>
+    <label>Hasta
+      <input type="date" id="infHasta">
+    </label>
+    <label>Detalle de movimientos
+      <select id="infDetalle">
+        <option value="compacto">Compacto</option>
+        <option value="categoria">Por categoría</option>
+        <option value="ninguno">Ninguno</option>
+      </select>
+    </label>
+    <label class="inf-cbx">
+      <input type="checkbox" id="infTransf">
+      Incluir transferencias entre cuentas
+    </label>
+    <label class="inf-cbx">
+      <input type="checkbox" id="infOcultarNombres">
+      Ocultar nombres de personas
+    </label>
+    <label id="infOtrosNombresLabel" style="min-width:180px;">Otros nombres a ocultar (separados por coma)
+      <input type="text" id="infOtrosNombres" placeholder="Ej: Juan, María" style="font:inherit;font-size:.82rem;border:1px solid #ccc;border-radius:6px;padding:4px 8px;background:#fff;color:#000;">
+    </label>
+    <div class="inf-ctrl-btns">
+      <button type="button" id="btnInformeGenerar" class="primary">Generar / Actualizar</button>
+      <button type="button" id="btnInformeImprimir">Imprimir / Guardar PDF</button>
+      <button type="button" id="btnInformeCerrar">Cerrar</button>
+    </div>
+  </div>
+  <div id="informePrint">
+    <p style="color:#64748b;font-size:.9rem;padding:20px;">Presioná "Generar / Actualizar" para ver el informe.</p>
+  </div>
+</div>
 
 <!-- ══════════════════ FAB VOZ (flotante global) ══════════════════ -->
 <div id="fabVoz">
@@ -2887,11 +2986,278 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 // ═══════════════════════════════════════════════════════
-// PDF / PRINT
+// PDF / PRINT — INFORME
 // ═══════════════════════════════════════════════════════
-function exportarPDF(){
-  window.print();
+
+function abrirInforme(){
+  // Default: last 30 days
+  const hoyStr=hoy();
+  const d30=new Date(); d30.setDate(d30.getDate()-30);
+  const desdeStr=d30.toLocaleDateString('sv');
+  $('infDesde').value=desdeStr;
+  $('infHasta').value=hoyStr;
+  $('informeView').classList.add('inf-open');
+  document.body.style.overflow='hidden';
 }
+
+function cerrarInforme(){
+  $('informeView').classList.remove('inf-open');
+  document.body.style.overflow='';
+}
+
+// Build stable name map: sorted unique names → "Persona 1", "Persona 2", …
+function _buildNameMap(ocultarNombres, otrosNombres){
+  if(!ocultarNombres) return null;
+  const set=new Set();
+  // Names from items (persona field and nombres with persona)
+  for(const it of (estado.items||[])){
+    if(it.persona) set.add(it.persona.trim());
+    // Also collect item names that appear as personas (for "Cobros pendientes" etc.)
+    if(it.nombre) set.add(it.nombre.trim());
+  }
+  // Extra names from text field
+  if(otrosNombres){
+    for(const n of otrosNombres.split(',')) {
+      const t=n.trim(); if(t) set.add(t);
+    }
+  }
+  // Build sorted map
+  const sorted=[...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+  const map={}; sorted.forEach((n,i)=>{ map[n.toLowerCase()]=`Persona ${i+1}`; });
+  return map;
+}
+
+function _applyNameMap(text, map){
+  if(!map||!text) return text||'';
+  let result=String(text);
+  // Sort by length desc to avoid partial replacement issues
+  const keys=Object.keys(map).sort((a,b)=>b.length-a.length);
+  for(const k of keys){
+    const re=new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+    result=result.replace(re,map[k]);
+  }
+  return result;
+}
+
+function buildInformeHTML(opts){
+  const {desde,hasta,detalle,inclTransf,ocultarNombres,otrosNombres}=opts;
+  const nameMap=_buildNameMap(ocultarNombres,otrosNombres);
+  const N=s=>_applyNameMap(s,nameMap);
+
+  // Filter gastos by period
+  const gastos=(estado.gastos||[]).filter(g=>g.fecha>=desde&&g.fecha<=hasta);
+
+  // Ingresos/gastos excl. transfers (unless inclTransf)
+  const movBase=inclTransf?gastos:gastos.filter(g=>!g.transferencia);
+  const totalIngresos=movBase.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
+  const totalGastos=movBase.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
+  const resultado=totalIngresos-totalGastos;
+
+  // Patrimonio neto actual
+  const t=totales();
+  const patrimonioNeto=t.neto;
+
+  // Patrimony variation from snapshots
+  const snaps=cargarSnaps().slice().sort((a,b)=>a.d.localeCompare(b.d));
+  const snapInicio=snaps.filter(s=>s.d<=desde).slice(-1)[0]||null;
+  const snapFin=snaps.filter(s=>s.d<=hasta).slice(-1)[0]||null;
+  let varPatrimonio=null;
+  if(snapInicio&&snapFin&&snapInicio!==snapFin){
+    varPatrimonio=snapFin.n-snapInicio.n;
+  }
+
+  // Gastos por categoría (top 10 + Otras)
+  const gastoCat={};
+  movBase.filter(g=>(g.tipo||'gasto')==='gasto').forEach(g=>{
+    const c=g.categoria||'Sin categoría';
+    gastoCat[c]=(gastoCat[c]||0)+g.monto;
+  });
+  const gastoCatArr=Object.entries(gastoCat).sort((a,b)=>b[1]-a[1]);
+  const top10G=gastoCatArr.slice(0,10);
+  const otrasG=gastoCatArr.slice(10).reduce((s,x)=>s+x[1],0);
+
+  // Ingresos por categoría (top 10 + Otras)
+  const ingCat={};
+  movBase.filter(g=>(g.tipo||'gasto')==='ingreso').forEach(g=>{
+    const c=g.categoria||'Sin categoría';
+    ingCat[c]=(ingCat[c]||0)+g.monto;
+  });
+  const ingCatArr=Object.entries(ingCat).sort((a,b)=>b[1]-a[1]);
+  const top10I=ingCatArr.slice(0,10);
+  const otrasI=ingCatArr.slice(10).reduce((s,x)=>s+x[1],0);
+
+  const genDate=new Date().toLocaleString('es-AR',{dateStyle:'long',timeStyle:'short'});
+  const periodoStr=`${fechaCorta(desde)} al ${fechaCorta(hasta)}`;
+
+  function barras(arr, otras, total, tipo){
+    if(!arr.length) return '<p style="font-size:8pt;color:#64748b;margin:0">Sin datos</p>';
+    const all=[...arr];
+    if(otras>0) all.push(['Otras',otras]);
+    const maxV=all.reduce((m,x)=>Math.max(m,x[1]),0)||1;
+    return all.map(([cat,v])=>{
+      const pct=(v/total*100).toFixed(1);
+      const w=(v/maxV*100).toFixed(1);
+      return `<div class="inf-bar-row">
+        <div class="inf-bar-lbl" title="${esc(cat)}">${esc(cat)}</div>
+        <div class="inf-bar-track"><div class="inf-bar-fill ${tipo}" style="width:${w}%"></div></div>
+        <div class="inf-bar-val">${fmt(v)} · ${pct}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Page 1
+  let html=`<div class="inf-page">
+  <div class="inf-titulo">Informe financiero</div>
+  <div class="inf-sub">Período: ${esc(periodoStr)} · Generado: ${esc(genDate)}</div>
+  <div class="inf-kpis">
+    <div class="inf-kpi"><div class="lbl">Ingresos</div><div class="val pos">${fmt(totalIngresos)}</div></div>
+    <div class="inf-kpi"><div class="lbl">Gastos</div><div class="val neg">${fmt(totalGastos)}</div></div>
+    <div class="inf-kpi"><div class="lbl">Resultado</div><div class="val ${resultado>=0?'pos':'neg'}">${fmt(resultado)}</div></div>
+    <div class="inf-kpi">
+      <div class="lbl">Patrimonio neto</div>
+      <div class="val ${patrimonioNeto>=0?'pos':'neg'}">${fmt(patrimonioNeto)}</div>
+      ${varPatrimonio!==null?`<div class="var">${varPatrimonio>=0?'+':''}${fmt(varPatrimonio)} en el período</div>`:''}
+    </div>
+  </div>
+  <div class="inf-bars-wrap">
+    <div class="inf-bars-sec"><h3>Gastos por categoría</h3>${barras(top10G,otrasG,totalGastos,'gasto')}</div>
+    <div class="inf-bars-sec"><h3>Ingresos por categoría</h3>${barras(top10I,otrasI,totalIngresos,'ingreso')}</div>
+  </div>
+</div>`;
+
+  // Page 2 — Situación
+  // Mis cuentas
+  const cuentasRows=MEDIOS.map(m=>{
+    const s=saldoDe(m);
+    const cls=s<0?'neg':'pos';
+    return `<tr><td>${esc(m)}</td><td class="${cls} r">${fmt(s)}</td></tr>`;
+  }).join('');
+
+  // Activos y deudas por grupo
+  const grupos={};
+  for(const it of (estado.items||[])){
+    const g=it.grupo||'Otros';
+    if(!grupos[g]) grupos[g]={activos:[],deudas:[]};
+    if(it.tipo==='activo') grupos[g].activos.push(it);
+    else grupos[g].deudas.push(it);
+  }
+  let gruposRows='';
+  for(const [g,{activos:acts,deudas:deus}] of Object.entries(grupos)){
+    const total=acts.reduce((s,i)=>s+i.monto,0)-deus.reduce((s,i)=>s+i.monto,0);
+    gruposRows+=`<tr><td colspan="3" style="font-weight:700;padding-top:6px;font-size:8.5pt">${esc(N(g))}</td></tr>`;
+    for(const it of [...acts,...deus]){
+      gruposRows+=`<tr><td style="padding-left:12px">${esc(N(it.nombre))}${it.persona?` <span style="color:#64748b;font-size:7.5pt">(${esc(N(it.persona))})</span>`:''}</td><td>${esc(it.tipo)}</td><td class="${it.tipo==='activo'?'pos':'neg'} r">${fmt(it.monto)}</td></tr>`;
+    }
+    gruposRows+=`<tr style="border-top:1px solid #e2e8f0"><td colspan="2" style="text-align:right;font-size:8pt;color:#64748b">Subtotal</td><td class="${total>=0?'pos':'neg'} r">${fmt(total)}</td></tr>`;
+  }
+
+  // Deudas principales (top 5)
+  const top5Deudas=[...( estado.items||[])].filter(i=>i.tipo==='deuda').sort((a,b)=>b.monto-a.monto).slice(0,5);
+  const top5Rows=top5Deudas.map(i=>`<tr><td>${esc(N(i.nombre))}</td><td>${esc(N(i.grupo||''))}</td><td class="neg r">${fmt(i.monto)}</td></tr>`).join('');
+
+  // Lo que viene: compromisos next 30d + fijos
+  const hoyStr2=hoy();
+  const [hy,hm]=hoyStr2.split('-').map(Number);
+  const mesActual=`${hy}-${String(hm).padStart(2,'0')}`;
+  const d30Next=new Date(); d30Next.setDate(d30Next.getDate()+30);
+  const d30Str=d30Next.toLocaleDateString('sv');
+  const vieneRows=[];
+  for(const c of (estado.compromisos||[])){
+    if(c.pendientes===0) continue;
+    if(c.tipo==='fijo') continue; // handled below
+    const venc=c.proxVenc;
+    if(!venc||venc<=d30Str){
+      vieneRows.push(`<tr><td>${esc(c.entidad||c.nombre||'')} ${c.tipo==='resumen'?'(resumen)':'(cuota)'}</td><td class="r">${fmt(c.monto)}</td></tr>`);
+    }
+  }
+  // Fijos activos del mes actual
+  for(const c of (estado.compromisos||[])){
+    if(c.tipo!=='fijo'||!c.activo) continue;
+    if(_fijoMesCorresponde(c,mesActual)){
+      vieneRows.push(`<tr><td>${esc(N(c.nombre||''))} (fijo)</td><td class="r">${fmt(c.monto||0)}</td></tr>`);
+    }
+  }
+  const vieneHtml=vieneRows.length?`<table class="inf-tbl"><thead><tr><th>Concepto</th><th class="r">Monto</th></tr></thead><tbody>${vieneRows.join('')}</tbody></table>`:'<p style="font-size:8pt;color:#64748b;margin:0">Sin compromisos próximos.</p>';
+
+  // Cobros pendientes
+  const cobros=(estado.items||[]).filter(i=>i.grupo==='Cobros pendientes'&&i.monto>0);
+  const cobrosRows=cobros.map(i=>`<tr><td>${esc(N(i.nombre))}</td>${i.persona?`<td>${esc(N(i.persona))}</td>`:'<td>—</td>'}<td class="pos r">${fmt(i.monto)}</td></tr>`).join('');
+
+  html+=`<div class="inf-page">
+  <div class="inf-h2">Situación</div>
+  <div class="inf-h3">Mis cuentas</div>
+  <table class="inf-tbl"><thead><tr><th>Cuenta</th><th class="r">Saldo</th></tr></thead><tbody>${cuentasRows}</tbody></table>
+  <div class="inf-h3">Activos y deudas</div>
+  <table class="inf-tbl"><thead><tr><th>Ítem</th><th>Tipo</th><th class="r">Monto</th></tr></thead><tbody>${gruposRows}</tbody></table>
+  ${top5Deudas.length?`<div class="inf-h3">Deudas principales</div><table class="inf-tbl"><thead><tr><th>Ítem</th><th>Grupo</th><th class="r">Monto</th></tr></thead><tbody>${top5Rows}</tbody></table>`:''}
+  <div class="inf-h3">Lo que viene (próximos 30 días)</div>
+  ${vieneHtml}
+  ${cobros.length?`<div class="inf-h3">Cobros pendientes</div><table class="inf-tbl"><thead><tr><th>Concepto</th><th>Persona</th><th class="r">Monto</th></tr></thead><tbody>${cobrosRows}</tbody></table>`:''}
+</div>`;
+
+  // Page 3+ — Detalle
+  if(detalle==='compacto'){
+    const movDet=inclTransf?gastos:gastos.filter(g=>!g.transferencia);
+    const sorted=[...movDet].sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    const rows=sorted.map((g,i)=>{
+      const isIng=(g.tipo||'gasto')==='ingreso';
+      const signo=isIng?'+':'−';
+      const cls=isIng?'pos':'neg';
+      return `<tr><td>${fechaCorta(g.fecha)}</td><td>${esc(N(g.descripcion||g.categoria||''))}</td><td>${esc(g.categoria||'')}</td><td>${esc(g.medio||'')}</td><td class="${cls} r">${signo}${fmt(g.monto)}</td></tr>`;
+    }).join('');
+    html+=`<div class="inf-page">
+  <div class="inf-h2">Detalle de movimientos</div>
+  <table class="inf-det-tbl" style="font-size:8pt">
+    <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Medio</th><th class="r">Importe</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="5" style="color:#64748b">Sin movimientos en el período.</td></tr>'}</tbody>
+  </table>
+</div>`;
+  } else if(detalle==='categoria'){
+    // Totals and count by category
+    const catMap={};
+    const movDet=inclTransf?gastos:gastos.filter(g=>!g.transferencia);
+    for(const g of movDet){
+      const c=g.categoria||'Sin categoría';
+      const tipo=(g.tipo||'gasto')==='ingreso'?'ingreso':'gasto';
+      const key=`${tipo}::${c}`;
+      if(!catMap[key]) catMap[key]={cat:c,tipo,total:0,count:0};
+      catMap[key].total+=g.monto; catMap[key].count++;
+    }
+    const catArr=Object.values(catMap).sort((a,b)=>b.total-a.total);
+    const catRows=catArr.map(r=>`<tr><td>${esc(r.cat)}</td><td>${r.tipo==='ingreso'?'Ingreso':'Gasto'}</td><td class="r">${r.count}</td><td class="${r.tipo==='ingreso'?'pos':'neg'} r">${fmt(r.total)}</td></tr>`).join('');
+    html+=`<div class="inf-page">
+  <div class="inf-h2">Detalle por categoría</div>
+  <table class="inf-det-tbl">
+    <thead><tr><th>Categoría</th><th>Tipo</th><th class="r">Cantidad</th><th class="r">Total</th></tr></thead>
+    <tbody>${catRows||'<tr><td colspan="4" style="color:#64748b">Sin movimientos en el período.</td></tr>'}</tbody>
+  </table>
+</div>`;
+  }
+
+  return html;
+}
+
+function generarInforme(){
+  const desde=$('infDesde').value||hoy();
+  const hasta=$('infHasta').value||hoy();
+  const detalle=$('infDetalle').value;
+  const inclTransf=$('infTransf').checked;
+  const ocultarNombres=$('infOcultarNombres').checked;
+  const otrosNombres=$('infOtrosNombres').value||'';
+  $('informePrint').innerHTML=buildInformeHTML({desde,hasta,detalle,inclTransf,ocultarNombres,otrosNombres});
+}
+
+function exportarPDF(){
+  abrirInforme();
+}
+
+// Expose for tests
+window.buildInformeHTML=buildInformeHTML;
+window._buildNameMap=_buildNameMap;
+window._applyNameMap=_applyNameMap;
+window.abrirInforme=abrirInforme;
+window.cerrarInforme=cerrarInforme;
+window.generarInforme=generarInforme;
 
 // ═══════════════════════════════════════════════════════
 // SNAPSHOTS
@@ -4021,7 +4387,11 @@ function wireEvents(){
     setTimeout(()=>{this.classList.remove('spin');this.querySelector('span').textContent='Actualizar';},700);
   };
   $('btnExportCSV').onclick=exportarCSV;
-  $('btnExportPDF').onclick=exportarPDF;
+  $('btnExportPDF').onclick=abrirInforme;
+  if($('btnInformeConfig')) $('btnInformeConfig').onclick=abrirInforme;
+  $('btnInformeGenerar').onclick=generarInforme;
+  $('btnInformeImprimir').onclick=()=>{generarInforme();setTimeout(()=>window.print(),120);};
+  $('btnInformeCerrar').onclick=cerrarInforme;
   $('btnImportCSV').onclick=()=>$('csvFile').click();
   $('csvFile').onchange=e=>{
     const file=e.target.files[0]; if(!file) return;

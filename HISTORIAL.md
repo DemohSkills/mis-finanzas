@@ -139,6 +139,18 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **Subtotal del mes en Compromisos para tipo 'resumen':** `cuotaTotal` ahora suma `Math.max(0, c.monto − _sumaPagadoCiclo(c))` en lugar de `c.monto` para compromisos tipo 'resumen'. Si está abonado por completo contribuye 0. Compromisos tipo 'cuota' sin cambio.
   - 9 tests nuevos: `tests/fijos-bimestral.spec.js` (8 casos: función pura, integración en vista, texto "cada N meses", backward-compat), `tests/cobre.spec.js` (1 caso: sin `$$` ni ` `), `tests/comp-resumen.spec.js` (2 casos: subtotal parcial y subtotal cero). Suite completa: 271/271 ✓.
 
+- 21/10/2026: vista de Informe imprimible/guardable como PDF. Cambios en `index.html`:
+  - **`#informeView`**: overlay a pantalla completa (`position:fixed;inset:0;z-index:200`) con controles arriba e informe debajo. Se abre con clase `.inf-open`. Botones: "Generar / Actualizar", "Imprimir / Guardar PDF" (`window.print()`), "Cerrar".
+  - **Controles**: período (últimos 30 días por defecto, campos desde/hasta editables), selector de detalle (Compacto/Por categoría/Ninguno), casilla "Incluir transferencias entre cuentas" (off por defecto), casilla "Ocultar nombres de personas" + campo "Otros nombres a ocultar (separados por coma)".
+  - **`buildInformeHTML(opts)`**: genera HTML del informe con tres páginas: (1) Resumen: título, período, fecha de generación, 4 KPIs (Ingresos, Gastos, Resultado, Patrimonio neto con variación de snaps si hay), barras horizontales top-10 gastos e ingresos por categoría; (2) Situación: saldos de cuentas, activos/deudas por grupo, deudas principales (top 5), "Lo que viene" (compromisos + fijos activos del mes), cobros pendientes; (3) Detalle según opción (compacto: una fila por movimiento con fecha/descripción/categoría/medio/importe; por categoría: totales y cantidad).
+  - **`_buildNameMap` / `_applyNameMap`**: construyen mapa estable de nombres → "Persona N" (orden alfabético) y aplican reemplazo insensible a mayúsculas en descripciones, nombres de ítems y personas. Las categorías no se tocan.
+  - **Ingresos/gastos**: excluyen `transferencia:true` salvo que se active la casilla. Los movimientos `soloHistorial` se incluyen en el detalle.
+  - **`@media print`**: oculta todo excepto `#informeView`; `@page{size:A4;margin:12mm}`; encabezado de tabla repetido por página; `page-break-inside:avoid` en bloques; sin primera página en blanco.
+  - **Botones**: "📄 Informe" en Movimientos (reemplaza "🖨 Informe PDF"), "📄 Informe" en ⚙️ (nueva sección cfg-section).
+  - **`exportarPDF()`** redirige a `abrirInforme()` para mantener compatibilidad con el wire event existente.
+  - Expone `buildInformeHTML`, `_buildNameMap`, `_applyNameMap`, `abrirInforme`, `cerrarInforme`, `generarInforme` para tests.
+  - 16 tests nuevos en `tests/informe.spec.js`. Suite completa: 287/287 ✓. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.
