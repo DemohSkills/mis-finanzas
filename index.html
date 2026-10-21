@@ -65,6 +65,8 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .saldo-deuda{border-left:4px solid var(--danger);}
 .saldo-deuda .monto{color:var(--danger);}
 .saldo-etiqueta{font-size:.7rem;color:var(--muted);margin-bottom:1px;}
+.saldo-concil{font-size:.68rem;color:var(--muted);margin-top:3px;}
+.saldo-concil.warn{color:var(--warn);}
 details.saldo-grupo-otros>summary{cursor:pointer;list-style:none;user-select:none;}
 details.saldo-grupo-otros>summary::-webkit-details-marker{display:none;}
 /* Collapsible sections */
@@ -1680,7 +1682,19 @@ function renderSaldos() {
     const montoMostrado = tipo==='deuda' ? Math.abs(s) : s;
     const colorCls = tipo==='activo' ? ' pos' : tipo==='deuda' ? ' neg' : (s<0?' neg':'');
     const etiqueta = tipo==='deuda' ? `<div class="saldo-etiqueta">Deuda total</div>` : '';
-    div.innerHTML = `<div class="nombre">${esc(m)}</div>${etiqueta}<div class="monto${colorCls}">${fmtV(montoMostrado)}</div><button type="button">Ajustar saldo</button>`;
+    let concilHtml = '';
+    if (m === 'Banco Santander' || m === 'Mercado Pago') {
+      const imp = (estado.importaciones||{})[m];
+      if (imp?.hasta) {
+        const dias = Math.floor((Date.now() - new Date(imp.hasta + 'T00:00:00')) / 86400000);
+        const cls = dias > 7 ? ' warn' : '';
+        const txt = dias > 7 ? `Conciliado hasta ${fechaCorta(imp.hasta)} (hace ${dias} días)` : `Conciliado hasta ${fechaCorta(imp.hasta)}`;
+        concilHtml = `<div class="saldo-concil${cls}">${esc(txt)}</div>`;
+      } else {
+        concilHtml = `<div class="saldo-concil">Sin conciliar</div>`;
+      }
+    }
+    div.innerHTML = `<div class="nombre">${esc(m)}</div>${etiqueta}<div class="monto${colorCls}">${fmtV(montoMostrado)}</div>${concilHtml}<button type="button">Ajustar saldo</button>`;
     div.querySelector('button').onclick = () => ajustarSaldo(m);
     return div;
   }
@@ -3103,7 +3117,7 @@ function _agruparRuidoImp(candidatos, agrupar) {
   for (const [,grp] of groups) {
     if (grp.length === 1) { result.push(grp[0]); continue; }
     const last = grp[grp.length-1];
-    result.push({...last, monto: grp.reduce((s,c)=>s+c.monto,0),
+    result.push({...last, monto: Math.round(grp.reduce((s,c)=>s+c.monto,0) * 100) / 100,
       refs: grp.map(c=>c.ref).filter(Boolean),
       desc: `${last.catInfo.agrupable} (${grp.length} mov.)`,
       _agrupado:true});
@@ -3128,6 +3142,16 @@ function _verifSaldo(medio, fechaFinal, saldoBanco, candidatosNuevos) {
 // ── Render preview modal ───────────────────────────────
 let _impCandidatos = [], _impMedio = '', _impSaldoInfo = null, _impAgrupar = true, _impHistHasta = '';
 let _impSaldoFinal = 0, _impFechaFinal = '';
+let _impOmitidas = [], _impIncluirOmitidas = false;
+
+function _marcarConciliadoHasta(medio, fecha) {
+  if (!fecha) return;
+  estado.importaciones ||= {};
+  estado.importaciones[medio] = { hasta: fecha, lote: null, fecha: hoy() };
+  guardar(); render();
+  _actualizarImpUltimaInfo();
+  abrirImportModal();
+}
 
 function _renderImpPreview() {
   const cands = _impCandidatos;
@@ -3195,8 +3219,18 @@ function _renderImpPreview() {
   const lastImpTxt = lastImp ? `<p class="meta" style="margin:0 0 8px">Última importación de ${_impMedio}: hasta ${fechaCorta(lastImp.hasta)}
     <button type="button" class="mini" id="btnDeshacerLote" style="margin-left:6px">↩ Deshacer</button></p>` : '';
 
+  const conciliHasta = (estado.importaciones||{})[_impMedio]?.hasta;
+  const omitBanner = _impOmitidas.length ? `<div style="font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);margin-bottom:8px;">
+    ⏭ Se omitieron <b>${_impOmitidas.length}</b> movimiento${_impOmitidas.length!==1?'s':''} anteriores al ${fechaCorta(conciliHasta||'')} (ya cargados).
+    <label style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;cursor:pointer;">
+      <input type="checkbox" id="impChkIncluirOmitidas" ${_impIncluirOmitidas?'checked':''} style="width:auto">
+      Incluirlos
+    </label>
+  </div>` : '';
+
   body.innerHTML = `
     ${lastImpTxt}
+    ${omitBanner}
     <div class="imp-hdr">
       <span class="imp-count ok">${nuevos.length} nuevos</span>
       <span class="imp-count">${yaEst.length} ya estaban</span>
@@ -3257,6 +3291,23 @@ function _renderImpPreview() {
   if (btnCan) btnCan.onclick = () => { $('impModal').hidden = true; };
   const btnDes = $('btnDeshacerLote');
   if (btnDes) btnDes.onclick = () => _deshacerUltimaImp(_impMedio);
+  const chkIncl = $('impChkIncluirOmitidas');
+  if (chkIncl) chkIncl.onchange = () => {
+    _impIncluirOmitidas = chkIncl.checked;
+    if (_impIncluirOmitidas) {
+      _impCandidatos = [..._impOmitidas, ..._impCandidatos];
+      _impOmitidas = [];
+    } else {
+      const conc = (estado.importaciones||{})[_impMedio]?.hasta;
+      if (conc) {
+        _impOmitidas = _impCandidatos.filter(c => c.fecha <= conc);
+        _impCandidatos = _impCandidatos.filter(c => c.fecha > conc);
+      }
+    }
+    _deduplicarImp(_impCandidatos, _impMedio);
+    _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
+    _renderImpPreview();
+  };
 }
 
 // ── Confirm import ─────────────────────────────────────
@@ -3357,6 +3408,14 @@ function _deshacerUltimaImp(medio) {
   const imp = (estado.importaciones||{})[medio];
   if (!imp) return;
   const { lote } = imp;
+  if (!lote) {
+    if (!confirm(`¿Borrar la marca "conciliado hasta ${fechaCorta(imp.hasta)}" de ${medio}?`)) return;
+    delete estado.importaciones[medio];
+    guardar(); render();
+    _actualizarImpUltimaInfo();
+    $('impModal').hidden = true;
+    return;
+  }
   const n = estado.gastos.filter(g => g.lote === lote).length;
   if (!n) { alert('No hay movimientos de esta importación para deshacer.'); return; }
   if (!confirm(`¿Deshacer la importación del ${fechaCorta(imp.hasta)} (${n} movimientos)?`)) return;
@@ -3385,10 +3444,25 @@ function abrirImportModal() {
   const lastSant = imps['Banco Santander'];
   const lastMP   = imps['Mercado Pago'];
   body.innerHTML = `
-    ${lastSant ? `<p class="meta">Última importación de Banco Santander: hasta ${fechaCorta(lastSant.hasta)}
+    ${lastSant ? `<p class="meta">Banco Santander: conciliado hasta ${fechaCorta(lastSant.hasta)}
       <button type="button" class="mini" id="btnDeshacerLote2S" style="margin-left:6px">↩ Deshacer</button></p>` : ''}
-    ${lastMP ? `<p class="meta">Última importación de Mercado Pago: hasta ${fechaCorta(lastMP.hasta)}
+    ${lastMP ? `<p class="meta">Mercado Pago: conciliado hasta ${fechaCorta(lastMP.hasta)}
       <button type="button" class="mini" id="btnDeshacerLote2MP" style="margin-left:6px">↩ Deshacer</button></p>` : ''}
+    <details style="margin-bottom:8px;">
+      <summary style="font-size:.8rem;color:var(--muted);cursor:pointer;user-select:none;">▶ Marcar conciliado hasta (manual)</summary>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:8px 0 2px;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.82rem;">
+          <span style="color:var(--muted);min-width:130px;">Banco Santander:</span>
+          <input type="date" id="concilFechaSant" value="${lastSant?.hasta||''}" style="font-size:.82rem;padding:3px 7px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+          <button type="button" class="mini" id="btnConcilSant">Marcar conciliado hasta</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.82rem;">
+          <span style="color:var(--muted);min-width:130px;">Mercado Pago:</span>
+          <input type="date" id="concilFechaMP" value="${lastMP?.hasta||''}" style="font-size:.82rem;padding:3px 7px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+          <button type="button" class="mini" id="btnConcilMP">Marcar conciliado hasta</button>
+        </div>
+      </div>
+    </details>
     <p class="meta">Seleccioná el archivo: <b>.xls/.xlsx</b> (Banco Santander) o <b>.pdf</b> (Mercado Pago). El parseo es local; el archivo no se sube a ningún servidor.</p>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
       <input type="file" id="impFile" accept=".xls,.xlsx,.pdf" style="flex:1;font-size:.82rem;">
@@ -3398,6 +3472,10 @@ function abrirImportModal() {
   if (btnDS) btnDS.onclick = () => _deshacerUltimaImp('Banco Santander');
   const btnDMP = $('btnDeshacerLote2MP');
   if (btnDMP) btnDMP.onclick = () => _deshacerUltimaImp('Mercado Pago');
+  const btnCS = $('btnConcilSant');
+  if (btnCS) btnCS.onclick = () => { const f = $('concilFechaSant')?.value; if(f) _marcarConciliadoHasta('Banco Santander', f); };
+  const btnCMP = $('btnConcilMP');
+  if (btnCMP) btnCMP.onclick = () => { const f = $('concilFechaMP')?.value; if(f) _marcarConciliadoHasta('Mercado Pago', f); };
   const fileEl = $('impFile');
   fileEl.onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
@@ -3427,11 +3505,17 @@ function abrirImportModal() {
             _revisar_sel: catInfo.revisar_opciones ? catInfo.revisar_opciones[0][0] : null,
             _recordar: false, _recordarTexto: f.concepto.slice(0, 40) };
         });
+        _impSaldoFinal = parsed[parsed.length-1].saldo;
+        _impFechaFinal = parsed[parsed.length-1].fecha;
+        _impIncluirOmitidas = false;
+        const concMP = (estado.importaciones||{})[_impMedio]?.hasta;
+        if (concMP) {
+          _impOmitidas = _impCandidatos.filter(c => c.fecha <= concMP);
+          _impCandidatos = _impCandidatos.filter(c => c.fecha > concMP);
+        } else { _impOmitidas = []; }
         _deduplicarImp(_impCandidatos, _impMedio);
         _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
         _deduplicarImp(_impCandidatos, _impMedio);
-        _impSaldoFinal = parsed[parsed.length-1].saldo;
-        _impFechaFinal = parsed[parsed.length-1].fecha;
         _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
         _renderImpPreview();
       } catch (err) { st.textContent = `❌ ${err.message}`; }
@@ -3458,11 +3542,17 @@ function abrirImportModal() {
             _revisar_sel: catInfo.revisar_opciones ? catInfo.revisar_opciones[0][0] : null,
             _recordar: false, _recordarTexto: f.concepto.slice(0, 40) };
         });
+        _impSaldoFinal = parsed[parsed.length-1].saldo;
+        _impFechaFinal = parsed[parsed.length-1].fecha;
+        _impIncluirOmitidas = false;
+        const concS = (estado.importaciones||{})[_impMedio]?.hasta;
+        if (concS) {
+          _impOmitidas = _impCandidatos.filter(c => c.fecha <= concS);
+          _impCandidatos = _impCandidatos.filter(c => c.fecha > concS);
+        } else { _impOmitidas = []; }
         _deduplicarImp(_impCandidatos, _impMedio);
         _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
         _deduplicarImp(_impCandidatos, _impMedio);
-        _impSaldoFinal = parsed[parsed.length-1].saldo;
-        _impFechaFinal = parsed[parsed.length-1].fecha;
         _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
         _renderImpPreview();
       } catch (err) { st.textContent = `❌ ${err.message}`; }
@@ -3483,6 +3573,9 @@ window._verifSaldo = _verifSaldo;
 window._getEstado = () => estado;
 window._guardar = () => guardar();
 window.buildBackupJson = buildBackupJson;
+window._marcarConciliadoHasta = _marcarConciliadoHasta;
+window._getImpOmitidas = () => _impOmitidas;
+window._getImpCandidatos = () => _impCandidatos;
 
 // ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)

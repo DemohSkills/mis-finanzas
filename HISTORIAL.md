@@ -14,6 +14,13 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 21/10/2026: recordatorio "conciliado hasta" e importador mejorado. Cambios en `index.html`:
+  - **Etiqueta en tarjetas (ítem 1):** las tarjetas de saldo de "Banco Santander" y "Mercado Pago" muestran "Conciliado con el banco hasta dd/mm" usando `estado.importaciones[medio].hasta`. Si no hay dato: "Sin conciliar". Si pasaron más de 7 días desde esa fecha, la etiqueta se muestra en naranja con "hace N días". No usa `span.amt` para respetar el modo ojo.
+  - **Marcar a mano (ítem 2):** el modal del importador incluye un `<details>` "Marcar conciliado hasta (manual)" con campos fecha + botón por banco. Llama a `_marcarConciliadoHasta(medio, fecha)` que guarda `{hasta, lote: null, fecha: hoy()}`. `_deshacerUltimaImp` detecta `lote === null` y, en lugar de buscar movimientos, solo borra la marca (sin confundirse ni romper).
+  - **Omitir lo anterior (ítem 3):** al cargar un archivo, si existe `importaciones[medio].hasta`, las filas con `fecha <= hasta` se separan en `_impOmitidas` y no se importan por defecto. Se muestra un cartel naranja: "Se omitieron N movimientos anteriores al dd/mm (ya cargados). Incluirlos ☐". Si se marca "Incluirlos", las omitidas vuelven a `_impCandidatos` con dedupe normal. La verificación de saldo se calcula solo con los candidatos visibles (las omitidas ya están en el app).
+  - **Limpieza de punto flotante (ítem 4):** `_agruparRuidoImp` redondea la suma de montos del grupo a 2 decimales (`Math.round(...*100)/100`), eliminando valores como 786.6800000000001.
+  - **Compatibilidad (ítem 5):** backups sin `importaciones` o con marcas antiguas (sin `lote`) cargan sin errores.
+  - 10 tests nuevos en `tests/importar-conciliado.spec.js`. Suite completa: 223/223 ✓.
 - 13/10/2026: idea, requisitos y primera versión publicada. Asistente inicial de saldos, categorías y reglas, snapshots, gráficos de evolución.
 - 13–14/10: respaldo (exportar/restaurar), exportar CSV, reporte PDF, entrada por voz, importar CSV con detección de duplicados, ingresos además de gastos.
 - 14/10: correcciones tras pruebas en el celular:
