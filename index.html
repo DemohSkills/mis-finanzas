@@ -805,8 +805,9 @@ const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
 // ═══════════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
-window.fmt = fmt;
+const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:0,maximumFractionDigits:2});
+const fmt2 = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
+window.fmt = fmt; window.fmt2 = fmt2;
 const fmtV = n => `<span class="amt">${fmt(n)}</span>`;
 const hoy = () => new Date().toLocaleDateString('sv');
 const fechaCorta = f => f.split('-').reverse().join('/');
@@ -1115,7 +1116,7 @@ function renderCompromisos(){
     const sk='comp-'+key.replace(/[^a-z0-9]/gi,'-');
     const det=document.createElement('details');
     det.className='comp-mes';
-    det.innerHTML=`<summary><span class="comp-mes-lbl"><span class="det-arrow">▶</span>${esc(lbl)}</span><span class="comp-mes-sub neg">${fmtV(total)}</span></summary>`;
+    det.innerHTML=`<summary><span class="comp-mes-lbl"><span class="det-arrow">▶</span>${esc(lbl)}</span><span class="comp-mes-sub neg"><span class="amt">${fmt2(total)}</span></span></summary>`;
     det.insertAdjacentHTML('beforeend',items.map(_compRowHtml).join(''));
     initDetDyn(det,'comp-'+sk,true);
     cont.appendChild(det);

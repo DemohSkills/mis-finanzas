@@ -8,12 +8,12 @@ const TEST_PIN = '1234';
 
 function buildEstado() {
   return {
-    iniciales: { 'Efectivo': 100000 },
+    iniciales: { 'Efectivo': 107400 },
     gastos: [],
-    items: [{ id: 'ia1', nombre: 'Efectivo', grupo: 'Cuentas y efectivo', tipo: 'activo', monto: 100000 }],
+    items: [{ id: 'ia1', nombre: 'Efectivo', grupo: 'Cuentas y efectivo', tipo: 'activo', monto: 107400 }],
     patrimonioCargado: true,
     compromisos: [
-      // monto con 1 decimal para reproducir el bug original
+      // monto con 1 decimal para reproducir el bug original ("$ 4.779.062,7")
       { id: 'c1', nombre: 'Cuota A', entidad: 'Banco', monto: 4779062.7, pendientes: 1, proxVenc: '2026-11-01', tipo: 'cuota' },
       { id: 'c2', nombre: 'Cuota B', entidad: 'Banco', monto: 5000, pendientes: 1, proxVenc: '2026-11-15', tipo: 'cuota' },
     ],
@@ -38,40 +38,49 @@ test.describe('3d: formato de subtotal de Compromisos', () => {
     expect(errors).toHaveLength(0);
   });
 
-  test('subtotal de grupo muestra 2 decimales (no 1)', async ({ page }) => {
+  test('subtotal de grupo muestra 2 decimales incluso con 1 decimal natural', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await page.locator('nav.tabs button[data-vista="compromisos"]').click();
     await page.waitForTimeout(300);
-    // open all details
+    // forzar apertura de los details de grupo
     await page.evaluate(() => {
       document.querySelectorAll('details.comp-mes').forEach(d => { d.open = true; });
     });
     await page.waitForTimeout(200);
     const subtotals = await page.locator('.comp-mes-sub').allTextContents();
+    expect(subtotals.length).toBeGreaterThan(0);
     for (const txt of subtotals) {
-      // must not match single-decimal like ",7" at end (should be ",70" or no decimals shown consistently)
-      // The fix ensures minimumFractionDigits:2, so all amounts show exactly 2 decimals
-      expect(txt).not.toMatch(/,\d(?!\d)/); // reject X,Y (1 decimal) - must have 2 or none (but now always 2)
+      // debe NO terminar en un solo dígito decimal (p.ej. ",7")
+      expect(txt).not.toMatch(/,\d(?!\d)/);
     }
   });
 
-  test('fmt con 1 decimal muestra 2 decimales (ej: 4779062,7 → ...4.779.062,70)', async ({ page }) => {
+  test('fmt2 con 1 decimal produce 2 decimales (4779062,7 → ...4.779.062,70)', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
-    const formatted = await page.evaluate(() => {
-      // call fmt directly
-      return window.fmt ? window.fmt(4779062.7) : null;
-    });
-    // should end with ,70
-    if (formatted) {
-      expect(formatted).toMatch(/,70$/);
-    }
+    const formatted = await page.evaluate(() => window.fmt2 ? window.fmt2(4779062.7) : null);
+    expect(formatted).not.toBeNull();
+    expect(formatted).toMatch(/,70$/);
   });
 
-  test('fmt con número entero muestra ,00', async ({ page }) => {
+  test('fmt2 con número entero muestra ,00', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
-    const formatted = await page.evaluate(() => window.fmt ? window.fmt(5000) : null);
-    if (formatted) {
-      expect(formatted).toMatch(/,00$/);
-    }
+    const formatted = await page.evaluate(() => window.fmt2 ? window.fmt2(5000) : null);
+    expect(formatted).toMatch(/,00$/);
+  });
+
+  test('fmt (normal) con número entero NO muestra ,00 (sin cambio global)', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    const formatted = await page.evaluate(() => window.fmt ? window.fmt(107400) : null);
+    expect(formatted).not.toBeNull();
+    expect(formatted).not.toMatch(/,00$/); // sin decimales para enteros — fmt global sin cambios
+    expect(formatted).toMatch(/107\.400/);
+  });
+
+  test('saldo de Efectivo en Inicio NO muestra ,00 (importes redondos sin cambio)', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    // saldo del medio Efectivo debe aparecer como "$ 107.400" no "$ 107.400,00"
+    const txt = await page.locator('#saldos').textContent();
+    expect(txt).not.toMatch(/107\.400,00/);
+    expect(txt).toMatch(/107\.400/);
   });
 });
