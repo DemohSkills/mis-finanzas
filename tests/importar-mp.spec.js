@@ -40,7 +40,9 @@ function buildMPLineas(rows, saldoInicial, saldoFinal, { addDolarSection = false
   let y = 80;
   for (const r of rows) {
     if (r.descAbove) { lines.push({ y, text: r.descAbove }); y += 10; }
-    const numLine = `${r.fecha} ${r.id} $ ${fmtValor(r.valor)} $ ${fmtAR(r.saldo)}`;
+    const numLine = r.descInline
+      ? `${r.fecha} ${r.descInline} ${r.id} $ ${fmtValor(r.valor)} $ ${fmtAR(r.saldo)}`
+      : `${r.fecha} ${r.id} $ ${fmtValor(r.valor)} $ ${fmtAR(r.saldo)}`;
     lines.push({ y, text: numLine });
     y += 10;
     if (r.descBelow) { lines.push({ y, text: r.descBelow }); y += 10; }
@@ -543,6 +545,146 @@ test.describe('importar-mp', () => {
     // Description should not include "Fecha" or "2/6"
     expect(result.rows[0].desc).not.toMatch(/^Fecha/i);
     expect(result.rows[0].desc).not.toContain('2/6');
+  });
+
+  test('(v) descripción inline en la misma línea que fecha e ID', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    // Synthetic lineas reproducing real PDF structure: description between date and ID
+    const lineas = [
+      { y: 10,  text: 'RESUMEN DE CUENTA EN PESOS' },
+      { y: 20,  text: 'Dimitri Urbanc' },
+      { y: 30,  text: 'CVU: 0000003100096655555555' },
+      { y: 40,  text: 'Periodo: Del 21 de septiembre al 20 de octubre de 2026' },
+      { y: 50,  text: 'Saldo inicial: $ 50.000,00' },
+      { y: 55,  text: 'Saldo final: $ 50.147,73' },
+      { y: 65,  text: 'DETALLE DE MOVIMIENTOS' },
+      { y: 72,  text: 'Fecha Descripción Valor Saldo' },
+      { y: 73,  text: 'ID de la' },
+      { y: 74,  text: 'operación' },
+      { y: 75,  text: '1/6' },
+      // Numeric line: description "Rendimientos" is between date and ID
+      { y: 90,  text: '21-09-2026 Rendimientos 1750262986159 $ 147,73 $ 50.147,73' },
+    ];
+
+    const result = await callParseMP(page, lineas);
+
+    expect(result.ok).toBe(true);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].desc).toBe('Rendimientos');
+    expect(result.rows[0].ref).toBe('1750262986159');
+    expect(result.rows[0].monto).toBeCloseTo(147.73, 2);
+    expect(result.rows[0].fecha).toBe('2026-09-21');
+  });
+
+  test('(w) ruido de encabezado y pie de página no contamina la primera ni la última fila', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    // Two rows separated by a page break with full header/footer noise between them
+    const lineas = [
+      // Global header
+      { y: 10,  text: 'RESUMEN DE CUENTA EN PESOS' },
+      { y: 20,  text: 'Dimitri Urbanc' },
+      { y: 30,  text: 'CVU: 0000003100096655555555' },
+      { y: 40,  text: 'Saldo inicial: $ 100.000,00' },
+      { y: 50,  text: 'Saldo final: $ 99.700,00' },
+      { y: 60,  text: 'DETALLE DE MOVIMIENTOS' },
+      { y: 68,  text: 'Fecha Descripción Valor Saldo' },
+      { y: 69,  text: 'ID de la' },
+      { y: 70,  text: 'operación' },
+      { y: 71,  text: '1/3' },
+      // First data row
+      { y: 90,  text: '21-09-2026 Pago con QR 111222333444 $ -100,00 $ 99.900,00' },
+      // Page-break footer (close in Y to row 0 — must be ignored)
+      { y: 100, text: 'Mercado Libre S.R.L. Av. del Libertador 123, CABA' },
+      { y: 110, text: 'de consulta en tu app Mercado Pago.' },
+      { y: 120, text: 'Estas operaciones son definitivas.' },
+      { y: 130, text: 'ante la AFIP.' },
+      // Page-break header on next page (close in Y to row 1 — must be ignored)
+      { y: 400, text: 'RESUMEN DE CUENTA EN PESOS' },
+      { y: 410, text: 'Dimitri Urbanc' },
+      { y: 420, text: 'CVU: 0000003100096655555555' },
+      { y: 430, text: 'Fecha de generación: 20-10-2026' },
+      { y: 440, text: 'ID de la' },
+      { y: 450, text: 'Fecha Descripción Valor Saldo' },
+      { y: 451, text: 'operación' },
+      { y: 452, text: '2/3' },
+      // Second data row
+      { y: 470, text: '22-09-2026 Dinero recibido pago-drivers 222333444555 $ -200,00 $ 99.700,00' },
+    ];
+
+    const result = await callParseMP(page, lineas);
+
+    expect(result.ok).toBe(true);
+    expect(result.rows).toHaveLength(2);
+
+    // First row: desc should be the inline text only, no noise
+    expect(result.rows[0].desc).toBe('Pago con QR');
+    expect(result.rows[0].desc).not.toMatch(/Mercado Libre|Dimitri|CVU|Fecha|operaci/i);
+
+    // Second row: desc should be the inline text only, no noise
+    expect(result.rows[1].desc).toContain('Dinero recibido pago-drivers');
+    expect(result.rows[1].desc).not.toMatch(/RESUMEN|CVU|Fecha de generaci|operaci/i);
+
+    // No empty descriptions
+    for (const r of result.rows) expect(r.desc.trim()).not.toBe('');
+  });
+
+  test('(x) tres renglones: fragmento arriba + texto inline + fragmento abajo a 12 pt', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    // Fragment above at y=80, numLine with inline at y=90, fragment below at y=102 (12 pt gap)
+    const lineas = [
+      { y: 10,  text: 'Saldo inicial: $ 100.000,00' },
+      { y: 20,  text: 'Saldo final: $ 99.700,00' },
+      { y: 80,  text: 'Pago de peaje' },
+      { y: 90,  text: '21-09-2026 RUTAS SUR ATLANTICO S.A. 555666777888 $ -300,00 $ 99.700,00' },
+      { y: 102, text: 'RUTAS SUR ATLANTICO S.A.' },
+    ];
+
+    const result = await callParseMP(page, lineas);
+
+    expect(result.ok).toBe(true);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].desc).toContain('Pago de peaje');
+    expect(result.rows[0].desc).toContain('RUTAS SUR ATLANTICO S.A.');
+    // Fragment below at 12 pt must be included (≤ 15 pt limit)
+    const parts = result.rows[0].desc.split(' ');
+    expect(parts.length).toBeGreaterThan(4);
+    expect(result.rows[0].desc.trim()).not.toBe('');
+  });
+
+  test('(y) ninguna fila queda con descripción vacía (mix inline + arriba/abajo)', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    const saldoInicial = 200000;
+    const rows = [
+      { fecha: '01-10-2026', id: '100100100100', valor: 500, saldo: 200500,
+        descInline: 'Rendimientos' },
+      { fecha: '02-10-2026', id: '200200200200', valor: -150, saldo: 200350,
+        descAbove: 'Pago AUSA Acceso Oeste' },
+      { fecha: '03-10-2026', id: '300300300300', valor: -5000, saldo: 195350,
+        descAbove: 'Transferencia enviada', descBelow: 'Maria Perez' },
+      { fecha: '04-10-2026', id: '400400400400', valor: 12000, saldo: 207350,
+        descInline: 'pago-drivers mla flex' },
+    ];
+    const lineas = buildMPLineas(rows, saldoInicial, 207350);
+
+    const result = await callParseMP(page, lineas);
+
+    expect(result.ok).toBe(true);
+    expect(result.rows).toHaveLength(4);
+    for (const r of result.rows) {
+      expect(r.desc.trim()).not.toBe('');
+    }
+    expect(result.rows[0].desc).toContain('Rendimientos');
+    expect(result.rows[1].desc).toContain('Pago AUSA Acceso Oeste');
+    expect(result.rows[2].desc).toContain('Transferencia enviada');
+    expect(result.rows[3].desc).toContain('pago-drivers mla flex');
   });
 
 });

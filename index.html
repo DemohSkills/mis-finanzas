@@ -2926,14 +2926,16 @@ function parseMercadoPago(lineas) {
   if (saldoInicial === null || saldoFinal === null)
     throw new Error('No se encontró el saldo inicial o final en el PDF.');
 
-  let cutoffY = Infinity;
+  let startY = -Infinity, cutoffY = Infinity;
   for (const l of sorted) {
+    if (/DETALLE DE MOVIMIENTOS/i.test(l.text) && startY === -Infinity) startY = l.y;
     if (/RESUMEN DE TENENCIAS EN D/i.test(l.text)) { cutoffY = l.y; break; }
   }
-  const relevant = sorted.filter(l => l.y < cutoffY);
+  const relevant = sorted.filter(l => l.y > startY && l.y < cutoffY);
 
-  const reNum = /(\d{2}-\d{2}-\d{4}).*?(\d{9,13}).*?\$\s*([-\d.,]+)\s+\$\s*([\d.,]+)/;
-  const reIgnore = /^Fecha\b|^Descripc|^ID de la|^\d+\/\d+$|^Entradas$|^Salidas$|^Periodo\b|^Saldo inicial\b|^Saldo final\b/i;
+  // Group 1=fecha, 2=inline desc (may be empty), 3=ID, 4=valor, 5=saldo
+  const reNum = /(\d{2}-\d{2}-\d{4})\s+(.*?)\s*(\d{9,13})\s+\$\s*([-\d.,]+)\s+\$\s*([\d.,]+)/;
+  const reIgnore = /^Fecha\b|^Descripc|^ID de la|^operaci[oó]n|^\d+\/\d+$|^Entradas$|^Salidas$|^Periodo\b|^Saldo inicial\b|^Saldo final\b|^RESUMEN|^Fecha de generaci|^Mercado Libre|^de consulta en|^Estas operaciones|^ante la/i;
 
   const numLines = [];
   for (let i = 0; i < relevant.length; i++) {
@@ -2942,32 +2944,33 @@ function parseMercadoPago(lineas) {
     if (!m) continue;
     const [dd, mm, yy] = m[1].split('-');
     const fecha = `${yy}-${mm}-${dd}`;
-    const ref = m[2];
-    const monto = parseFloat(m[3].replace(/\./g, '').replace(',', '.'));
-    const saldo = parseFloat(m[4].replace(/\./g, '').replace(',', '.'));
-    numLines.push({ idx: i, lineY: l.y, fecha, ref, monto, saldo });
+    const inline = m[2].trim();
+    const ref = m[3];
+    const monto = parseFloat(m[4].replace(/\./g, '').replace(',', '.'));
+    const saldo = parseFloat(m[5].replace(/\./g, '').replace(',', '.'));
+    numLines.push({ idx: i, lineY: l.y, fecha, inline, ref, monto, saldo });
   }
 
+  const MAX_FRAG_DIST = 15;
   const descFrags = Object.fromEntries(numLines.map((_, i) => [i, []]));
   for (const l of relevant) {
     if (reNum.test(l.text) || reIgnore.test(l.text.trim()) || !l.text.trim()) continue;
     if (!numLines.length) continue;
-    // Prefer the nearest numeric line; when equidistant prefer the one just BELOW
-    // (the fragment is its descAbove — "sin cruzar otra fila")
     let minAbove = Infinity, bestAbove = -1, minBelow = Infinity, bestBelow = -1;
     for (let i = 0; i < numLines.length; i++) {
       const d = numLines[i].lineY - l.y;
       if (d > 0 && d < minAbove) { minAbove = d; bestAbove = i; }
       if (d < 0 && -d < minBelow) { minBelow = -d; bestBelow = i; }
     }
-    const bestI = (bestAbove >= 0 && bestBelow >= 0)
-      ? (minAbove <= minBelow ? bestAbove : bestBelow)
-      : (bestAbove >= 0 ? bestAbove : bestBelow);
-    if (bestI >= 0) descFrags[bestI].push({ y: l.y, text: l.text.trim() });
+    const [bestI, bestDist] = (bestAbove >= 0 && bestBelow >= 0)
+      ? (minAbove <= minBelow ? [bestAbove, minAbove] : [bestBelow, minBelow])
+      : (bestAbove >= 0 ? [bestAbove, minAbove] : [bestBelow, minBelow]);
+    if (bestI >= 0 && bestDist <= MAX_FRAG_DIST) descFrags[bestI].push({ y: l.y, text: l.text.trim() });
   }
 
   const rows = numLines.map((nl, i) => {
-    const frags = descFrags[i].sort((a, b) => a.y - b.y);
+    const frags = [...descFrags[i], ...(nl.inline ? [{ y: nl.lineY, text: nl.inline }] : [])];
+    frags.sort((a, b) => a.y - b.y);
     const descParts = frags.map(f => f.text).filter(Boolean);
     const desc = descParts.join(' ').trim();
     return { fecha: nl.fecha, desc, concepto: descParts[0] || '', detalle: descParts.slice(1).join(' ').trim(), monto: nl.monto, saldo: nl.saldo, ref: nl.ref, _i: i };
