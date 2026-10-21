@@ -252,6 +252,33 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
 /* ── Backup warning ─────────────────────────────────────────── */
 .backup-warn{background:color-mix(in srgb,var(--warn) 10%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--warn);margin-bottom:12px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
 .backup-warn.danger{background:color-mix(in srgb,var(--danger) 12%,transparent);border-color:color-mix(in srgb,var(--danger) 35%,transparent);color:var(--danger);}
+/* ── Importador de banco ─────────────────────────────────── */
+.imp-modal{display:flex;flex-direction:column;gap:12px;}
+.imp-hdr{font-size:.78rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
+.imp-count{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:2px 8px;}
+.imp-count.warn{border-color:color-mix(in srgb,var(--warn) 40%,transparent);color:var(--warn);}
+.imp-count.ok{border-color:color-mix(in srgb,var(--accent) 40%,transparent);color:var(--accent);}
+.imp-row{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-top:1px solid var(--border);font-size:.82rem;}
+.imp-row:first-child{border-top:none;}
+.imp-row-top{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.imp-row-desc{flex:1;min-width:0;overflow-wrap:anywhere;}
+.imp-row-monto{white-space:nowrap;font-weight:700;}
+.imp-row-monto.pos{color:var(--accent);}
+.imp-row-monto.neg{color:var(--danger);}
+.imp-row-meta{font-size:.73rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;}
+.imp-revisar-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;}
+.imp-revisar-actions select{font-size:.78rem;padding:3px 7px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);}
+.imp-recordar{display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--muted);margin-top:3px;flex-wrap:wrap;}
+.imp-recordar input[type=checkbox]{width:auto;flex-shrink:0;}
+.imp-recordar input[type=text]{flex:1;min-width:100px;font-size:.73rem;padding:2px 6px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text);}
+.imp-saldo-ok{color:var(--accent);font-size:.83rem;margin-top:4px;}
+.imp-saldo-diff{color:var(--warn);font-size:.83rem;margin-top:4px;}
+.imp-saldo-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+details.imp-sec{margin-top:8px;}
+details.imp-sec>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:5px 0;font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;border-top:1px solid var(--border);}
+details.imp-sec>summary::-webkit-details-marker{display:none;}
+details.imp-sec>summary .det-arrow{font-size:.7rem;transition:transform .15s;opacity:.55;}
+details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 /* ── Print / PDF ─────────────────────────────────────────────── */
 @media print{
   .tabs,.app-hdr,.refresh-btn,.acciones,button,.saldo button,.item .edit,.gasto .btns,
@@ -502,6 +529,17 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
   </div>
 </div>
 
+<!-- ══════════════════ IMPORTADOR BANCO ══════════════════ -->
+<div class="overlay" id="impModal" hidden>
+  <div class="wiz-box" style="max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;">
+      <h2 style="margin:0;font-size:1rem;">📥 Importar movimientos del banco</h2>
+      <button type="button" class="mini" id="btnCerrarImpModal">✕</button>
+    </div>
+    <div id="impModalBody"></div>
+  </div>
+</div>
+
 <!-- ══════════════════ MAIN APP ══════════════════ -->
 <main id="app" hidden>
   <div class="app-hdr">
@@ -724,6 +762,13 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
 
   <!-- ── CONFIG ── -->
   <div class="vista vista-config" id="vista-config" hidden>
+    <div class="cfg-section">
+      <h2>🏦 Importar resumen bancario</h2>
+      <p class="meta">Importá movimientos desde el resumen de tu banco. Parseo local: el archivo no se sube a ningún servidor.</p>
+      <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar movimientos del banco</button>
+      <div id="impUltimaInfo" style="margin-top:6px;font-size:.75rem;color:var(--muted);"></div>
+    </div>
+
     <div class="cfg-section">
       <h2>🔒 PIN de acceso</h2>
       <p class="meta">Protección casual. Cualquier persona con acceso al localStorage del navegador puede eludirla.</p>
@@ -1044,6 +1089,7 @@ function cargar() {
   });
   data.compromisos ||= [];
   for (const it of data.items) if (!it.historial) it.historial = [];
+  data.importaciones ||= {};
   return data;
 }
 
@@ -2010,6 +2056,7 @@ function renderConfig(){
   $('cfgApiKey').value=apiKey?'••••••••••••':'';
   actualizarInfoBackup();
   renderFotosConfig();
+  _actualizarImpUltimaInfo();
 }
 
 $('btnNuevaCat').onclick=()=>{
@@ -2272,7 +2319,7 @@ function confirmarImport(rows){
 function buildBackupJson(){
   const backup={
     version:1, fecha:hoy(),
-    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])]},
+    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}},
     snaps:cargarSnaps(),
     cats:ls.get(CATS_KEY)||[],
     catsIncome:ls.get(CATS_INC_K)||[],
@@ -2760,6 +2807,463 @@ $('btnGuardarTrans').onclick=guardarTransferencia;
 });
 
 // ═══════════════════════════════════════════════════════
+// IMPORTADOR DE BANCO
+// ═══════════════════════════════════════════════════════
+let _xlsxLib = null;
+
+function _cargarSheetJS() {
+  if (_xlsxLib) return Promise.resolve(_xlsxLib);
+  if (window.XLSX) { _xlsxLib = window.XLSX; return Promise.resolve(_xlsxLib); }
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => { _xlsxLib = window.XLSX; resolve(_xlsxLib); };
+    s.onerror = () => reject(new Error('No se pudo cargar SheetJS. Verificá tu conexión a internet.'));
+    document.head.appendChild(s);
+  });
+}
+
+// ── Pure parser ───────────────────────────────────────
+function parseSantander(aoa) {
+  let headerIdx = -1;
+  for (let i = 0; i < aoa.length; i++) {
+    if (String(aoa[i][2] || '').trim().toLowerCase() === 'sucursal origen') { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) throw new Error('No se encontró la fila de encabezado (columna C = "Sucursal origen").');
+  const dataRows = aoa.slice(headerIdx + 1).filter(r => /^\d{2}\/\d{2}\/\d{4}$/.test(String(r[1] || '').trim()));
+  if (!dataRows.length) throw new Error('No se encontraron filas de datos con fecha dd/mm/yyyy.');
+  const pn = v => { const s = String(v ?? '').replace(/\s/g, ''); return s ? (parseFloat(s) || 0) : 0; };
+  const parsed = dataRows.map((row, i) => {
+    const [d,m,y] = String(row[1]).trim().split('/');
+    const fecha = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    const descRaw = String(row[3] || '').trim();
+    const ref = String(row[4] || '').trim();
+    const monto = pn(row[5]) + pn(row[6]);
+    const saldo = pn(row[7]);
+    const [concepto, ...dp] = descRaw.split('\t');
+    return { fecha, desc: descRaw, concepto: concepto.trim(), detalle: dp.join('\t').trim(), monto, saldo, ref, _i: i };
+  });
+  parsed.reverse(); // newest→oldest in file, reverse to chronological
+  let saldoPrev = null;
+  for (let i = 0; i < parsed.length; i++) {
+    const r = parsed[i];
+    if (saldoPrev !== null && Math.abs(saldoPrev + r.monto - r.saldo) > 0.01) {
+      throw new Error(`El archivo parece incompleto o alterado (fila ${i + 1})`);
+    }
+    saldoPrev = r.saldo;
+  }
+  return parsed;
+}
+
+// ── Categorization ────────────────────────────────────
+const _REGLAS_SANT = [
+  { t: d => d.includes('debito automatico') && d.includes('arca'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Débito automático ARCA (monotributo)' },
+  { t: d => ['comision por servicio','iva 21%','ley 25.413','impuesto de sellos','interes por descubierto','comision por sorpresa'].some(k => d.includes(k)), tipo:'gasto', cat:'Impuestos e Intereses' },
+  { t: d => d.includes('sircreb') || d.includes('iibb tucuman'), tipo:'gasto', cat:'Impuestos e Intereses', agrupable:'Retenciones SIRCREB / IIBB Tucumán' },
+  { t: d => d.includes('bonif') || d.includes('pago interes por saldo'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Bonificaciones y promos Santander' },
+  { t: d => d.includes('prestamo personal'), tipo:'gasto', cat:'Pago de créditos' },
+  { t: d => d.includes('pago de tarjeta de credito'), tipo:'gasto', cat:'Pago de Visa/MP', transferPair:'Visa Santander' },
+  { t: d => d.includes('cvu mismo titular') || (d.includes('envio de dinero') && d.includes('mercado pago')), tipo:'auto', cat:'Transferencia entre cuentas', transf:true },
+  { t: d => d.includes('deposito de efectivo'), tipo:'ingreso', cat:'Transferencia entre cuentas', transferPairInv:'Efectivo', paraRevisar:true, revisar_opciones:[['deposito','Depósito de mi efectivo'],['ingreso','Solo ingreso'],['otro','Otro']] },
+  { t: d => d.includes('transf recibida') || d.includes('transferencia recibida'), tipo:'ingreso', cat:'Transferencia recibida', paraRevisar:true },
+  { t: d => d.includes('transferencia inmediata'), tipo:'gasto', cat:'Otros/Varios', paraRevisar:true },
+];
+
+function _categorizarSant(desc, monto) {
+  const d = desc.toLowerCase();
+  const userCat = aplicarRegla(desc);
+  if (userCat) {
+    const catsList = getCats().concat(getCatsIncome());
+    const isIncome = getCatsIncome().includes(userCat);
+    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
+  }
+  for (const r of _REGLAS_SANT) {
+    if (r.t(d)) {
+      const tipo = r.tipo === 'auto' ? (monto >= 0 ? 'ingreso' : 'gasto') : r.tipo;
+      return { tipo, cat:r.cat, agrupable:r.agrupable||null, transf:r.transf||false,
+        transferPair:r.transferPair||null, transferPairInv:r.transferPairInv||null,
+        paraRevisar:r.paraRevisar||false, revisar_opciones:r.revisar_opciones||null, descFija:r.descFija||null };
+    }
+  }
+  return { tipo: monto >= 0 ? 'ingreso' : 'gasto', cat:'Otros/Varios', paraRevisar:true };
+}
+
+// ── Deduplication ─────────────────────────────────────
+function _deduplicarImp(candidatos, medio) {
+  const existentes = estado.gastos.filter(g => g.medio === medio);
+  const pool = [...existentes];
+  for (const c of candidatos) {
+    c.yaExiste = false;
+    if (c.ref) {
+      const idx = pool.findIndex(g => Array.isArray(g.refs) && g.refs.includes(c.ref));
+      if (idx >= 0) { c.yaExiste = true; pool.splice(idx, 1); continue; }
+    }
+    const bMonto = Math.abs(c.monto);
+    const idx = pool.findIndex(g => {
+      if ((g.tipo || 'gasto') !== c.catInfo.tipo) return false;
+      if (Math.abs(g.monto - bMonto) >= 0.01) return false;
+      return Math.abs(new Date(g.fecha) - new Date(c.fecha)) / 86400000 <= 3;
+    });
+    if (idx >= 0) { c.yaExiste = true; pool.splice(idx, 1); continue; }
+    // cuota-group dedupe
+    const cuotas = existentes.filter(g => (g.tipo||'gasto')==='gasto' && g.categoria==='Pago de créditos'
+      && Math.abs(new Date(g.fecha)-new Date(c.fecha))/86400000 <= 3);
+    if (cuotas.length >= 2 && Math.abs(cuotas.reduce((s,g)=>s+g.monto,0) - bMonto) < 0.01) c.yaExiste = true;
+  }
+  return candidatos;
+}
+
+// ── Week grouping ──────────────────────────────────────
+function _semanaLun(fecha) {
+  const d = new Date(fecha + 'T00:00:00');
+  const off = d.getDay() === 0 ? -6 : 1 - d.getDay();
+  d.setDate(d.getDate() + off);
+  return d.toLocaleDateString('sv');
+}
+
+function _agruparRuidoImp(candidatos, agrupar) {
+  if (!agrupar) return candidatos;
+  const groups = new Map(), result = [];
+  for (const c of candidatos) {
+    if (c.catInfo.agrupable && !c.yaExiste) {
+      const key = `${c.catInfo.agrupable}::${_semanaLun(c.fecha)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    } else { result.push(c); }
+  }
+  for (const [,grp] of groups) {
+    if (grp.length === 1) { result.push(grp[0]); continue; }
+    const last = grp[grp.length-1];
+    result.push({...last, monto: grp.reduce((s,c)=>s+c.monto,0),
+      refs: grp.map(c=>c.ref).filter(Boolean),
+      desc: `${last.catInfo.agrupable} (${grp.length} mov.)`,
+      _agrupado:true});
+  }
+  result.sort((a,b) => a.fecha.localeCompare(b.fecha));
+  return result;
+}
+
+// ── Balance verification ───────────────────────────────
+function _verifSaldo(medio, fechaFinal, saldoBanco, candidatosNuevos) {
+  const inicial = estado.iniciales[medio] || 0;
+  const exist = estado.gastos.filter(g => g.medio === medio && !g.soloHistorial && g.fecha <= fechaFinal);
+  const gE = exist.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
+  const iE = exist.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
+  const nSH = candidatosNuevos.filter(c=>!c.yaExiste&&!c.soloHistorial);
+  const gN = nSH.filter(c=>c.catInfo.tipo==='gasto').reduce((s,c)=>s+Math.abs(c.monto),0);
+  const iN = nSH.filter(c=>c.catInfo.tipo==='ingreso').reduce((s,c)=>s+Math.abs(c.monto),0);
+  const saldoApp = inicial - gE + iE - gN + iN;
+  return { saldoApp, saldoBanco, diff: saldoBanco - saldoApp };
+}
+
+// ── Render preview modal ───────────────────────────────
+let _impCandidatos = [], _impMedio = '', _impSaldoInfo = null, _impAgrupar = true, _impHistHasta = '';
+
+function _renderImpPreview() {
+  const cands = _impCandidatos;
+  const nuevos = cands.filter(c => !c.yaExiste);
+  const yaEst = cands.filter(c => c.yaExiste);
+  const paraRev = nuevos.filter(c => c.paraRevisar);
+  const body = $('impModalBody');
+  const sI = _impSaldoInfo;
+  const saldoHtml = sI ? `<div class="${Math.abs(sI.diff)<0.01?'imp-saldo-ok':'imp-saldo-diff'}">
+    ${Math.abs(sI.diff)<0.01
+      ? `✅ Saldo coincide con el banco (${fmt(sI.saldoBanco)})`
+      : `⚠️ Diferencia de ${fmt(Math.abs(sI.diff))} (app ${fmt(sI.saldoApp)} vs banco ${fmt(sI.saldoBanco)})`}
+    </div>
+    ${Math.abs(sI.diff)>=0.01?`<div class="imp-saldo-actions">
+      <button type="button" class="mini" id="btnImpAjuste">Importar y crear ajuste "${fmt(sI.diff)}"</button>
+    </div>`:''}` : '';
+
+  let paraRevHtml = '';
+  if (paraRev.length) {
+    paraRevHtml = `<div style="font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">⚠️ Para revisar (${paraRev.length})</div>`;
+    paraRevHtml += paraRev.map((c,i) => {
+      const gi = cands.indexOf(c);
+      const sgn = c.monto >= 0;
+      const cats = (c.catInfo.tipo==='ingreso' ? getCatsIncome() : getCats()).map(ct => `<option value="${esc(ct)}"${ct===c.catInfo.cat?' selected':''}>${esc(ct)}</option>`).join('');
+      let selOp = '';
+      if (c.catInfo.revisar_opciones) {
+        selOp = `<select class="imp-rv-sel" data-gi="${gi}">` +
+          c.catInfo.revisar_opciones.map(([v,l]) => `<option value="${v}"${v===c._revisar_sel?' selected':''}>${esc(l)}</option>`).join('') + '</select>';
+      } else {
+        selOp = `<select class="imp-cat-sel" data-gi="${gi}">${cats}</select>`;
+      }
+      return `<div class="imp-row" data-gi="${gi}">
+        <div class="imp-row-top">
+          <span class="imp-row-desc">${esc(c.desc.slice(0,60))}</span>
+          <span class="imp-row-monto ${sgn?'pos':'neg'}">${sgn?'+':''}${fmt(Math.abs(c.monto))}</span>
+        </div>
+        <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span><span>${esc(c.medio||_impMedio)}</span></div>
+        <div class="imp-revisar-actions">${selOp}</div>
+        <label class="imp-recordar">
+          <input type="checkbox" class="imp-rec-chk" data-gi="${gi}" ${c._recordar?'checked':''}>
+          Recordar para:
+          <input type="text" class="imp-rec-txt" data-gi="${gi}" value="${esc(c._recordarTexto||c.concepto.slice(0,30))}" placeholder="texto de descripción">
+        </label>
+      </div>`;
+    }).join('');
+  }
+
+  const mkSec = (id, label, items, open=false) => {
+    if (!items.length) return '';
+    const rows = items.map(c => {
+      const sgn = c.monto >= 0;
+      return `<div class="imp-row">
+        <div class="imp-row-top">
+          <span class="imp-row-desc">${esc(c.desc.slice(0,60))}</span>
+          <span class="imp-row-monto ${sgn?'pos':'neg'}">${sgn?'+':''}${fmt(Math.abs(c.monto))}</span>
+        </div>
+        <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span><span>${esc(c.catInfo?.cat||'')}</span></div>
+      </div>`;
+    }).join('');
+    return `<details class="imp-sec" ${open?'open':''}>
+      <summary><span class="det-arrow">▶</span>${label} (${items.length})</summary>${rows}</details>`;
+  };
+
+  const lastImp = (estado.importaciones||{})[_impMedio];
+  const lastImpTxt = lastImp ? `<p class="meta" style="margin:0 0 8px">Última importación de ${_impMedio}: hasta ${fechaCorta(lastImp.hasta)}
+    <button type="button" class="mini" id="btnDeshacerLote" style="margin-left:6px">↩ Deshacer</button></p>` : '';
+
+  body.innerHTML = `
+    ${lastImpTxt}
+    <div class="imp-hdr">
+      <span class="imp-count ok">${nuevos.length} nuevos</span>
+      <span class="imp-count">${yaEst.length} ya estaban</span>
+      ${paraRev.length?`<span class="imp-count warn">${paraRev.length} para revisar</span>`:''}
+    </div>
+    <label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <input type="checkbox" id="impChkAgrupar" ${_impAgrupar?'checked':''} style="width:auto">
+      Agrupar movimientos de banco (SIRCREB, bonificaciones) por semana
+    </label>
+    <label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      Solo historial lo anterior a:
+      <input type="date" id="impHistHasta" value="${_impHistHasta}" style="font-size:.8rem;padding:2px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+    </label>
+    ${paraRevHtml}
+    ${mkSec('imp-nuevos','Nuevos', nuevos.filter(c=>!c.paraRevisar), true)}
+    ${mkSec('imp-yaest','Ya estaban', yaEst)}
+    ${saldoHtml}
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <button type="button" class="primary" id="btnConfirmarImp">Importar ${nuevos.length} movimientos</button>
+      <button type="button" class="mini" id="btnCancelarImpPrev">Cancelar</button>
+    </div>`;
+
+  // Wire interactive controls
+  body.querySelectorAll('.imp-cat-sel').forEach(sel => {
+    sel.onchange = () => { const gi=+sel.dataset.gi; _impCandidatos[gi].catInfo.cat=sel.value; };
+  });
+  body.querySelectorAll('.imp-rv-sel').forEach(sel => {
+    sel.onchange = () => { const gi=+sel.dataset.gi; _impCandidatos[gi]._revisar_sel=sel.value; };
+  });
+  body.querySelectorAll('.imp-rec-chk').forEach(chk => {
+    chk.onchange = () => { const gi=+chk.dataset.gi; _impCandidatos[gi]._recordar=chk.checked; };
+  });
+  body.querySelectorAll('.imp-rec-txt').forEach(inp => {
+    inp.oninput = () => { const gi=+inp.dataset.gi; _impCandidatos[gi]._recordarTexto=inp.value; };
+  });
+  const chkAgr = $('impChkAgrupar');
+  if (chkAgr) chkAgr.onchange = () => {
+    _impAgrupar = chkAgr.checked;
+    _impCandidatos = _agruparRuidoImp(
+      _impCandidatos.filter(c=>!c._agrupado).concat(_impCandidatos.filter(c=>c._agrupado).flatMap(c=>c._srcGrp||[c])),
+      _impAgrupar
+    );
+    _deduplicarImp(_impCandidatos, _impMedio);
+    _renderImpPreview();
+  };
+  const histEl = $('impHistHasta');
+  if (histEl) histEl.onchange = () => { _impHistHasta = histEl.value; };
+  const btnConf = $('btnConfirmarImp');
+  if (btnConf) btnConf.onclick = () => _confirmarImpBanco(false);
+  const btnAjuste = $('btnImpAjuste');
+  if (btnAjuste) btnAjuste.onclick = () => _confirmarImpBanco(true);
+  const btnCan = $('btnCancelarImpPrev');
+  if (btnCan) btnCan.onclick = () => { $('impModal').hidden = true; };
+  const btnDes = $('btnDeshacerLote');
+  if (btnDes) btnDes.onclick = () => _deshacerUltimaImp(_impMedio);
+}
+
+// ── Confirm import ─────────────────────────────────────
+function _confirmarImpBanco(conAjuste) {
+  const loteId = nuevoId();
+  const fechaFinal = _impCandidatos.reduce((mx, c) => c.fecha > mx ? c.fecha : mx, '');
+  const now = Date.now();
+  let cnt = 0;
+  // Ensure "Ingresos extras" category exists
+  addCatIncome('Ingresos extras');
+  for (const c of _impCandidatos) {
+    if (c.yaExiste) continue;
+    const soloH = _impHistHasta && c.fecha < _impHistHasta;
+    const tipo = c.catInfo.tipo;
+    const cat = c.catInfo.cat;
+    const monto = Math.abs(c.monto);
+    const desc = c.catInfo.descFija || c.desc;
+    const medio = _impMedio;
+    // Save "recordar" rule
+    if (c._recordar && c._recordarTexto) {
+      const reglas = getReglas();
+      const pat = c._recordarTexto.trim().toLowerCase();
+      if (pat && !reglas.find(r => r.patron.toLowerCase() === pat)) {
+        reglas.push({ patron: c._recordarTexto.trim(), categoria: cat });
+        ls.set(RULES_KEY, reglas);
+      }
+    }
+    const refs = Array.isArray(c.refs) ? c.refs : (c.ref ? [c.ref] : []);
+    // Handle "deposito de efectivo" revisar_opciones
+    let efectivoPair = false, skipMain = false;
+    if (c.catInfo.transferPairInv && c._revisar_sel) {
+      if (c._revisar_sel === 'deposito') efectivoPair = true;
+      else if (c._revisar_sel === 'ingreso') { /* just ingreso, no pair */ }
+      else { /* otro: gasto + skip transferPairInv */ }
+    }
+    // Handle "pago tarjeta de credito" — check if Visa Santander already has matching ingreso
+    let visaPair = false, visaLinked = false;
+    if (c.catInfo.transferPair === 'Visa Santander') {
+      const existing = estado.gastos.find(g =>
+        g.medio === 'Visa Santander' && g.tipo === 'ingreso' &&
+        Math.abs(g.monto - monto) < 0.01 &&
+        Math.abs(new Date(g.fecha) - new Date(c.fecha)) / 86400000 <= 5
+      );
+      if (existing) { visaLinked = true; }
+      else { visaPair = true; }
+    }
+    const transferId = (visaPair || efectivoPair) ? nuevoId() : undefined;
+    const gasto = {
+      id: nuevoId(), creado: now + cnt,
+      monto, fecha: c.fecha, categoria: cat, medio,
+      descripcion: desc, tipo, soloHistorial: soloH,
+      transferencia: !!(c.catInfo.transf || visaPair || efectivoPair || visaLinked),
+      transferId: transferId || (visaLinked ? undefined : undefined),
+      refs, lote: loteId,
+    };
+    if (visaLinked) {
+      // link existing Visa ingreso with same transferId retroactively (best effort)
+      gasto.transferId = nuevoId();
+    }
+    estado.gastos.push(gasto);
+    cnt++;
+    // Create pair movement
+    if (visaPair) {
+      estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto, fecha:c.fecha,
+        categoria:'Pago de Visa/MP', medio:'Visa Santander', descripcion:desc,
+        tipo:'ingreso', soloHistorial:soloH, transferencia:true, transferId, refs:[], lote:loteId });
+      cnt++;
+    }
+    if (efectivoPair) {
+      estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto, fecha:c.fecha,
+        categoria:'Transferencia entre cuentas', medio:'Efectivo', descripcion:desc,
+        tipo:'gasto', soloHistorial:soloH, transferencia:true, transferId, refs:[], lote:loteId });
+      cnt++;
+    }
+  }
+  // Optional adjustment for balance diff
+  if (conAjuste && _impSaldoInfo && Math.abs(_impSaldoInfo.diff) >= 0.01) {
+    const diff = _impSaldoInfo.diff;
+    estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto:Math.abs(diff), fecha:fechaFinal,
+      categoria:'Otros/Varios', medio:_impMedio,
+      descripcion:'Diferencia sin identificar', tipo:diff>0?'ingreso':'gasto',
+      soloHistorial:false, lote:loteId });
+    cnt++;
+  }
+  // Save import metadata
+  estado.importaciones ||= {};
+  estado.importaciones[_impMedio] = { hasta: fechaFinal, lote: loteId, fecha: hoy() };
+  guardar(); guardarSnap(); render();
+  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  _actualizarImpUltimaInfo();
+  $('impModal').hidden = true;
+  alert(`${cnt} movimientos importados correctamente (lote ${loteId.slice(0,8)}…).`);
+}
+
+// ── Undo last import ───────────────────────────────────
+function _deshacerUltimaImp(medio) {
+  const imp = (estado.importaciones||{})[medio];
+  if (!imp) return;
+  const { lote } = imp;
+  const n = estado.gastos.filter(g => g.lote === lote).length;
+  if (!n) { alert('No hay movimientos de esta importación para deshacer.'); return; }
+  if (!confirm(`¿Deshacer la importación del ${fechaCorta(imp.hasta)} (${n} movimientos)?`)) return;
+  estado.gastos = estado.gastos.filter(g => g.lote !== lote);
+  delete estado.importaciones[medio];
+  guardar(); guardarSnap(); render();
+  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  _actualizarImpUltimaInfo();
+  $('impModal').hidden = true;
+  alert('Importación deshecha correctamente.');
+}
+
+function _actualizarImpUltimaInfo() {
+  const el = $('impUltimaInfo'); if (!el) return;
+  const imp = (estado.importaciones||{})['Banco Santander'];
+  el.textContent = imp ? `Última importación de Santander: hasta ${fechaCorta(imp.hasta)}` : '';
+}
+
+// ── Open import modal ──────────────────────────────────
+function abrirImportModal() {
+  const body = $('impModalBody');
+  _impMedio = 'Banco Santander';
+  const lastImp = (estado.importaciones||{})[_impMedio];
+  body.innerHTML = `
+    ${lastImp ? `<p class="meta">Última importación de ${_impMedio}: hasta ${fechaCorta(lastImp.hasta)}
+      <button type="button" class="mini" id="btnDeshacerLote2" style="margin-left:6px">↩ Deshacer</button></p>` : ''}
+    <p class="meta">Seleccioná el archivo .xls/.xlsx del banco (Banco Santander). El parseo es local; el archivo no se sube a ningún servidor.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+      <input type="file" id="impFile" accept=".xls,.xlsx" style="flex:1;font-size:.82rem;">
+    </div>
+    <div id="impStatus" style="margin-top:8px;font-size:.8rem;color:var(--muted);min-height:1em;"></div>`;
+  const btnD2 = $('btnDeshacerLote2');
+  if (btnD2) btnD2.onclick = () => _deshacerUltimaImp(_impMedio);
+  const fileEl = $('impFile');
+  fileEl.onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const st = $('impStatus');
+    st.textContent = 'Cargando SheetJS…';
+    let XLSX;
+    try { XLSX = await _cargarSheetJS(); }
+    catch (err) { st.textContent = `❌ ${err.message}`; return; }
+    st.textContent = 'Leyendo archivo…';
+    try {
+      const ab = await file.arrayBuffer();
+      const wb = XLSX.read(ab, { type: 'array' });
+      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('ultimos')) || wb.SheetNames[0];
+      if (!sheetName) throw new Error('No se encontró la hoja de movimientos.');
+      const ws = wb.Sheets[sheetName];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      const parsed = parseSantander(aoa);
+      // Build candidates
+      _impAgrupar = true; _impHistHasta = '';
+      _impCandidatos = parsed.map(f => {
+        const catInfo = _categorizarSant(f.desc, f.monto);
+        return { ...f, catInfo, refs: f.ref ? [f.ref] : [], yaExiste: false,
+          soloHistorial: false, paraRevisar: catInfo.paraRevisar,
+          _revisar_sel: catInfo.revisar_opciones ? catInfo.revisar_opciones[0][0] : null,
+          _recordar: false, _recordarTexto: f.concepto.slice(0, 40) };
+      });
+      _deduplicarImp(_impCandidatos, _impMedio);
+      _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
+      _deduplicarImp(_impCandidatos, _impMedio);
+      const saldoFinal = parsed[parsed.length-1].saldo;
+      const fechaFinal = parsed[parsed.length-1].fecha;
+      _impSaldoInfo = _verifSaldo(_impMedio, fechaFinal, saldoFinal, _impCandidatos);
+      _renderImpPreview();
+    } catch (err) { $('impStatus').textContent = `❌ ${err.message}`; }
+    fileEl.value = '';
+  };
+  $('impModal').hidden = false;
+}
+
+// Expose for Playwright tests
+window.parseSantander = parseSantander;
+window._categorizarSant = _categorizarSant;
+window._deduplicarImp = _deduplicarImp;
+window._agruparRuidoImp = _agruparRuidoImp;
+window._verifSaldo = _verifSaldo;
+window._getEstado = () => estado;
+window._guardar = () => guardar();
+window.buildBackupJson = buildBackupJson;
+
+// ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
 // ═══════════════════════════════════════════════════════
 function wireEvents(){
@@ -2810,6 +3314,8 @@ function wireEvents(){
     if(!nombre) return;
     addCatIncome(nombre); renderCfgCats(); fillCatSelect('categoria', null, true);
   };
+  $('btnImportarBanco').onclick=abrirImportModal;
+  $('btnCerrarImpModal').onclick=()=>{ $('impModal').hidden=true; };
 }
 
 // ═══════════════════════════════════════════════════════
