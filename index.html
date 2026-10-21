@@ -655,25 +655,31 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
     </details>
     <div class="g2" style="margin-bottom:14px">
       <details class="ev-card" id="det-ev-cB" style="margin-bottom:0" open>
-        <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span></summary>
+        <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cB" style="font-size:.7rem">Mostrar todo</button></summary>
         <div class="cw h160"><canvas id="cB"></canvas></div>
       </details>
       <details class="ev-card" id="det-ev-cG" style="margin-bottom:0" open>
-        <summary class="ev-hd"><div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span></summary>
+        <summary class="ev-hd"><div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cG" style="font-size:.7rem">Mostrar todo</button></summary>
         <div class="cw h160"><canvas id="cG"></canvas></div>
       </details>
     </div>
     <details class="ev-card" id="det-ev-cIC" open>
-      <summary class="ev-hd"><div><h2>Ingresos vs compromisos del mes</h2><p class="sub">Mes actual · comparado vs proyección 6 meses</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeIC">—</span></summary>
+      <summary class="ev-hd"><div><h2>Ingresos vs compromisos del mes</h2><p class="sub">Mes actual · comparado vs proyección 6 meses</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeIC">—</span><span class="ev-hint">clic leyenda</span></summary>
       <div class="brow" id="evBrow"></div>
       <div class="g2">
-        <div><div class="ev-sub">Ingresos vs compromisos</div><div class="cw h200"><canvas id="cIngD"></canvas></div></div>
-        <div><div class="ev-sub">Proyección 6 meses</div><div class="cw h200"><canvas id="cCmpD"></canvas></div></div>
+        <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Ingresos vs compromisos<button type="button" class="mini btn-show-all" data-chart="cIngD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cIngD"></canvas></div></div>
+        <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Proyección 6 meses<button type="button" class="mini btn-show-all" data-chart="cCmpD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cCmpD"></canvas></div></div>
       </div>
     </details>
     <details class="ev-card" id="det-ev-cD" open>
-      <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span></summary>
+      <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cD" style="font-size:.7rem">Mostrar todo</button><button type="button" id="btnCfgD" class="mini" style="font-size:.75rem" title="Configurar series">⚙</button></summary>
       <div class="cw h200"><canvas id="cD"></canvas></div>
+      <div id="cfgDPanel" hidden style="padding:6px 2px 2px;display:flex;flex-wrap:wrap;gap:10px;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Visa Santander" checked> Visa Santander</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Mastercard MP" checked> Mastercard MP</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Boris MP" checked> Boris MP</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Créditos MP" checked> Créditos MP</label>
+      </div>
     </details>
     <details class="ev-card" id="det-ev-cF" open>
       <summary class="ev-hd"><div><h2>Gastos financieros fijos</h2><p class="sub">Costos mensuales conocidos · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeF">—</span></summary>
@@ -799,7 +805,7 @@ const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
 // ═══════════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:0,maximumFractionDigits:2});
+const fmt = n => n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtV = n => `<span class="amt">${fmt(n)}</span>`;
 const hoy = () => new Date().toLocaleDateString('sv');
 const fechaCorta = f => f.split('-').reverse().join('/');
@@ -2372,6 +2378,10 @@ function renderVar7d(){
 // CHART.JS LAZY LOAD + CHARTS
 // ═══════════════════════════════════════════════════════
 const _ci={};let _cjsLoading=false,_cjsCbs=[];
+const _CHART_VIS_K='finanzas-v1-chart-vis';
+function getChartVis(id){try{const s=localStorage.getItem(_CHART_VIS_K+'-'+id);return s?JSON.parse(s):null;}catch{return null;}}
+function setChartVis(id,hidden){try{localStorage.setItem(_CHART_VIS_K+'-'+id,JSON.stringify(hidden));}catch{}}
+function clearChartVis(id){try{localStorage.removeItem(_CHART_VIS_K+'-'+id);}catch{}}
 function withChartJs(cb){if(typeof Chart!=='undefined'){cb();return;}_cjsCbs.push(cb);if(!_cjsLoading){_cjsLoading=true;const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';s.onload=()=>{const fns=_cjsCbs.splice(0);fns.forEach(f=>f());};document.head.appendChild(s);}}
 function mkChart(id,cfg){if(_ci[id]){_ci[id].destroy();delete _ci[id];}const cv=document.getElementById(id);if(!cv)return null;_ci[id]=new Chart(cv,cfg);return _ci[id];}
 const CV=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -2380,7 +2390,21 @@ const fmtM=n=>{const a=Math.abs(n);const v=a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?
 const mesNom=mes=>['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+mes.split('-')[1]-1];
 function ttO(){return{backgroundColor:CV('--card'),titleColor:CV('--text'),bodyColor:CV('--muted'),borderColor:CV('--border'),borderWidth:1,padding:10,cornerRadius:8,usePointStyle:true,boxPadding:4};}
 function axO(yFmt,stacked=false){const t=CV('--muted'),g=CV('--border');return{x:{stacked,ticks:{color:t},grid:{color:g,lineWidth:.5},border:{display:false}},y:{stacked,ticks:{color:t,callback:yFmt},grid:{color:g,lineWidth:.5},border:{display:false}}};}
-function legO(pos='bottom'){return{position:pos,labels:{color:CV('--muted'),boxWidth:10,padding:10,font:{size:10},usePointStyle:true}};}
+function legO(pos='bottom',chartId=null){const labels={color:CV('--muted'),boxWidth:10,padding:10,font:{size:10},usePointStyle:true};const base={position:pos,labels};if(!chartId)return base;return{...base,onClick:(e,item,legend)=>{const ci=legend.chart,idx=item.datasetIndex;if(ci.isDatasetVisible(idx))ci.hide(idx);else ci.show(idx);const hidden=ci.data.datasets.map((ds,i)=>ci.isDatasetVisible(i)?null:ds.label).filter(Boolean);if(hidden.length)setChartVis(chartId,hidden);else clearChartVis(chartId);if(_cfgDSync)_cfgDSync();}};}
+function applyChartVis(id){const chart=_ci[id];if(!chart)return;const hidden=getChartVis(id);if(!hidden||!hidden.length)return;chart.data.datasets.forEach((ds,i)=>{if(hidden.includes(ds.label))chart.hide(i);});}
+function showAllChartSeries(id){clearChartVis(id);const chart=_ci[id];if(!chart)return;chart.data.datasets.forEach((_,i)=>chart.show(i));if(_cfgDSync)_cfgDSync();}
+let _cfgDSync=null;
+function initCfgD(){
+  const panel=$('cfgDPanel');if(!panel)return;
+  function syncCbs(){panel.querySelectorAll('[data-series]').forEach(cb=>{const chart=_ci['cD'];const idx=chart?.data.datasets.findIndex(d=>d.label===cb.dataset.series)??-1;cb.checked=idx>=0?chart.isDatasetVisible(idx):true;});}
+  _cfgDSync=syncCbs;
+  syncCbs();
+  panel.querySelectorAll('[data-series]').forEach(cb=>{
+    cb.onchange=()=>{const c=_ci['cD'];if(!c)return;const i=c.data.datasets.findIndex(d=>d.label===cb.dataset.series);if(i<0)return;if(cb.checked)c.show(i);else c.hide(i);const hidden=c.data.datasets.map((ds,j)=>c.isDatasetVisible(j)?null:ds.label).filter(Boolean);if(hidden.length)setChartVis('cD',hidden);else clearChartVis('cD');};
+  });
+  const btnCfg=$('btnCfgD');
+  if(btnCfg&&!btnCfg._inited){btnCfg._inited=true;btnCfg.onclick=()=>{panel.hidden=!panel.hidden;if(!panel.hidden)syncCbs();};}
+}
 function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;return Object.entries(m).sort(([a],[b])=>a.localeCompare(b)).slice(-12).map(([mes,s])=>({mes,...s}));}
 
 function rChartP(){
@@ -2396,7 +2420,7 @@ function rChartB(){
   const raw=cargarSnaps();const t=totales();const hoyStr=hoy();
   const full=!raw.length?[{d:hoyStr,a:t.activos,dv:t.deudas,n:t.neto,dd:{}}]:raw[raw.length-1].d===hoyStr?raw:[...raw,{d:hoyStr,a:t.activos,dv:t.deudas,n:t.neto,dd:{}}];
   const data=snapPorMes(full);
-  mkChart('cB',{type:'bar',data:{labels:data.map(s=>mesNom(s.mes)),datasets:[{label:'Activos',data:data.map(s=>s.a),backgroundColor:'rgba(74,222,128,.75)',borderRadius:3,barPercentage:.75},{label:'Deudas',data:data.map(s=>s.dv),backgroundColor:'rgba(248,113,113,.75)',borderRadius:3,barPercentage:.75}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO(),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))}});
+  mkChart('cB',{type:'bar',data:{labels:data.map(s=>mesNom(s.mes)),datasets:[{label:'Activos',data:data.map(s=>s.a),backgroundColor:'rgba(74,222,128,.75)',borderRadius:3,barPercentage:.75},{label:'Deudas',data:data.map(s=>s.dv),backgroundColor:'rgba(248,113,113,.75)',borderRadius:3,barPercentage:.75}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cB'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))}}); applyChartVis('cB');
 }
 
 function rChartG(){
@@ -2406,7 +2430,7 @@ function rChartG(){
   if(!entries.length){if(_ci['cG']){_ci['cG'].destroy();delete _ci['cG'];}return;}
   const allCats=[...new Set(entries.flatMap(([,c])=>Object.keys(c)))];
   const colors=['rgba(251,146,60,.82)','rgba(163,230,53,.82)','rgba(192,132,252,.82)','rgba(56,189,248,.82)','rgba(251,191,36,.82)','rgba(248,113,113,.82)','rgba(148,163,184,.65)'];
-  mkChart('cG',{type:'bar',data:{labels:entries.map(([m])=>mesNom(m)),datasets:allCats.map((cat,i)=>({label:cat,data:entries.map(([,c])=>c[cat]||0),backgroundColor:colors[i%colors.length]}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO(),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:items=>'  Total: $'+fmtM(items.reduce((s,i)=>s+i.parsed.y,0))}}},scales:axO(v=>'$'+fmtM(v),true)}});
+  mkChart('cG',{type:'bar',data:{labels:entries.map(([m])=>mesNom(m)),datasets:allCats.map((cat,i)=>({label:cat,data:entries.map(([,c])=>c[cat]||0),backgroundColor:colors[i%colors.length]}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cG'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:items=>'  Total: $'+fmtM(items.reduce((s,i)=>s+i.parsed.y,0))}}},scales:axO(v=>'$'+fmtM(v),true)}}); applyChartVis('cG');
 }
 
 function rChartIC(){
@@ -2444,14 +2468,14 @@ function rChartIC(){
     {label:'Disponible',data:[dispon,0],backgroundColor:'rgba(96,165,250,.65)',stack:'r'},
     ...entsMes.map((e,i)=>({label:e,data:[0,cmpsMes.filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)],backgroundColor:entColor(e,i),stack:'c'}))
   ];
-  mkChart('cIngD',{type:'bar',data:{labels:['Recursos','Compromisos'],datasets:dsIC},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('right'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}});
+  mkChart('cIngD',{type:'bar',data:{labels:['Recursos','Compromisos'],datasets:dsIC},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('right','cIngD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cIngD');
   // Proyección 6 meses
   const meses6=[];
   const [cy,cm]=hoy().split('-').map(Number);
   for(let i=0;i<6;i++){let y=cy,m=cm+i;if(m>12){y++;m-=12;}meses6.push(`${y}-${String(m).padStart(2,'0')}`);}
   const entsProj=[...new Set((estado.compromisos||[]).map(c=>c.entidad))];
   const dsProj=entsProj.map((e,i)=>({label:e,data:meses6.map(mes=>compromisosMes(mes).filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)),backgroundColor:entColor(e,i),stack:'s'}));
-  mkChart('cCmpD',{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO(),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}});
+  mkChart('cCmpD',{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cCmpD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cCmpD');
 }
 
 function rChartD(){
@@ -2461,7 +2485,7 @@ function rChartD(){
   const data=!raw.length?[todaySnap]:raw[raw.length-1].d===hoyStr?raw:[...raw,todaySnap];
   const labels=data.map(s=>s.d.slice(5).split('-').reverse().join('/'));
   const ln=(label,key,color,dash=[])=>({label,data:data.map(s=>s.dd?.[key]||0),borderColor:color,fill:false,tension:.3,borderWidth:2,borderDash:dash,pointBackgroundColor:color,pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=10?3:1,pointHoverRadius:5});
-  mkChart('cD',{type:'line',data:{labels,datasets:[ln('Visa Santander','vs','#f87171'),ln('Boris MP','bm','#fb923c',[5,4]),ln('Mastercard MP','mc','#fbbf24'),ln('Créditos MP','cm','#38bdf8',[2,2])]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{...legO(),labels:{...legO().labels,pointStyle:'line'}},tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))}});
+  mkChart('cD',{type:'line',data:{labels,datasets:[ln('Visa Santander','vs','#f87171'),ln('Boris MP','bm','#fb923c',[5,4]),ln('Mastercard MP','mc','#fbbf24'),ln('Créditos MP','cm','#38bdf8',[2,2])]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{...legO('bottom','cD'),labels:{...legO().labels,pointStyle:'line'}},tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))}}); applyChartVis('cD'); initCfgD();
 }
 
 function rChartF(){
@@ -2560,6 +2584,7 @@ $('btnGuardarTrans').onclick=guardarTransferencia;
 // WIRE EVENTS (una vez que app está visible)
 // ═══════════════════════════════════════════════════════
 function wireEvents(){
+  document.addEventListener('click',e=>{const btn=e.target.closest('.btn-show-all');if(btn){e.stopPropagation();showAllChartSeries(btn.dataset.chart);}});
   $('refreshBtn').onclick=function(){
     this.classList.add('spin'); this.querySelector('span').textContent='Actualizando…';
     guardarSnap(); render(); if(_evolReady) iniciarEvolucion();
