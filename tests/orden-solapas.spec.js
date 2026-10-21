@@ -27,7 +27,7 @@ test.describe('1a: Orden de solapas', () => {
     const lastText = await btns[n - 1].textContent();
     const prevText = await btns[n - 2].textContent();
     expect(lastText.trim()).toBe('⚙️');
-    expect(prevText.trim()).toContain('Compromisos');
+    expect(prevText.trim()).toContain('A pagar');
   });
 
   test('navegar a ⚙️ config funciona', async ({ page }) => {

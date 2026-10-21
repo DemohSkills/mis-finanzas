@@ -30,7 +30,7 @@ async function enterPIN(page) {
 }
 
 async function goToMovimientos(page) {
-  await page.locator('[role=tab]', { hasText: 'Movim.' }).click();
+  await page.locator('[role=tab]', { hasText: 'Movimientos' }).click();
   // Open the form details if it's collapsed
   await page.evaluate(() => {
     const d = document.getElementById('det-form');

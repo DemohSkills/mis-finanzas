@@ -168,7 +168,7 @@ test.describe('transferencia', () => {
     await page.waitForSelector('#transModal', { state: 'hidden' });
 
     // Ir a Movim. y verificar la fila de transferencia en el historial
-    await page.locator('[role=tab]', { hasText: 'Movim.' }).click();
+    await page.locator('[role=tab]', { hasText: 'Movimientos' }).click();
     const detHistorial = page.locator('#det-historial');
     await detHistorial.evaluate(el => { el.open = true; });
     const filaTransfer = page.locator('#historial .gasto', { hasText: '⇄' });

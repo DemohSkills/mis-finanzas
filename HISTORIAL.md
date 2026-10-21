@@ -150,6 +150,18 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **`exportarPDF()`** redirige a `abrirInforme()` para mantener compatibilidad con el wire event existente.
   - Expone `buildInformeHTML`, `_buildNameMap`, `_applyNameMap`, `abrirInforme`, `cerrarInforme`, `generarInforme` para tests.
   - 16 tests nuevos en `tests/informe.spec.js`. Suite completa: 287/287 ✓. Rama: trabajo-nocturno.
+- 21/10/2026: renombrado de textos de interfaz (Tarea 1). Solo texto visible; sin cambios de IDs, data-vista ni claves.
+  - "Movim." → "Movimientos" (solapa)
+  - "Vínculos Comerciales" → "Vínculos" (solapa y título H2)
+  - "💳 Compromisos" → "💳 A pagar" (solapa y título H2 de la vista)
+  - "Saldos por medio de pago" → "Mis cuentas" (título H2)
+  - "🏦 Importar resumen bancario" → "🏦 Importar Visa (CSV)" (título de sección en ⚙️)
+  - "📥 Importar movimientos del banco" → "📥 Importar Santander / Mercado Pago" (botón en ⚙️ y H2 del modal)
+  - Actualización de tests: `orden-solapas.spec.js`, `fmt-monto.spec.js`, `transferencia.spec.js`. Suite completa: 287/287 ✓. Rama: trabajo-nocturno.
+- 21/10/2026: modo ojo oculta ticks de ejes en los gráficos (Tarea 2). Cambios en `index.html`:
+  - `aplicarOjoGraficos()`: itera `_ci` y setea `scale.ticks.display = false/true` en cada eje de cada chart activo, luego llama `chart.update('none')`.
+  - El toggle del botón `#btnOjo` llama a `aplicarOjoGraficos()` después de cambiar la clase `ocultar`.
+  - 2 tests nuevos en `tests/ojo-graficos.spec.js`. Suite completa: 289/289 ✓. Rama: trabajo-nocturno.
 
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.

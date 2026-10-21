@@ -705,7 +705,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 <div class="overlay" id="impModal" hidden>
   <div class="wiz-box" style="max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;">
-      <h2 style="margin:0;font-size:1rem;">📥 Importar movimientos del banco</h2>
+      <h2 style="margin:0;font-size:1rem;">📥 Importar Santander / Mercado Pago</h2>
       <button type="button" class="mini" id="btnCerrarImpModal">✕</button>
     </div>
     <div id="impModalBody"></div>
@@ -726,18 +726,18 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-vista="inicio">Inicio</button>
-    <button type="button" role="tab" data-vista="gastos">Movim.</button>
-    <button type="button" role="tab" data-vista="vinculos">Vínculos Comerciales</button>
+    <button type="button" role="tab" data-vista="gastos">Movimientos</button>
+    <button type="button" role="tab" data-vista="vinculos">Vínculos</button>
     <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
     <button type="button" role="tab" data-vista="evolucion">Evolución</button>
-    <button type="button" role="tab" data-vista="compromisos">💳 Compromisos</button>
+    <button type="button" role="tab" data-vista="compromisos">💳 A pagar</button>
     <button type="button" role="tab" data-vista="config">⚙️</button>
   </nav>
 
   <!-- ── INICIO ── -->
   <div class="vista" id="vista-inicio">
     <section class="saldos-top">
-      <h2>Saldos por medio de pago</h2>
+      <h2>Mis cuentas</h2>
       <div class="saldos" id="saldos"></div>
     </section>
     <hr class="div-resumen">
@@ -834,7 +834,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   <!-- ── VÍNCULOS ── -->
   <div class="vista vista-vinculos" id="vista-vinculos" hidden>
     <section>
-      <div class="sec-hd-pleg"><h2>Vínculos Comerciales</h2><button type="button" class="mini btn-pleg-all" id="btnPlegVinc">Plegar todo</button></div>
+      <div class="sec-hd-pleg"><h2>Vínculos</h2><button type="button" class="mini btn-pleg-all" id="btnPlegVinc">Plegar todo</button></div>
       <div id="vinculos"></div>
       <p class="meta">Para sumar a alguien acá, asignale una persona a un activo o deuda en la pestaña Patrimonio.</p>
     </section>
@@ -941,9 +941,9 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
     </div>
 
     <div class="cfg-section">
-      <h2>🏦 Importar resumen bancario</h2>
+      <h2>🏦 Importar Visa (CSV)</h2>
       <p class="meta">Importá movimientos desde el resumen de tu banco. Parseo local: el archivo no se sube a ningún servidor.</p>
-      <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar movimientos del banco</button>
+      <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar Santander / Mercado Pago</button>
       <div id="impUltimaInfo" style="margin-top:6px;font-size:.75rem;color:var(--muted);"></div>
     </div>
 
@@ -1009,7 +1009,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   <!-- ── COMPROMISOS ── -->
   <div class="vista" id="vista-compromisos" hidden>
     <section>
-      <div class="sec-hd-pleg"><h2>💳 Compromisos</h2><button type="button" class="mini btn-pleg-all" id="btnPlegComp">Plegar todo</button></div>
+      <div class="sec-hd-pleg"><h2>💳 A pagar</h2><button type="button" class="mini btn-pleg-all" id="btnPlegComp">Plegar todo</button></div>
       <p class="meta">Cuotas e importes mensuales fijos.</p>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
         <label for="compSort" class="meta" style="white-space:nowrap">Ordenar:</label>
@@ -4500,8 +4500,18 @@ function initDetDyn(el,sfx,defOpen){
     btn.title=oculto?'Mostrar montos':'Ocultar montos';
     btn.setAttribute('aria-label',oculto?'Mostrar montos':'Ocultar montos');
   }
+  function aplicarOjoGraficos(){
+    if(typeof _ci==='undefined')return;
+    const oculto=document.body.classList.contains('ocultar');
+    Object.values(_ci).forEach(chart=>{
+      const scales=chart.options&&chart.options.scales;
+      if(!scales)return;
+      Object.values(scales).forEach(scale=>{if(scale.ticks)scale.ticks.display=!oculto;});
+      chart.update('none');
+    });
+  }
   const btnO=document.getElementById('btnOjo');
-  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();if(typeof _evolReady!=='undefined'&&_evolReady)rChartD();};
+  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();aplicarOjoGraficos();if(typeof _evolReady!=='undefined'&&_evolReady)rChartD();};
   aplicarOjo();
 })();
 
