@@ -83,6 +83,14 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - (4c) Gráfico "Deudas principales" (cD): `generateLabels` corrige leyenda — cada serie recibe `fillStyle`/`strokeStyle` de su `borderColor` y `pointStyle:'line'` (colores visibles). Texto de leyenda incluye el valor en formato fmtM ("Visa Santander · 11,0M") que se oculta con modo ojo. Plugin `cDLab` dibuja etiqueta `$fmtM` en el último punto por defecto; botón `#btnValsD` "Valores" activa etiquetas en todos los puntos, persistido en `finanzas-v1-chart-vals`. Con modo ojo activo las etiquetas y valores de leyenda se ocultan; el ojo llama a `rChartD()` para redibujar. `boxHeight:12` en `legO()` para todos los gráficos. 10 tests en `graficos-4c.spec.js`.
   - Suite completa: 149/149. Rama: trabajo-nocturno.
 
+- 21/10/2026: botón "Pagar" de compromisos tipo 'resumen' rediseñado (quita los dos `prompt()`). Cambios en `index.html`:
+  - **Campo `cierre`** (fecha ISO): campo `#compCierreWrap` / `#compCierre` añadido al modal de Editar, visible solo para tipo=resumen. Guardado en `c.cierre`. Backups sin el campo cargan sin errores (tratado como `null`).
+  - **Modal de pago**: `pagarCompromiso` en tipo resumen ahora llama a `abrirTransModal('pagar-tarjeta', {resumenId})`. El modal reutiliza `#transModal` con `transDestino` fijo (= `c.entidad`) y deshabilitado, origen elegible de `MEDIOS_CUENTA`, y tres botones de atajo (`#transAtajos`): "Mínimo" (`c.pagoMinimo`), "Resto" (`c.monto − pagado del ciclo`) y "Total" (`c.monto`). El guardado pasa por `_ejecutarTransf` en modo `'pagar-tarjeta'`. `c.monto` no se modifica.
+  - **Pagos del ciclo**: funciones `_pagadosCiclo(c)` y `_sumaPagadoCiclo(c)` filtran `estado.gastos` por `tipo='ingreso'`, `medio===c.entidad`, `fecha>=c.cierre` (incluyendo `soloHistorial`). Si no hay `cierre`, devuelven `[]`. En `_compRowHtml` se muestra una lista plegable `details.comp-pagos` con fecha, descripción e importe de cada pago del ciclo.
+  - **Chips de estado** (solo resumen, sin cierre=sin pagos): sin pagos+vencido → `.chip.vencido`; pagado<min → `.chip.minpago` "Pagó menos del mínimo · faltan $X"; pagado≥total → `.chip.abonada` "Abonada"; pagado≥min → `.chip.parcial` "Abonado parcial · …"; bonus: pagos con fecha≤proxVenc que suman≥min → `.chip.minok` "Mínimo pagado a tiempo". CSS `.chip.abonada/.parcial/.minpago/.minok` y `.comp-pagos` añadidos. Compromisos tipo 'cuota' no se tocaron.
+  - **No tocado**: `fmt()` global, `_ejecutarTransf`, compromisos tipo 'cuota', gráficos.
+  - 20 tests nuevos en `tests/comp-resumen.spec.js` (estados, atajos, lista de pagos, backup sin cierre). Suite completa: 169/169. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.

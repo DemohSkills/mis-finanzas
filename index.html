@@ -106,6 +106,15 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .item .edit{padding:2px 8px;font-size:.8rem;}
 .chip{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:99px;border:1px solid var(--border);color:var(--muted);margin-left:4px;}
 .chip.vencido{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger);}
+.chip.abonada{border-color:color-mix(in srgb,var(--pos,#16a34a) 45%,transparent);color:var(--pos,#16a34a);}
+.chip.parcial{border-color:color-mix(in srgb,var(--warn) 45%,transparent);color:var(--warn);}
+.chip.minpago{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger);}
+.chip.minok{border-color:color-mix(in srgb,var(--pos,#16a34a) 45%,transparent);color:var(--pos,#16a34a);}
+.comp-pagos{width:100%;font-size:.76rem;color:var(--muted);margin-top:3px;}
+.comp-pagos summary{cursor:pointer;user-select:none;list-style:none;}
+.comp-pagos summary::-webkit-details-marker{display:none;}
+.comp-pagos ul{margin:4px 0 0;padding:0;list-style:none;}
+.comp-pagos li{display:flex;justify-content:space-between;padding:2px 0;border-top:1px solid var(--border);}
 .comp-hoy-div{display:flex;align-items:center;gap:8px;padding:2px 0;margin:4px 0;}
 .comp-hoy-div hr{flex:1;border:none;border-top:1px solid var(--border);margin:0;}
 .comp-hoy-div span{font-size:.75rem;color:var(--muted);white-space:nowrap;}
@@ -385,6 +394,13 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
         <label>Pago mínimo</label>
         <input type="text" class="input-monto" inputmode="decimal" id="compMin" placeholder="0">
       </div>
+      <div id="compCierreWrap" class="wiz-field" hidden>
+        <label>Cierre del ciclo (inicio del período actual)</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="date" id="compCierre" style="flex:1;">
+          <button type="button" class="mini" onclick="document.getElementById('compCierre').value=''">Sin fecha</button>
+        </div>
+      </div>
       <div class="wiz-actions" style="margin-top:16px;">
         <button type="submit" class="primary">Guardar</button>
         <button type="button" onclick="cerrarCompModal()">Cancelar</button>
@@ -465,6 +481,11 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
     <div class="wiz-field">
       <label>Monto</label>
       <input type="text" class="input-monto" inputmode="decimal" id="transMonto" placeholder="0">
+      <div id="transAtajos" style="display:none;gap:5px;margin-top:5px;flex-wrap:wrap;">
+        <button type="button" class="mini" id="btnAtajoMin">Mínimo</button>
+        <button type="button" class="mini" id="btnAtajoResto">Resto</button>
+        <button type="button" class="mini" id="btnAtajoTotal">Total</button>
+      </div>
     </div>
     <div class="wiz-field">
       <label>Fecha</label>
@@ -1048,6 +1069,12 @@ const MEDIOS_NO_TARJETA=['Banco Santander','Mercado Pago','Astropay','Efectivo']
 function disponibleHoy(){return MEDIOS_NO_TARJETA.reduce((s,m)=>{const sd=saldoDe(m);return s+(sd>0?sd:0);},0);}
 
 
+function _pagadosCiclo(c){
+  if(!c.cierre) return [];
+  return (estado.gastos||[]).filter(g=>g.tipo==='ingreso'&&g.medio===c.entidad&&g.fecha>=c.cierre);
+}
+function _sumaPagadoCiclo(c){ return _pagadosCiclo(c).reduce((s,g)=>s+g.monto,0); }
+
 const COMP_SORT_KEY='finanzas-v1-comp-sort';
 function getCompSort(){try{return localStorage.getItem(COMP_SORT_KEY)||'venc';}catch{return'venc';}}
 function setCompSort(v){try{localStorage.setItem(COMP_SORT_KEY,v);}catch{}}
@@ -1068,15 +1095,50 @@ function sortCompromisos(cs,orden){
 function _compRowHtml(c){
   const fin=c.pendientes===0;
   const hoyStr=hoy();
-  const abon=!fin&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoyStr.slice(0,7);
-  const venc=!fin&&!abon&&!!c.proxVenc&&c.proxVenc<hoyStr;
-  const diasVenc=venc?Math.round((new Date(hoyStr)-new Date(c.proxVenc))/864e5):0;
+  const esResumen=c.tipo==='resumen';
+  // cuota logic (unchanged)
+  const abonCuota=!fin&&!esResumen&&!!c.ultimoPago&&!!c.proxVenc&&c.proxVenc.slice(0,7)>hoyStr.slice(0,7);
+  const vencCuota=!fin&&!abonCuota&&!esResumen&&!!c.proxVenc&&c.proxVenc<hoyStr;
+  const diasVenc=vencCuota?Math.round((new Date(hoyStr)-new Date(c.proxVenc))/864e5):0;
+  // resumen logic
+  let chipResumen='', pagosCicloHtml='', abonResumen=false;
+  if(esResumen&&!fin){
+    const pagadoList=_pagadosCiclo(c);
+    const pagado=pagadoList.reduce((s,g)=>s+g.monto,0);
+    const total=c.monto;
+    const min=c.pagoMinimo||0;
+    abonResumen=pagado>=total;
+    if(!abonResumen){
+      if(pagado===0&&!!c.proxVenc&&c.proxVenc<hoyStr){
+        const dv=Math.round((new Date(hoyStr)-new Date(c.proxVenc))/864e5);
+        chipResumen=`<span class="chip vencido">Vencido hace ${dv} día${dv===1?'':'s'}</span>`;
+      } else if(pagado>0&&min>0&&pagado<min){
+        chipResumen=`<span class="chip minpago">Pagó menos del mínimo · faltan ${fmtV(min-pagado)}</span>`;
+      } else if(pagado>0&&pagado>=min&&pagado<total){
+        chipResumen=`<span class="chip parcial">Abonado parcial · ${fmtV(pagado)} de ${fmtV(total)} · resta ${fmtV(total-pagado)}</span>`;
+      }
+    } else {
+      chipResumen=`<span class="chip abonada">Abonada</span>`;
+    }
+    // bonus: pagos con fecha <= proxVenc que suman >= min
+    if(min>0&&!!c.proxVenc){
+      const sumAT=pagadoList.filter(g=>g.fecha<=c.proxVenc).reduce((s,g)=>s+g.monto,0);
+      if(sumAT>=min) chipResumen+=`<span class="chip minok">Mínimo pagado a tiempo</span>`;
+    }
+    // collapsible list
+    if(pagadoList.length){
+      const liItems=pagadoList.map(g=>`<li><span>${fechaCorta(g.fecha)} · ${esc(g.descripcion||g.categoria)}</span><span class="num">${fmtV(g.monto)}</span></li>`).join('');
+      pagosCicloHtml=`<details class="comp-pagos"><summary>Pagos del ciclo: ${fmtV(pagado)} (${pagadoList.length})</summary><ul>${liItems}</ul></details>`;
+    }
+  }
+  const abon=esResumen?abonResumen:abonCuota;
+  const venc=esResumen?false:vencCuota;
   return `<div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
       <div class="comp-info">
         <span class="comp-nombre">${esc(c.nombre)}</span>
         <span class="comp-ent">${esc(c.entidad)}</span>
         ${fin?'<span class="comp-est">Finalizado ✓</span>':c.estimado?'<span class="comp-est">estimado</span>':''}
-        ${venc?`<span class="chip vencido">Vencido hace ${diasVenc} día${diasVenc===1?'':'s'}</span>`:''}
+        ${esResumen?chipResumen:(venc?`<span class="chip vencido">Vencido hace ${diasVenc} día${diasVenc===1?'':'s'}</span>`:'')}
       </div>
       <div class="comp-det">
         <span class="neg">${fmtV(c.monto)}</span>
@@ -1089,10 +1151,11 @@ function _compRowHtml(c){
         `:`
           <button type="button" class="mini" onclick="editarCompromiso('${esc(c.id)}')">Editar</button>
           ${abon?`<button type="button" class="mini" disabled style="opacity:.75;color:var(--pos,#16a34a)">✓ Abonada</button>`:`<button type="button" class="mini" onclick="pagarCompromiso('${esc(c.id)}')">Pagar</button>`}
-          ${c.ultimoPago?`<button type="button" class="mini" onclick="deshacerPago('${esc(c.id)}')">↩ Deshacer</button>`:''}
+          ${!esResumen&&c.ultimoPago?`<button type="button" class="mini" onclick="deshacerPago('${esc(c.id)}')">↩ Deshacer</button>`:''}
           <button type="button" class="mini danger" onclick="borrarCompromiso('${esc(c.id)}')">×</button>
         `}
       </div>
+      ${pagosCicloHtml}
     </div>`;
 }
 const _MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1169,6 +1232,10 @@ function abrirCompModal(id){
   const c=id?estado.compromisos.find(x=>x.id===id):null;
   const esNuevo=!c;
   $('compModalTit').textContent=esNuevo?'Agregar compromiso':'Editar compromiso';
+  const _toggleResumenFields=tipo=>{
+    if(tipo==='resumen'){$('compMinWrap').removeAttribute('hidden');$('compCierreWrap').removeAttribute('hidden');}
+    else{$('compMinWrap').setAttribute('hidden','');$('compCierreWrap').setAttribute('hidden','');}
+  };
   if(esNuevo){
     $('compNombreWrap').removeAttribute('hidden');
     $('compEntidadWrap').removeAttribute('hidden');
@@ -1180,7 +1247,9 @@ function abrirCompModal(id){
     $('compPendientes').value='1';
     $('compFecha').value='';
     $('compMin').value='';
+    $('compCierre').value='';
     $('compMinWrap').setAttribute('hidden','');
+    $('compCierreWrap').setAttribute('hidden','');
   } else {
     $('compNombreWrap').setAttribute('hidden','');
     $('compEntidadWrap').setAttribute('hidden','');
@@ -1189,13 +1258,10 @@ function abrirCompModal(id){
     $('compPendientes').value=c.pendientes;
     $('compFecha').value=c.proxVenc||'';
     $('compMin').value=c.pagoMinimo?fmtInput(c.pagoMinimo):'';
-    if(c.tipo==='resumen') $('compMinWrap').removeAttribute('hidden');
-    else $('compMinWrap').setAttribute('hidden','');
+    $('compCierre').value=c.cierre||'';
+    _toggleResumenFields(c.tipo);
   }
-  $('compTipo').onchange=()=>{
-    if($('compTipo').value==='resumen') $('compMinWrap').removeAttribute('hidden');
-    else $('compMinWrap').setAttribute('hidden','');
-  };
+  $('compTipo').onchange=()=>_toggleResumenFields($('compTipo').value);
   $('compModal').removeAttribute('hidden');
   ($('compNombreWrap').hidden?$('compMonto'):$('compNombre')).focus();
 }
@@ -1216,6 +1282,8 @@ $('compForm').onsubmit=function(e){
   if(fecha&&!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){alert('Formato de fecha inválido.');return;}
   const minV=$('compMin').value.trim();
   const mn=minV?parseMonto(minV):NaN;
+  const cierreV=$('compCierre').value.trim()||null;
+  if(cierreV&&!/^\d{4}-\d{2}-\d{2}$/.test(cierreV)){alert('Formato de fecha de cierre inválido.');return;}
   if(esNuevo){
     const nombre=$('compNombre').value.trim();
     if(!nombre){alert('Ingresá un nombre.');return;}
@@ -1223,13 +1291,13 @@ $('compForm').onsubmit=function(e){
     if(!entidad){alert('Ingresá la entidad.');return;}
     const tipo=$('compTipo').value;
     const c={id:nuevoId(),nombre,entidad,monto:m,pendientes:pend,proxVenc:fecha,tipo,estimado:false};
-    if(tipo==='resumen'&&!isNaN(mn)&&mn>0) c.pagoMinimo=mn;
+    if(tipo==='resumen'){if(!isNaN(mn)&&mn>0) c.pagoMinimo=mn; c.cierre=cierreV||null;}
     estado.compromisos.push(c);
   } else {
     const c=estado.compromisos.find(x=>x.id===_compModalId);
     if(!c) return;
     c.monto=m; c.pendientes=pend; c.proxVenc=fecha;
-    if(c.tipo==='resumen'&&!isNaN(mn)&&mn>0) c.pagoMinimo=mn;
+    if(c.tipo==='resumen'){if(!isNaN(mn)&&mn>0) c.pagoMinimo=mn; c.cierre=cierreV||null;}
   }
   cerrarCompModal();
   guardar(); renderCompromisos();
@@ -1244,14 +1312,8 @@ function pagarCompromiso(id){
   const c=estado.compromisos.find(x=>x.id===id);
   if(!c) return;
   if(c.tipo==='resumen'){
-    const montoN=prompt('Nuevo monto del resumen:',c.monto);
-    if(montoN===null) return;
-    const m=parseMonto(montoN);
-    if(!isNaN(m)&&m>0) c.monto=m;
-    const fechaN=prompt('Nueva fecha de vencimiento (YYYY-MM-DD) o vacío:',c.proxVenc||'');
-    if(fechaN!==null) c.proxVenc=fechaN.trim()||null;
-    guardar(); renderCompromisos();
-    if(_evolReady) rChartIC();
+    abrirTransModal('pagar-tarjeta',{resumenId:id});
+    return;
   } else if(c.itemNombre){
     abrirPagoModal(id);
   } else {
@@ -2607,21 +2669,47 @@ function iniciarEvolucion(){
 const MEDIOS_TARJETA=['Visa Santander','Mastercard MP','American Express'];
 const MEDIOS_CUENTA =['Banco Santander','Mercado Pago','Astropay','Efectivo'];
 let _transMode='transferir';
+let _transResumenId=null;
 
-function abrirTransModal(mode='transferir'){
+function abrirTransModal(mode='transferir',opts={}){
   _transMode=mode;
+  _transResumenId=opts.resumenId||null;
+  const c=_transResumenId?(estado.compromisos||[]).find(x=>x.id===_transResumenId):null;
   const esTP=mode==='pagar-tarjeta';
-  $('transModalTit').textContent=esTP?'💳 Pagar tarjeta':'⇄ Transferir';
+  const esResumen=!!(c&&c.tipo==='resumen');
+  $('transModalTit').textContent=esResumen?('💳 Pagar: '+c.nombre):(esTP?'💳 Pagar tarjeta':'⇄ Transferir');
   const origOpts=esTP?MEDIOS_CUENTA:MEDIOS;
-  const destOpts=esTP?MEDIOS_TARJETA:MEDIOS;
   $('transOrigen').innerHTML=origOpts.map(m=>`<option>${esc(m)}</option>`).join('');
-  $('transDestino').innerHTML=destOpts.map(m=>`<option>${esc(m)}</option>`).join('');
-  $('transMonto').value='';
+  if(esResumen){
+    $('transDestino').innerHTML=`<option>${esc(c.entidad)}</option>`;
+    $('transDestino').disabled=true;
+    const pagado=_sumaPagadoCiclo(c);
+    const total=c.monto;
+    const min=c.pagoMinimo||0;
+    const resto=Math.max(0,total-pagado);
+    $('btnAtajoMin').disabled=!min;
+    $('btnAtajoMin').dataset.monto=min;
+    $('btnAtajoResto').dataset.monto=resto;
+    $('btnAtajoTotal').dataset.monto=total;
+    $('transAtajos').style.display='flex';
+    $('transMonto').value=fmtInput(resto>0?resto:total);
+  } else {
+    const destOpts=esTP?MEDIOS_TARJETA:MEDIOS;
+    $('transDestino').innerHTML=destOpts.map(m=>`<option>${esc(m)}</option>`).join('');
+    $('transDestino').disabled=false;
+    $('transAtajos').style.display='none';
+    $('transMonto').value='';
+  }
   $('transFecha').value=hoy();
   $('transNota').value='';
   $('transModal').hidden=false;
 }
-function cerrarTransModal(){ $('transModal').hidden=true; }
+function cerrarTransModal(){
+  $('transModal').hidden=true;
+  _transResumenId=null;
+  $('transDestino').disabled=false;
+  $('transAtajos').style.display='none';
+}
 
 function _ejecutarTransf(origen,destino,monto,fecha,nota,mode){
   if(origen===destino) { alert('El origen y el destino no pueden ser iguales.'); return false; }
@@ -2663,6 +2751,13 @@ function borrarTransferencia(transferId){
 }
 
 $('btnGuardarTrans').onclick=guardarTransferencia;
+['btnAtajoMin','btnAtajoResto','btnAtajoTotal'].forEach(id=>{
+  $(id).onclick=()=>{
+    const v=parseFloat($(id).dataset.monto||'0');
+    if(v>0) $('transMonto').value=fmtInput(v);
+    $('transMonto').focus();
+  };
+});
 
 // ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
