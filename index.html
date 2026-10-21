@@ -2823,6 +2823,54 @@ function _cargarSheetJS() {
   });
 }
 
+// ── pdf.js lazy loader ───────────────────────────────
+let _pdfjsLib = null;
+function _cargarPDFJS() {
+  if (_pdfjsLib) return Promise.resolve(_pdfjsLib);
+  if (window.pdfjsLib) { _pdfjsLib = window.pdfjsLib; return Promise.resolve(_pdfjsLib); }
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      _pdfjsLib = window.pdfjsLib;
+      resolve(_pdfjsLib);
+    };
+    s.onerror = () => reject(new Error('No se pudo cargar pdf.js. Verificá tu conexión a internet.'));
+    document.head.appendChild(s);
+  });
+}
+
+async function _extraerLineasPDF(pdf) {
+  const TOL = 2;
+  const rawItems = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const vp = page.getViewport({ scale: 1 });
+    const tc = await page.getTextContent();
+    for (const item of tc.items) {
+      if (!item.str || !item.str.trim()) continue;
+      const y = (p - 1) * (vp.height + 100) + (vp.height - item.transform[5]);
+      rawItems.push({ y, x: item.transform[4], text: item.str.trim(), page: p });
+    }
+  }
+  rawItems.sort((a, b) => a.y - b.y || a.x - b.x);
+  const lineGroups = [];
+  for (const item of rawItems) {
+    const last = lineGroups[lineGroups.length - 1];
+    if (last && Math.abs(item.y - last.baseY) <= TOL) {
+      last.items.push(item);
+    } else {
+      lineGroups.push({ baseY: item.y, items: [item] });
+    }
+  }
+  return lineGroups.map(g => ({
+    y: g.baseY,
+    text: g.items.sort((a, b) => a.x - b.x).map(i => i.text).join(' ')
+  }));
+}
+
 // ── Pure parser ───────────────────────────────────────
 function parseSantander(aoa) {
   let headerIdx = -1;
@@ -2855,6 +2903,88 @@ function parseSantander(aoa) {
   return parsed;
 }
 
+// ── Mercado Pago parser ───────────────────────────────
+function parseMercadoPago(lineas) {
+  const sorted = [...lineas].sort((a, b) => a.y - b.y);
+  const parseAR = s => {
+    const m = String(s).match(/([-\d.,]+)/);
+    if (!m) return NaN;
+    return parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+  };
+  const parseARFull = s => { const v = parseAR(s); return isNaN(v) ? null : v; };
+
+  let saldoInicial = null, saldoFinal = null;
+  for (const l of sorted) {
+    const t = l.text;
+    if (/saldo inicial/i.test(t) && saldoInicial === null) {
+      const p = t.split(/saldo inicial\s*:\s*/i)[1]; saldoInicial = p ? parseARFull(p) : null;
+    }
+    if (/saldo final/i.test(t) && saldoFinal === null) {
+      const p = t.split(/saldo final\s*:\s*/i)[1]; saldoFinal = p ? parseARFull(p) : null;
+    }
+  }
+  if (saldoInicial === null || saldoFinal === null)
+    throw new Error('No se encontró el saldo inicial o final en el PDF.');
+
+  let cutoffY = Infinity;
+  for (const l of sorted) {
+    if (/RESUMEN DE TENENCIAS EN D/i.test(l.text)) { cutoffY = l.y; break; }
+  }
+  const relevant = sorted.filter(l => l.y < cutoffY);
+
+  const reNum = /(\d{2}-\d{2}-\d{4}).*?(\d{9,13}).*?\$\s*([-\d.,]+)\s+\$\s*([\d.,]+)/;
+  const reIgnore = /^Fecha\b|^Descripc|^ID de la|^\d+\/\d+$|^Entradas$|^Salidas$|^Periodo\b|^Saldo inicial\b|^Saldo final\b/i;
+
+  const numLines = [];
+  for (let i = 0; i < relevant.length; i++) {
+    const l = relevant[i];
+    const m = l.text.match(reNum);
+    if (!m) continue;
+    const [dd, mm, yy] = m[1].split('-');
+    const fecha = `${yy}-${mm}-${dd}`;
+    const ref = m[2];
+    const monto = parseFloat(m[3].replace(/\./g, '').replace(',', '.'));
+    const saldo = parseFloat(m[4].replace(/\./g, '').replace(',', '.'));
+    numLines.push({ idx: i, lineY: l.y, fecha, ref, monto, saldo });
+  }
+
+  const descFrags = Object.fromEntries(numLines.map((_, i) => [i, []]));
+  for (const l of relevant) {
+    if (reNum.test(l.text) || reIgnore.test(l.text.trim()) || !l.text.trim()) continue;
+    if (!numLines.length) continue;
+    // Prefer the nearest numeric line; when equidistant prefer the one just BELOW
+    // (the fragment is its descAbove — "sin cruzar otra fila")
+    let minAbove = Infinity, bestAbove = -1, minBelow = Infinity, bestBelow = -1;
+    for (let i = 0; i < numLines.length; i++) {
+      const d = numLines[i].lineY - l.y;
+      if (d > 0 && d < minAbove) { minAbove = d; bestAbove = i; }
+      if (d < 0 && -d < minBelow) { minBelow = -d; bestBelow = i; }
+    }
+    const bestI = (bestAbove >= 0 && bestBelow >= 0)
+      ? (minAbove <= minBelow ? bestAbove : bestBelow)
+      : (bestAbove >= 0 ? bestAbove : bestBelow);
+    if (bestI >= 0) descFrags[bestI].push({ y: l.y, text: l.text.trim() });
+  }
+
+  const rows = numLines.map((nl, i) => {
+    const frags = descFrags[i].sort((a, b) => a.y - b.y);
+    const descParts = frags.map(f => f.text).filter(Boolean);
+    const desc = descParts.join(' ').trim();
+    return { fecha: nl.fecha, desc, concepto: descParts[0] || '', detalle: descParts.slice(1).join(' ').trim(), monto: nl.monto, saldo: nl.saldo, ref: nl.ref, _i: i };
+  });
+
+  let saldoPrev = saldoInicial;
+  for (let i = 0; i < rows.length; i++) {
+    if (Math.abs(saldoPrev + rows[i].monto - rows[i].saldo) > 0.01)
+      throw new Error(`El PDF parece incompleto o no se pudo leer bien (fila ${i + 1})`);
+    saldoPrev = rows[i].saldo;
+  }
+  if (rows.length > 0 && Math.abs(rows[rows.length - 1].saldo - saldoFinal) > 0.01)
+    throw new Error(`El PDF parece incompleto o no se pudo leer bien (fila ${rows.length})`);
+
+  return rows;
+}
+
 // ── Categorization ────────────────────────────────────
 const _REGLAS_SANT = [
   { t: d => d.includes('debito automatico') && d.includes('arca'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Débito automático ARCA (monotributo)' },
@@ -2883,6 +3013,41 @@ function _categorizarSant(desc, monto) {
       return { tipo, cat:r.cat, agrupable:r.agrupable||null, transf:r.transf||false,
         transferPair:r.transferPair||null, transferPairInv:r.transferPairInv||null,
         paraRevisar:r.paraRevisar||false, revisar_opciones:r.revisar_opciones||null, descFija:r.descFija||null };
+    }
+  }
+  return { tipo: monto >= 0 ? 'ingreso' : 'gasto', cat:'Otros/Varios', paraRevisar:true };
+}
+
+// ── Mercado Pago categorization ───────────────────────
+const _REGLAS_MP = [
+  { t: d => d.includes('rendimientos'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Rendimientos Mercado Pago' },
+  { t: d => ['pago ausa','pago au oeste','peaje','rutas sur','emova subte','ceamse','ausol'].some(k=>d.includes(k)), tipo:'gasto', cat:'Transporte/Auto', agrupable:'Peajes y subte' },
+  { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('bs. as.'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Impuesto a los IIBB Bs. As.' },
+  { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('caba'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Impuesto a los IIBB CABA' },
+  { t: d => d.includes('pago de impuesto') && d.includes('iibb'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Impuesto a los IIBB' },
+  { t: d => d.includes('pago de cuota creditos de mercado pago'), tipo:'gasto', cat:'Pago de créditos' },
+  { t: d => d.includes('pago de resumen tarjeta'), tipo:'gasto', cat:'Pago de Visa/MP', transferPair:'Mastercard MP' },
+  { t: d => d.includes('ingreso de dinero') || (d.includes('transferencia enviada') && d.includes('urbanc dimitri')), tipo:'auto', cat:'Transferencia entre cuentas', transf:true },
+  { t: d => d.includes('cashback mercado pago') || d.includes('pago-drivers'), tipo:'ingreso', cat:'Sueldo/Honorarios', descFija:'Pago Meli Envíos' },
+  { t: d => ['pago de servicio','pago aysa','movistar','personal','iplan'].some(k=>d.includes(k)), tipo:'gasto', cat:'Servicios/Telecom' },
+  { t: d => d.includes('pago con qr'), tipo:'gasto', cat:'Otros/Varios', paraRevisar:true },
+  { t: d => d.includes('dinero reservado'), tipo:'gasto', cat:'Otros/Varios' },
+  { t: d => d.includes('transferencia recibida'), tipo:'ingreso', cat:'Transferencia recibida', paraRevisar:true },
+  { t: d => d.includes('transferencia enviada'), tipo:'gasto', cat:'Otros/Varios', paraRevisar:true },
+];
+
+function _categorizarMP(desc, monto) {
+  const d = desc.toLowerCase();
+  const userCat = aplicarRegla(desc);
+  if (userCat) {
+    const isIncome = getCatsIncome().includes(userCat);
+    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
+  }
+  for (const r of _REGLAS_MP) {
+    if (r.t(d)) {
+      const tipo = r.tipo === 'auto' ? (monto >= 0 ? 'ingreso' : 'gasto') : r.tipo;
+      return { tipo, cat:r.cat, agrupable:r.agrupable||null, transf:r.transf||false,
+        transferPair:r.transferPair||null, paraRevisar:r.paraRevisar||false, descFija:r.descFija||null };
     }
   }
   return { tipo: monto >= 0 ? 'ingreso' : 'gasto', cat:'Otros/Varios', paraRevisar:true };
@@ -3124,11 +3289,12 @@ function _confirmarImpBanco(conAjuste) {
       else if (c._revisar_sel === 'ingreso') { /* just ingreso, no pair */ }
       else { /* otro: gasto + skip transferPairInv */ }
     }
-    // Handle "pago tarjeta de credito" — check if Visa Santander already has matching ingreso
+    // Handle transfer pair (Visa Santander or Mastercard MP) — check if target already has matching ingreso
     let visaPair = false, visaLinked = false;
-    if (c.catInfo.transferPair === 'Visa Santander') {
+    const pairMedio = c.catInfo.transferPair;
+    if (pairMedio) {
       const existing = estado.gastos.find(g =>
-        g.medio === 'Visa Santander' && g.tipo === 'ingreso' &&
+        g.medio === pairMedio && g.tipo === 'ingreso' &&
         Math.abs(g.monto - monto) < 0.01 &&
         Math.abs(new Date(g.fecha) - new Date(c.fecha)) / 86400000 <= 5
       );
@@ -3145,15 +3311,15 @@ function _confirmarImpBanco(conAjuste) {
       refs, lote: loteId,
     };
     if (visaLinked) {
-      // link existing Visa ingreso with same transferId retroactively (best effort)
+      // link existing ingreso with same transferId retroactively (best effort)
       gasto.transferId = nuevoId();
     }
     estado.gastos.push(gasto);
     cnt++;
-    // Create pair movement
+    // Create pair movement in target account
     if (visaPair) {
       estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto, fecha:c.fecha,
-        categoria:'Pago de Visa/MP', medio:'Visa Santander', descripcion:desc,
+        categoria:'Pago de Visa/MP', medio:pairMedio, descripcion:desc,
         tipo:'ingreso', soloHistorial:soloH, transferencia:true, transferId, refs:[], lote:loteId });
       cnt++;
     }
@@ -3202,59 +3368,102 @@ function _deshacerUltimaImp(medio) {
 
 function _actualizarImpUltimaInfo() {
   const el = $('impUltimaInfo'); if (!el) return;
-  const imp = (estado.importaciones||{})['Banco Santander'];
-  el.textContent = imp ? `Última importación de Santander: hasta ${fechaCorta(imp.hasta)}` : '';
+  const imps = estado.importaciones || {};
+  const lines = [];
+  if (imps['Banco Santander']) lines.push(`Santander: hasta ${fechaCorta(imps['Banco Santander'].hasta)}`);
+  if (imps['Mercado Pago'])    lines.push(`Mercado Pago: hasta ${fechaCorta(imps['Mercado Pago'].hasta)}`);
+  el.textContent = lines.length ? `Última importación — ${lines.join(' · ')}` : '';
 }
 
 // ── Open import modal ──────────────────────────────────
 function abrirImportModal() {
   const body = $('impModalBody');
-  _impMedio = 'Banco Santander';
-  const lastImp = (estado.importaciones||{})[_impMedio];
+  const imps = estado.importaciones || {};
+  const lastSant = imps['Banco Santander'];
+  const lastMP   = imps['Mercado Pago'];
   body.innerHTML = `
-    ${lastImp ? `<p class="meta">Última importación de ${_impMedio}: hasta ${fechaCorta(lastImp.hasta)}
-      <button type="button" class="mini" id="btnDeshacerLote2" style="margin-left:6px">↩ Deshacer</button></p>` : ''}
-    <p class="meta">Seleccioná el archivo .xls/.xlsx del banco (Banco Santander). El parseo es local; el archivo no se sube a ningún servidor.</p>
+    ${lastSant ? `<p class="meta">Última importación de Banco Santander: hasta ${fechaCorta(lastSant.hasta)}
+      <button type="button" class="mini" id="btnDeshacerLote2S" style="margin-left:6px">↩ Deshacer</button></p>` : ''}
+    ${lastMP ? `<p class="meta">Última importación de Mercado Pago: hasta ${fechaCorta(lastMP.hasta)}
+      <button type="button" class="mini" id="btnDeshacerLote2MP" style="margin-left:6px">↩ Deshacer</button></p>` : ''}
+    <p class="meta">Seleccioná el archivo: <b>.xls/.xlsx</b> (Banco Santander) o <b>.pdf</b> (Mercado Pago). El parseo es local; el archivo no se sube a ningún servidor.</p>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-      <input type="file" id="impFile" accept=".xls,.xlsx" style="flex:1;font-size:.82rem;">
+      <input type="file" id="impFile" accept=".xls,.xlsx,.pdf" style="flex:1;font-size:.82rem;">
     </div>
     <div id="impStatus" style="margin-top:8px;font-size:.8rem;color:var(--muted);min-height:1em;"></div>`;
-  const btnD2 = $('btnDeshacerLote2');
-  if (btnD2) btnD2.onclick = () => _deshacerUltimaImp(_impMedio);
+  const btnDS = $('btnDeshacerLote2S');
+  if (btnDS) btnDS.onclick = () => _deshacerUltimaImp('Banco Santander');
+  const btnDMP = $('btnDeshacerLote2MP');
+  if (btnDMP) btnDMP.onclick = () => _deshacerUltimaImp('Mercado Pago');
   const fileEl = $('impFile');
   fileEl.onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
     const st = $('impStatus');
-    st.textContent = 'Cargando SheetJS…';
-    let XLSX;
-    try { XLSX = await _cargarSheetJS(); }
-    catch (err) { st.textContent = `❌ ${err.message}`; return; }
-    st.textContent = 'Leyendo archivo…';
-    try {
-      const ab = await file.arrayBuffer();
-      const wb = XLSX.read(ab, { type: 'array' });
-      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('ultimos')) || wb.SheetNames[0];
-      if (!sheetName) throw new Error('No se encontró la hoja de movimientos.');
-      const ws = wb.Sheets[sheetName];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
-      const parsed = parseSantander(aoa);
-      // Build candidates
-      _impAgrupar = true; _impHistHasta = '';
-      _impCandidatos = parsed.map(f => {
-        const catInfo = _categorizarSant(f.desc, f.monto);
-        return { ...f, catInfo, refs: f.ref ? [f.ref] : [], yaExiste: false,
-          soloHistorial: false, paraRevisar: catInfo.paraRevisar,
-          _revisar_sel: catInfo.revisar_opciones ? catInfo.revisar_opciones[0][0] : null,
-          _recordar: false, _recordarTexto: f.concepto.slice(0, 40) };
-      });
-      _deduplicarImp(_impCandidatos, _impMedio);
-      _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
-      _deduplicarImp(_impCandidatos, _impMedio);
-      _impSaldoFinal = parsed[parsed.length-1].saldo;
-      _impFechaFinal = parsed[parsed.length-1].fecha;
-      _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
-      _renderImpPreview();
-    } catch (err) { $('impStatus').textContent = `❌ ${err.message}`; }
+    const isPDF = file.name.toLowerCase().endsWith('.pdf');
+    if (isPDF) {
+      st.textContent = 'Cargando pdf.js…';
+      let pdfjsLib;
+      try { pdfjsLib = await _cargarPDFJS(); }
+      catch (err) { st.textContent = `❌ ${err.message}`; fileEl.value = ''; return; }
+      st.textContent = 'Leyendo PDF…';
+      try {
+        const ab = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+        const lineas = await _extraerLineasPDF(pdf);
+        const fullText = lineas.map(l => l.text).join(' ');
+        if (!/RESUMEN DE CUENTA EN PESOS/i.test(fullText))
+          throw new Error('El PDF no es un resumen de Mercado Pago (no se encontró "RESUMEN DE CUENTA EN PESOS").');
+        const parsed = parseMercadoPago(lineas);
+        if (!parsed.length) throw new Error('No se encontraron movimientos en el PDF.');
+        _impMedio = 'Mercado Pago';
+        _impAgrupar = true; _impHistHasta = '';
+        _impCandidatos = parsed.map(f => {
+          const catInfo = _categorizarMP(f.desc, f.monto);
+          return { ...f, catInfo, refs: f.ref ? [f.ref] : [], yaExiste: false,
+            soloHistorial: false, paraRevisar: catInfo.paraRevisar,
+            _revisar_sel: catInfo.revisar_opciones ? catInfo.revisar_opciones[0][0] : null,
+            _recordar: false, _recordarTexto: f.concepto.slice(0, 40) };
+        });
+        _deduplicarImp(_impCandidatos, _impMedio);
+        _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
+        _deduplicarImp(_impCandidatos, _impMedio);
+        _impSaldoFinal = parsed[parsed.length-1].saldo;
+        _impFechaFinal = parsed[parsed.length-1].fecha;
+        _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
+        _renderImpPreview();
+      } catch (err) { st.textContent = `❌ ${err.message}`; }
+    } else {
+      st.textContent = 'Cargando SheetJS…';
+      let XLSX;
+      try { XLSX = await _cargarSheetJS(); }
+      catch (err) { st.textContent = `❌ ${err.message}`; fileEl.value = ''; return; }
+      st.textContent = 'Leyendo archivo…';
+      try {
+        const ab = await file.arrayBuffer();
+        const wb = XLSX.read(ab, { type: 'array' });
+        const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('ultimos')) || wb.SheetNames[0];
+        if (!sheetName) throw new Error('No se encontró la hoja de movimientos.');
+        const ws = wb.Sheets[sheetName];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+        const parsed = parseSantander(aoa);
+        _impMedio = 'Banco Santander';
+        _impAgrupar = true; _impHistHasta = '';
+        _impCandidatos = parsed.map(f => {
+          const catInfo = _categorizarSant(f.desc, f.monto);
+          return { ...f, catInfo, refs: f.ref ? [f.ref] : [], yaExiste: false,
+            soloHistorial: false, paraRevisar: catInfo.paraRevisar,
+            _revisar_sel: catInfo.revisar_opciones ? catInfo.revisar_opciones[0][0] : null,
+            _recordar: false, _recordarTexto: f.concepto.slice(0, 40) };
+        });
+        _deduplicarImp(_impCandidatos, _impMedio);
+        _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
+        _deduplicarImp(_impCandidatos, _impMedio);
+        _impSaldoFinal = parsed[parsed.length-1].saldo;
+        _impFechaFinal = parsed[parsed.length-1].fecha;
+        _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
+        _renderImpPreview();
+      } catch (err) { st.textContent = `❌ ${err.message}`; }
+    }
     fileEl.value = '';
   };
   $('impModal').hidden = false;
@@ -3263,6 +3472,8 @@ function abrirImportModal() {
 // Expose for Playwright tests
 window.parseSantander = parseSantander;
 window._categorizarSant = _categorizarSant;
+window.parseMercadoPago = parseMercadoPago;
+window._categorizarMP = _categorizarMP;
 window._deduplicarImp = _deduplicarImp;
 window._agruparRuidoImp = _agruparRuidoImp;
 window._verifSaldo = _verifSaldo;

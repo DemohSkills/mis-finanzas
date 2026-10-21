@@ -99,6 +99,16 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **Bug 3 — ruido de punto flotante en el ajuste:** el importe del ajuste (`sI.diff`) podía tener ruido (ej. 500000.0000000001). Se aplica `Math.round(x*100)/100` al mostrarlo en el botón y al crear el movimiento de ajuste.
   - 3 tests nuevos en `tests/importar-santander.spec.js`: (q) reimportar agrupado → 0 nuevos; (r) corte de historial → diff=0; (s) ajuste sin decimales de ruido. Suite completa: 188/188. Rama: trabajo-nocturno.
 
+- 21/10/2026: importador de Mercado Pago (PDF). El mismo botón/modal del importador ahora acepta `.xls/.xlsx` (Santander, como antes) y `.pdf` (Mercado Pago). Detección automática por extensión; el PDF debe contener "RESUMEN DE CUENTA EN PESOS". pdf.js 3.11.174 cargado de forma diferida desde cdnjs solo al elegir un PDF; todo el parseo es 100% local. Cambios en `index.html`:
+  - **`_cargarPDFJS` / `_extraerLineasPDF`**: loader diferido y extractor de texto (agrupa ítems por coordenada Y con tolerancia 2 pt) para obtener `lineas = [{y, text}]`.
+  - **`parseMercadoPago(lineas)`**: función pura que recibe lineas ya reconstruidas. Detecta cabecera (saldo inicial/final, período), ignora encabezados de tabla repetidos ("Fecha Descripción…"), números de página ("1/6") y la sección "RESUMEN DE TENENCIAS EN DÓLARES". Reconstruye descripción uniendo fragmentos arriba/abajo de la línea numérica (la que contiene fecha dd-mm-yyyy + ID 9-13 dígitos + valor + saldo); asignación por Y más cercana, desempate a favor de la línea justo debajo. Valida cadena de saldos (tolerancia 0.01) y saldo final. Expuesta en `window.parseMercadoPago`.
+  - **`_REGLAS_MP` / `_categorizarMP`**: tabla de categorías propia para MP (rendimientos agrupable, peajes agrupable, IIBB, cuotas MP, pago resumen → par Mastercard MP, transferencias propias/terceros, cashback/pago-drivers, servicios, QR, etc.). Expuesta en `window._categorizarMP`.
+  - **`_confirmarImpBanco`**: par de tarjeta generalizado (antes solo "Visa Santander", ahora usa `c.catInfo.transferPair` para cualquier medio — Santander y MP sin cambios de comportamiento).
+  - **`abrirImportModal`**: acepta `.pdf`, detecta banco por extensión, muestra estado de última importación de ambos bancos, botones "↩ Deshacer" para cada uno.
+  - **`_actualizarImpUltimaInfo`**: muestra Santander y/o Mercado Pago en una línea.
+  - `estado.importaciones['Mercado Pago']` guardado tras importar.
+  - 21 tests Playwright en `tests/importar-mp.spec.js` con fixtures sintéticos. Suite completa: 209/209. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.
