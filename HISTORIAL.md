@@ -14,6 +14,12 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 21/10/2026: botón "Cobré" en ítems activos del grupo "Cobros pendientes". Cambios en `index.html`:
+  - **Modal cobreModal:** campos bruto, neto, medio (MP/Banco/Efectivo), fecha y nota opcional. Muestra "Retención / descuento" en tiempo real cuando bruto > neto. Al guardar: crea movimiento de ingreso por el NETO (sin `transferencia:true`, cuenta en gráficos), resta el BRUTO del ítem (puede quedar en 0, no se borra), guarda en `item.historial` con `accion:'cobre', monto:bruto, neto, medio, gastoId`.
+  - **"↩ Deshacer último cobro":** revierte la última entrada `cobre` del historial, restaura el monto del ítem y borra el movimiento por `gastoId`.
+  - **renderLista / filaItem:** acepta callback `onCobre`; ítems del grupo "Cobros pendientes" (activos) reciben el botón. Historial muestra la etiqueta "Cobré" para `accion:'cobre'`. "Deshacer último" llama a `deshacerUltimoCobre` para ítems de ese grupo.
+  - **renderVinculos:** ítems standalone de "Cobros pendientes" con persona también muestran el botón e historial con deshacer.
+  - 7 tests nuevos en `tests/cobre.spec.js`. Suite completa: 230/230 ✓.
 - 21/10/2026: recordatorio "conciliado hasta" e importador mejorado. Cambios en `index.html`:
   - **Etiqueta en tarjetas (ítem 1):** las tarjetas de saldo de "Banco Santander" y "Mercado Pago" muestran "Conciliado con el banco hasta dd/mm" usando `estado.importaciones[medio].hasta`. Si no hay dato: "Sin conciliar". Si pasaron más de 7 días desde esa fecha, la etiqueta se muestra en naranja con "hace N días". No usa `span.amt` para respetar el modo ojo.
   - **Marcar a mano (ítem 2):** el modal del importador incluye un `<details>` "Marcar conciliado hasta (manual)" con campos fecha + botón por banco. Llama a `_marcarConciliadoHasta(medio, fecha)` que guarda `{hasta, lote: null, fecha: hoy()}`. `_deshacerUltimaImp` detecta `lote === null` y, en lugar de buscar movimientos, solo borra la marca (sin confundirse ni romper).

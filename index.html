@@ -495,6 +495,38 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   </div>
 </div>
 
+<!-- ══════════════════ COBRÉ MODAL ══════════════════ -->
+<div class="overlay" id="cobreModal" hidden>
+  <div class="wiz-box" style="max-width:380px;">
+    <h2 id="cobreModalTit" style="margin:0 0 14px;font-size:1rem;"></h2>
+    <div class="wiz-field">
+      <label>Cuenta donde entró</label>
+      <select id="cobreMedio"></select>
+    </div>
+    <div class="wiz-field">
+      <label>Monto bruto cobrado</label>
+      <input type="text" class="input-monto" inputmode="decimal" id="cobreBruto" placeholder="0">
+    </div>
+    <div class="wiz-field">
+      <label>Monto neto que entró a la cuenta</label>
+      <input type="text" class="input-monto" inputmode="decimal" id="cobreNeto" placeholder="0">
+    </div>
+    <div id="cobreRetencionRow" style="font-size:.82rem;color:var(--muted);padding:2px 0 6px;display:none;">Retención / descuento: <span id="cobreRetencionVal"></span></div>
+    <div class="wiz-field">
+      <label>Fecha</label>
+      <input type="date" id="cobreFecha">
+    </div>
+    <div class="wiz-field">
+      <label>Nota (opcional)</label>
+      <input type="text" id="cobreNota" maxlength="80" placeholder="Ej: retención de ingresos brutos">
+    </div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnGuardarCobre">Cobré</button>
+      <button type="button" onclick="cerrarCobreModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ TRANSFERENCIA MODAL ══════════════════ -->
 <div class="overlay" id="transModal" hidden>
   <div class="wiz-box" style="max-width:360px;">
@@ -1536,6 +1568,89 @@ function deshacerUltimoAjuste(itId) {
 }
 
 $('btnGuardarAjuste').onclick = guardarAjuste;
+
+// ── COBRÉ (Cobros pendientes) ─────────────────────────────
+let _cobreItemId = null;
+
+function abrirCobreModal(itId) {
+  const it = estado.items.find(x => x.id === itId); if (!it) return;
+  _cobreItemId = itId;
+  $('cobreModalTit').textContent = 'Cobré: ' + it.nombre;
+  const mediosCobro = ['Mercado Pago','Banco Santander','Efectivo'];
+  $('cobreMedio').innerHTML = mediosCobro.map(m => `<option>${esc(m)}</option>`).join('');
+  $('cobreBruto').value = fmtInput(it.monto);
+  $('cobreNeto').value = fmtInput(it.monto);
+  $('cobreRetencionRow').style.display = 'none';
+  $('cobreFecha').value = hoy();
+  $('cobreNota').value = '';
+  $('cobreModal').removeAttribute('hidden');
+  $('cobreBruto').focus();
+}
+
+function cerrarCobreModal() {
+  $('cobreModal').setAttribute('hidden', '');
+  _cobreItemId = null;
+}
+
+function _actualizarRetencion() {
+  const bruto = readMonto('cobreBruto');
+  const neto  = readMonto('cobreNeto');
+  if (isNaN(bruto) || isNaN(neto)) { $('cobreRetencionRow').style.display='none'; return; }
+  const ret = Math.round((bruto - neto) * 100) / 100;
+  if (ret > 0) {
+    $('cobreRetencionVal').innerHTML = fmtV(ret);
+    $('cobreRetencionRow').style.display = '';
+  } else {
+    $('cobreRetencionRow').style.display = 'none';
+  }
+}
+
+$('cobreBruto').addEventListener('input', () => {
+  const b = readMonto('cobreBruto');
+  if (!isNaN(b)) { $('cobreNeto').value = fmtInput(b); }
+  _actualizarRetencion();
+});
+$('cobreNeto').addEventListener('input', _actualizarRetencion);
+
+function guardarCobre() {
+  const it = estado.items.find(x => x.id === _cobreItemId); if (!it) return;
+  const bruto = Math.round(readMonto('cobreBruto') * 100) / 100;
+  const neto  = Math.round(readMonto('cobreNeto')  * 100) / 100;
+  if (!(bruto > 0)) return alert('Ingresá un monto bruto mayor a 0');
+  if (!(neto  > 0)) return alert('Ingresá un monto neto mayor a 0');
+  if (neto > bruto) return alert('El neto no puede ser mayor que el bruto');
+  const medio = $('cobreMedio').value;
+  const fecha = $('cobreFecha').value;
+  const nota  = $('cobreNota').value.trim();
+  const ret   = Math.round((bruto - neto) * 100) / 100;
+  let desc = 'Cobro: ' + it.nombre;
+  if (ret > 0) desc += ` (bruto $${fmt(bruto)}, retención $${fmt(ret)})`;
+  const gastoId = nuevoId();
+  estado.gastos.push({ id:gastoId, creado:Date.now(), monto:neto, fecha, categoria:'Sueldo/Honorarios', medio, descripcion:nota||desc, tipo:'ingreso', soloHistorial:false });
+  it.monto = Math.max(0, Math.round((it.monto - bruto) * 100) / 100);
+  if (!it.historial) it.historial = [];
+  it.historial.push({ id:nuevoId(), fecha, accion:'cobre', monto:bruto, neto, medio, gastoId });
+  cerrarCobreModal();
+  guardar(); guardarSnap();
+  renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+  renderVinculos(); renderResumen(); renderHistorial();
+}
+
+function deshacerUltimoCobre(itId) {
+  const it = estado.items.find(x => x.id === itId); if (!it || !it.historial?.length) return;
+  const entrada = it.historial[it.historial.length - 1];
+  if (entrada.accion !== 'cobre') return alert('El último movimiento no es un cobro');
+  if (!confirm('¿Deshacer el último cobro de ' + it.nombre + '?')) return;
+  estado.gastos = estado.gastos.filter(x => x.id !== entrada.gastoId);
+  it.monto = Math.round((it.monto + entrada.monto) * 100) / 100;
+  it.historial.pop();
+  guardar(); guardarSnap();
+  renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+  renderVinculos(); renderResumen(); renderHistorial();
+}
+
+$('btnGuardarCobre').onclick = guardarCobre;
+
 // ── FIN COMPROMISOS ──────────────────────────────────────
 
 function saldoDe(medio) {
@@ -1944,13 +2059,15 @@ function renderLista(contId, tipo) {
     det.appendChild(smr);
     for(const it of items){
       const esPrestamo=g==='Préstamos con personas'&&!!it.persona;
-      det.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null));
-      if(esPrestamo&&it.historial?.length){
+      const esCobro=g==='Cobros pendientes';
+      det.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null,esCobro?()=>abrirCobreModal(it.id):null));
+      if((esPrestamo||esCobro)&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const hdet=document.createElement('details');
         hdet.style='margin-left:8px;font-size:.8rem;';
-        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
-        hdet.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
+        const etiqH={...etiqAjuste,cobre:'Cobré'};
+        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        hdet.querySelector('.danger').onclick=()=>esCobro?deshacerUltimoCobre(it.id):deshacerUltimoAjuste(it.id);
         det.appendChild(hdet);
       }
     }
@@ -1963,11 +2080,14 @@ function renderLista(contId, tipo) {
   cont.insertAdjacentHTML('beforeend',`<div class="subtotal"><span>Total ${tipo==='activo'?'activos':'deudas'}</span><span class="num ${tipo==='activo'?'pos':'neg'}">${fmtV(total)}</span></div>`);
 }
 
-function filaItem(nombre,monto,persona,onEdit,editando,onAjustar){
+function filaItem(nombre,monto,persona,onEdit,editando,onAjustar,onCobre){
   const div=document.createElement('div'); div.className='item'+(editando?' editando':'');
-  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}`;
+  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}`;
   div.querySelector('.edit').onclick=onEdit;
-  if(onAjustar) div.querySelectorAll('button')[1].onclick=onAjustar;
+  const extraBtns=div.querySelectorAll('button.mini');
+  let idx=0;
+  if(onAjustar) extraBtns[idx++].onclick=onAjustar;
+  if(onCobre) extraBtns[idx++].onclick=onCobre;
   return div;
 }
 
@@ -2046,6 +2166,7 @@ function renderVinculos(){
     initDetDyn(card,sk,true);
     cont.appendChild(card);
   }
+  const etiqH={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',cobre:'Cobré'};
   for(const it of standalone){
     const neto=it.tipo==='activo'?it.monto:-it.monto;
     const txt=neto>0?`Te debe ${fmtV(neto)}`:neto<0?`Le debés ${fmtV(-neto)}`:'Sin saldo pendiente';
@@ -2053,6 +2174,21 @@ function renderVinculos(){
     const smr=document.createElement('summary');
     smr.innerHTML=`<span class="nombre">${esc(it.nombre)}<span class="sub-label">${esc(it.persona)}</span></span><span class="estado num ${neto>0?'pos':neto<0?'neg':'meta'}">${txt}</span><span class="det-arrow">▶</span>`;
     card.appendChild(smr);
+    const esCobro=it.grupo==='Cobros pendientes'&&it.tipo==='activo';
+    if(esCobro){
+      const bCobre=document.createElement('button');
+      bCobre.type='button'; bCobre.className='mini'; bCobre.style='font-size:.75rem;padding:3px 8px;margin:6px 0 2px 0;';
+      bCobre.textContent='Cobré'; bCobre.onclick=()=>abrirCobreModal(it.id);
+      card.appendChild(bCobre);
+      if(it.historial?.length){
+        const ultimos=[...it.historial].reverse().slice(0,5);
+        const hdet=document.createElement('details');
+        hdet.style='margin-left:8px;font-size:.8rem;';
+        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        hdet.querySelector('.danger').onclick=()=>deshacerUltimoCobre(it.id);
+        card.appendChild(hdet);
+      }
+    }
     const sk='vinc-sa-'+it.id.replace(/[^a-z0-9]/gi,'-').toLowerCase();
     initDetDyn(card,sk,true);
     cont.appendChild(card);
