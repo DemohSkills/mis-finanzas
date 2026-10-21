@@ -3006,34 +3006,32 @@ function cerrarInforme(){
 }
 
 // Build stable name map: sorted unique names → "Persona 1", "Persona 2", …
+const _NM_ACC={'a':'[aáàâä]','á':'[aáàâä]','à':'[aáàâä]','â':'[aáàâä]','ä':'[aáàâä]','e':'[eéèêë]','é':'[eéèêë]','è':'[eéèêë]','ê':'[eéèêë]','ë':'[eéèêë]','i':'[iíìîï]','í':'[iíìîï]','ì':'[iíìîï]','î':'[iíìîï]','ï':'[iíìîï]','o':'[oóòôö]','ó':'[oóòôö]','ò':'[oóòôö]','ô':'[oóòôö]','ö':'[oóòôö]','u':'[uúùûü]','ú':'[uúùûü]','ù':'[uúùûü]','û':'[uúùûü]','ü':'[uúùûü]','n':'[nñ]','ñ':'[nñ]'};
+const _NM_LB='(?<![a-zA-ZáéíóúüñàèìòùâêîôûäëïöüÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜ])';
+const _NM_LA='(?![a-zA-ZáéíóúüñàèìòùâêîôûäëïöüÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜ])';
 function _buildNameMap(ocultarNombres, otrosNombres){
   if(!ocultarNombres) return null;
   const set=new Set();
-  // Names from items (persona field and nombres with persona)
   for(const it of (estado.items||[])){
     if(it.persona) set.add(it.persona.trim());
-    // Also collect item names that appear as personas (for "Cobros pendientes" etc.)
-    if(it.nombre) set.add(it.nombre.trim());
   }
-  // Extra names from text field
   if(otrosNombres){
     for(const n of otrosNombres.split(',')) {
       const t=n.trim(); if(t) set.add(t);
     }
   }
-  // Build sorted map
   const sorted=[...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
   const map={}; sorted.forEach((n,i)=>{ map[n.toLowerCase()]=`Persona ${i+1}`; });
   return map;
 }
 
-function _applyNameMap(text, map){
+function _applyNameMap(text,map){
   if(!map||!text) return text||'';
   let result=String(text);
-  // Sort by length desc to avoid partial replacement issues
   const keys=Object.keys(map).sort((a,b)=>b.length-a.length);
   for(const k of keys){
-    const re=new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+    const pat=[...k].map(ch=>{const c=ch.toLowerCase();return _NM_ACC[c]||ch.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('');
+    const re=new RegExp(_NM_LB+pat+_NM_LA,'gi');
     result=result.replace(re,map[k]);
   }
   return result;
@@ -3167,7 +3165,9 @@ function buildInformeHTML(opts){
     if(c.tipo==='fijo') continue; // handled below
     const venc=c.proxVenc;
     if(!venc||venc<=d30Str){
-      vieneRows.push(`<tr><td>${esc(c.entidad||c.nombre||'')} ${c.tipo==='resumen'?'(resumen)':'(cuota)'}</td><td class="r">${fmt(c.monto)}</td></tr>`);
+      const monto=c.tipo==='resumen'?Math.max(0,c.monto-_sumaPagadoCiclo(c)):c.monto;
+      if(c.tipo==='resumen'&&monto===0) continue;
+      vieneRows.push(`<tr><td>${esc(c.entidad||c.nombre||'')} ${c.tipo==='resumen'?'(resumen)':'(cuota)'}</td><td class="r">${fmt(monto)}</td></tr>`);
     }
   }
   // Fijos activos del mes actual

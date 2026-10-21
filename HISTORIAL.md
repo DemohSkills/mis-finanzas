@@ -162,6 +162,11 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - `aplicarOjoGraficos()`: itera `_ci` y setea `scale.ticks.display = false/true` en cada eje de cada chart activo, luego llama `chart.update('none')`.
   - El toggle del botón `#btnOjo` llama a `aplicarOjoGraficos()` después de cambiar la clase `ocultar`.
   - 2 tests nuevos en `tests/ojo-graficos.spec.js`. Suite completa: 289/289 ✓. Rama: trabajo-nocturno.
+- 21/10/2026: dos correcciones en el informe (#informeView). Cambios en `index.html`:
+  - **`_buildNameMap`**: ya no agrega `it.nombre` al mapa; solo usa `it.persona` (más "Otros nombres"). Evita que nombres de ítems como "Crédito Santander 1" o "Delux sueldo" sean reemplazados accidentalmente.
+  - **`_applyNameMap`**: reemplaza con límites de palabra (lookbehind/lookahead negativo para letras incluyendo acentuadas), insensible a mayúsculas y tildes. Constantes `_NM_ACC`, `_NM_LB`, `_NM_LA` definidas fuera de la función para reutilización.
+  - **"Lo que viene"**: compromisos `tipo='resumen'` muestran `Math.max(0, c.monto - _sumaPagadoCiclo(c))` en lugar de `c.monto`; si el resto es 0, la fila se omite.
+  - 3 tests nuevos en `tests/informe.spec.js` (q, r, s). Suite completa: 292/292 ✓. Rama: trabajo-nocturno.
 
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.

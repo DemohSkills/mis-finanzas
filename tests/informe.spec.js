@@ -325,3 +325,102 @@ test('(p) compatibilidad con backups sin campos nuevos', async ({ page }) => {
   expect(result).not.toContain('ERROR');
   expect(result).toContain('Informe financiero');
 });
+
+test('(q) ocultar nombres: ítem sin campo persona no se oculta; ítem con persona sí', async ({ page }) => {
+  await loadWithState(page, buildEstado([], [
+    { id: 'i1', nombre: 'Crédito Santander 1', tipo: 'deuda', monto: 5000, grupo: 'Deudas bancarias' },
+    { id: 'i2', nombre: 'Delux sueldo',        tipo: 'activo', monto: 2000, grupo: 'Cobros pendientes' },
+    { id: 'i3', nombre: 'Boris García', tipo: 'activo', monto: 10000, grupo: 'Préstamos con personas', persona: 'Boris García' },
+  ]));
+
+  const result = await page.evaluate(() => {
+    const map = window._buildNameMap(true, '');
+    const rCredito = window._applyNameMap('Crédito Santander 1', map);
+    const rDelux   = window._applyNameMap('Delux sueldo', map);
+    const rBoris   = window._applyNameMap('Boris García', map);
+    return { rCredito, rDelux, rBoris, mapKeys: Object.keys(map) };
+  });
+
+  // Items without persona field should NOT be in the map → not replaced
+  expect(result.rCredito).toBe('Crédito Santander 1');
+  expect(result.rDelux).toBe('Delux sueldo');
+  expect(result.mapKeys).not.toContain('crédito santander 1');
+  expect(result.mapKeys).not.toContain('delux sueldo');
+  // Item with persona field SHOULD be replaced
+  expect(result.rBoris).toMatch(/^Persona \d+$/);
+  expect(result.mapKeys).toContain('boris garcía');
+});
+
+test('(r) ocultar nombres: respeta límites de palabra (no reemplaza subcadenas)', async ({ page }) => {
+  await loadWithState(page, buildEstado([], [
+    { id: 'i1', nombre: 'Vero', tipo: 'activo', monto: 1000, grupo: 'Cobros pendientes', persona: 'Vero' },
+  ]));
+
+  const result = await page.evaluate(() => {
+    const map = window._buildNameMap(true, '');
+    return {
+      standalone: window._applyNameMap('Pagó Vero ayer', map),
+      inside:     window._applyNameMap('Cobro en Verona', map),
+      accented:   window._applyNameMap('Pagó VERO hoy', map),
+    };
+  });
+
+  // "Vero" as standalone word should be replaced (case-insensitive)
+  expect(result.standalone).not.toContain('Vero');
+  expect(result.standalone).toMatch(/Persona \d+/);
+  expect(result.accented).not.toContain('VERO');
+  expect(result.accented).toMatch(/Persona \d+/);
+  // "Vero" inside "Verona" should NOT be replaced
+  expect(result.inside).toContain('Verona');
+  expect(result.inside).not.toMatch(/Persona \d+/);
+});
+
+test('(s) lo que viene: resumen Visa muestra resto tras pago parcial; oculta si resto=0', async ({ page }) => {
+  const hoy   = isoDate(0);
+  const en10  = isoDate(10);
+  const ayer  = isoDate(-1);
+
+  const estadoTest = {
+    iniciales: { 'Visa Santander': -10000 },
+    gastos: [
+      { id: 'g1', tipo: 'ingreso', fecha: hoy, monto: 3000,
+        medio: 'Visa Santander', categoria: 'Pago de créditos',
+        descripcion: 'pago parcial', transferencia: false },
+    ],
+    items: [],
+    patrimonioCargado: true,
+    compromisos: [
+      { id: 'c1', nombre: 'Visa Oct', entidad: 'Visa Santander', tipo: 'resumen',
+        monto: 10000, pendientes: 1, proxVenc: en10, cierre: ayer },
+    ],
+    importaciones: {},
+  };
+
+  await loadWithState(page, estadoTest);
+
+  const result = await page.evaluate(({ desde, hasta }) => {
+    return window.buildInformeHTML({ desde, hasta, detalle: 'ninguno', inclTransf: false, ocultarNombres: false, otrosNombres: '' });
+  }, { desde: hoy, hasta: hoy });
+
+  // Resto = 10000 - 3000 = 7000
+  const loQueViene = result.match(/Lo que viene[\s\S]*?<\/table>/)?.[0] ?? '';
+  expect(loQueViene).toContain('7.000');
+  expect(loQueViene).not.toContain('10.000');
+
+  // Si el pago cubre el total, no debe aparecer en "Lo que viene"
+  const estadoPago = {
+    ...estadoTest,
+    gastos: [
+      { id: 'g2', tipo: 'ingreso', fecha: hoy, monto: 10000,
+        medio: 'Visa Santander', categoria: 'Pago de créditos',
+        descripcion: 'pago total', transferencia: false },
+    ],
+  };
+  await loadWithState(page, estadoPago);
+  const result2 = await page.evaluate(({ desde, hasta }) => {
+    return window.buildInformeHTML({ desde, hasta, detalle: 'ninguno', inclTransf: false, ocultarNombres: false, otrosNombres: '' });
+  }, { desde: hoy, hasta: hoy });
+
+  const loQueViene2 = result2.match(/Lo que viene[\s\S]*?(<\/table>|Sin compromisos)/)?.[0] ?? result2;
+  expect(loQueViene2).not.toContain('(resumen)');
+});
