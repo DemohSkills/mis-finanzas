@@ -14,6 +14,15 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 21/10/2026: nuevo tipo de compromiso "fijo" (gastos fijos mensuales que se renuevan solos). Cambios en `index.html`:
+  - **Modelo:** `estado.compromisos` acepta ítems con `tipo:'fijo'` y campos `nombre, categoria, monto, estimado, diaMes, medioPago, palabrasClave, activo, pagos{YYYY-MM:{fecha,monto,gastoId}}`. Los fijos NO crean ítems de patrimonio ni afectan `totales()`.
+  - **Visualización:** `renderCompromisos` filtra cuotas y fijos por separado. Fijos activos se muestran para el mes actual y los 2 siguientes (filas derivadas de `diaMes`, sin registros por mes). Estado por fila: estimado, Pagado, Vencido hace N días. Subtotal de grupos con ambos tipos muestra "Cuotas $X · Fijos $Y · Total".
+  - **`fijoFechaEnMes(diaMes, mesStr)`:** devuelve YYYY-MM-DD clampando al último día del mes (ej. dia 31 en febrero → día 28/29).
+  - **Modal `#fijoModal` (CRUD):** campos nombre (solo en alta), categoría, monto, diaMes, medio de pago. Botones Editar / Pausar (activo toggle) / Borrar en cada fila.
+  - **Modal `#fijoPagoModal` ("Pagué"):** monto real, cuenta, fecha, nota, checkbox "Actualizar estimado". Crea UN gasto (tipo:'gasto', sin transferencia:true) en la cuenta y guarda `pagos[YYYY-MM]` con `gastoId`. Para medioPago con "visa"/"tarjeta": botón "Marcar como pagado (sin movimiento)" que guarda `gastoId:null` sin crear gasto.
+  - **Deshacer:** borra el gasto por `gastoId` (si existe) y elimina `pagos[YYYY-MM]`.
+  - **Compatibilidad:** backups sin fijos cargan sin errores (`compromisos||=[]`); fijos se preservan en el backup existente.
+  - 29 tests nuevos en `tests/fijos.spec.js`. Suite completa: 259/259 ✓.
 - 21/10/2026: botón "Cobré" en ítems activos del grupo "Cobros pendientes". Cambios en `index.html`:
   - **Modal cobreModal:** campos bruto, neto, medio (MP/Banco/Efectivo), fecha y nota opcional. Muestra "Retención / descuento" en tiempo real cuando bruto > neto. Al guardar: crea movimiento de ingreso por el NETO (sin `transferencia:true`, cuenta en gráficos), resta el BRUTO del ítem (puede quedar en 0, no se borra), guarda en `item.historial` con `accion:'cobre', monto:bruto, neto, medio, gastoId`.
   - **"↩ Deshacer último cobro":** revierte la última entrada `cobre` del historial, restaura el monto del ítem y borra el movimiento por `gastoId`.
