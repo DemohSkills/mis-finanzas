@@ -167,6 +167,17 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **`_applyNameMap`**: reemplaza con límites de palabra (lookbehind/lookahead negativo para letras incluyendo acentuadas), insensible a mayúsculas y tildes. Constantes `_NM_ACC`, `_NM_LB`, `_NM_LA` definidas fuera de la función para reutilización.
   - **"Lo que viene"**: compromisos `tipo='resumen'` muestran `Math.max(0, c.monto - _sumaPagadoCiclo(c))` en lugar de `c.monto`; si el resto es 0, la fila se omite.
   - 3 tests nuevos en `tests/informe.spec.js` (q, r, s). Suite completa: 292/292 ✓. Rama: trabajo-nocturno.
+- 21/10/2026: palabras clave en el gasto fijo (Parte A). Cambios en `index.html`:
+  - **Campo `palabrasClave`:** nuevo input de texto en `#fijoModal` (separadas por coma). Guardado en el objeto fijo al crear y al editar; leído al abrir el modal.
+  - **`_fijoCoincide(fijo, descripcion)`:** función pura. Normaliza tildes y mayúsculas (NFD). Ignora palabras clave de menos de 4 caracteres. Devuelve true si alguna keyword está contenida en la descripción normalizada.
+  - Sin cambios en lógica de pagos ni en el importador. Sin tests nuevos en esta parte. Rama: trabajo-nocturno.
+- 21/10/2026: integración de palabras clave con los importadores (Parte B). Cambios en `index.html`:
+  - **`_renderImpPreview`:** calcula `c._fijoMatch` para cada candidato no agrupado de tipo gasto que aún no tenga el fijo marcado en ese mes; muestra badge verde `✓ Fijo: nombre` junto a la fecha y categoría.
+  - **`_confirmarImpBanco`:** al crear cada gasto, busca un fijo activo cuyo mes corresponda, sin pago previo en ese mes, que coincida con `_fijoCoincide`; marca `f.pagos[mes]` con `{fecha, monto, gastoId, lote}`. Solo el primer movimiento marca el fijo.
+  - **`_deshacerUltimaImp`:** al deshacer, elimina de `f.pagos` todas las entradas cuyo `lote` sea el del lote deshecho.
+  - **Reimport sin duplicar:** la deduplicación existente (`yaExiste`) previene crear el gasto dos veces; el check `if(f.pagos[mes]) continue` en confirmar previene sobreescribir el pago.
+  - **Expuesto para tests:** `_fijoCoincide`, `_confirmarImpBanco`, `_deshacerUltimaImp`, `_setImpState`.
+  - 12 tests nuevos en `tests/fijos-importador.spec.js`. Suite completa: 304/304 ✓. Rama: trabajo-nocturno.
 
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
