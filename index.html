@@ -921,12 +921,9 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 
   <!-- ── EVOLUCIÓN ── -->
   <div class="vista" id="vista-evolucion" hidden>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <div class="ev-notice" style="flex:1;margin-bottom:0">
-        <span>ℹ️</span>
-        <span>Los gráficos usan snapshots guardados automáticamente al abrir la app. <strong>Clic en las leyendas para mostrar/ocultar series.</strong></span>
-      </div>
-      <button type="button" class="mini btn-pleg-all" id="btnPlegEvol" style="flex-shrink:0;align-self:flex-start">Plegar todo</button>
+    <div id="varTable" style="margin-bottom:14px"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+      <button type="button" class="mini btn-pleg-all" id="btnPlegEvol" style="flex-shrink:0">Plegar todo</button>
     </div>
     <details class="ev-card" id="det-ev-cP" open>
       <summary class="ev-hd"><div><h2>Patrimonio neto</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge neu" id="evBadgeP">—</span></summary>
@@ -3568,6 +3565,35 @@ function initCfgD(){
 }
 function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;return Object.entries(m).sort(([a],[b])=>a.localeCompare(b)).slice(-12).map(([mes,s])=>({mes,...s}));}
 
+function renderVarTable(){
+  const el=document.getElementById('varTable');if(!el)return;
+  const t=totales();
+  const snaps=cargarSnaps().slice().sort((a,b)=>a.d.localeCompare(b.d));
+  const hoyStr=hoy();
+  function snapAntes(dias){
+    const ref=new Date();ref.setDate(ref.getDate()-dias);
+    const refStr=ref.toLocaleDateString('sv');
+    const cands=snaps.filter(s=>s.d<=refStr&&s.d<hoyStr);
+    return cands.length?cands[cands.length-1]:null;
+  }
+  const s1=snapAntes(1),s7=snapAntes(7),s30=snapAntes(30);
+  function cell(currVal,snap,field,isDeuda){
+    if(!snap||snap[field]==null)return'<td class="vt-cell">—</td>';
+    const prev=snap[field];const diff=currVal-prev;
+    const isPos=isDeuda?diff<=0:diff>=0;
+    const cls=isPos?'pos':'neg';
+    const absDiff=Math.abs(diff);
+    const pct=prev!==0?(diff/Math.abs(prev))*100:0;
+    const sign=diff>=0?'+':'-';
+    return`<td class="vt-cell ${cls}"><span class="amt">${sign}${fmt(absDiff)}</span> <span class="vt-pct">(${pct>=0?'+':''}${pct.toFixed(1)}%)</span></td>`;
+  }
+  function row(label,currVal,field,isDeuda=false){
+    return`<tr><th class="vt-lbl">${label}</th><td class="vt-cell vt-hoy">${fmtV(currVal)}</td>${cell(currVal,s1,field,isDeuda)}${cell(currVal,s7,field,isDeuda)}${cell(currVal,s30,field,isDeuda)}</tr>`;
+  }
+  el.innerHTML=`<table class="vt-tabla"><thead><tr><th></th><th>Hoy</th><th>Var. 1 día</th><th>Var. 7 días</th><th>Var. 30 días</th></tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table>`;
+}
+window.renderVarTable=renderVarTable;
+
 function rChartP(){
   const raw=cargarSnaps().sort((a,b)=>a.d.localeCompare(b.d));const t=totales();const hoyStr=hoy();
   const data=!raw.length?[{d:hoyStr,n:t.neto}]:raw[raw.length-1].d===hoyStr?raw:[...raw,{d:hoyStr,n:t.neto}];
@@ -3703,6 +3729,7 @@ function rChartF(){
 
 let _evolReady=false,_evolDetInited=false;
 function iniciarEvolucion(){
+  renderVarTable();
   withChartJs(()=>{
     rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;
     if(!_evolDetInited){
