@@ -168,12 +168,16 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .ev-fin-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
 .ev-fin-grid .bcard{min-width:90px;}
 /* Variation table (Evolución) */
-.vt-tabla{width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:14px;}
-.vt-tabla th,.vt-tabla td{padding:4px 8px;border:1px solid var(--border);}
-.vt-lbl{text-align:left;color:var(--muted);white-space:nowrap;font-weight:normal;}
-.vt-cell{text-align:right;white-space:nowrap;}
-.vt-hoy .amt{font-weight:600;}
-.vt-pct{font-size:.75rem;}
+.vt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
+.vt-tabla{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed;}
+.vt-tabla thead th:first-child,.vt-tabla tbody th{width:28%;}
+.vt-tabla th,.vt-tabla td{padding:3px 4px;border:1px solid var(--border);}
+.vt-lbl{text-align:left;color:var(--muted);font-weight:normal;font-size:.72rem;}
+.vt-cell{text-align:right;vertical-align:top;}
+.vt-monto{font-weight:600;}
+.vt-pct{display:block;font-weight:600;}
+.vt-sub{display:block;font-size:.69rem;color:var(--muted);}
+body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 /* Hint text al pie de Evolución */
 .ev-nota{font-size:.72rem;color:var(--muted);opacity:.7;margin:2px 0 10px;text-align:center;line-height:1.5;}
 /* ── PIN overlay ───────────────────────────────────────────── */
@@ -3585,13 +3589,15 @@ function renderVarTable(){
     const cls=isPos?'pos':'neg';
     const absDiff=Math.abs(diff);
     const pct=prev!==0?(diff/Math.abs(prev))*100:0;
-    const sign=diff>=0?'+':'-';
-    return`<td class="vt-cell ${cls}"><span class="amt">${sign}${fmt(absDiff)}</span> <span class="vt-pct">(${pct>=0?'+':''}${pct.toFixed(1)}%)</span></td>`;
+    const sign=diff>=0?'+':'−';
+    const pctStr=(pct>=0?'+':'−')+Math.abs(pct).toFixed(1)+'%';
+    return`<td class="vt-cell ${cls}"><span class="vt-pct">${pctStr}</span><span class="vt-sub">${sign}$${fmtM(absDiff)}</span></td>`;
   }
   function row(label,currVal,field,isDeuda=false){
-    return`<tr><th class="vt-lbl">${label}</th><td class="vt-cell vt-hoy">${fmtV(currVal)}</td>${cell(currVal,s1,field,isDeuda)}${cell(currVal,s7,field,isDeuda)}${cell(currVal,s30,field,isDeuda)}</tr>`;
+    const sAbbr=(currVal<0?'−':'')+'$'+fmtM(Math.abs(currVal));
+    return`<tr><th class="vt-lbl">${label}</th><td class="vt-cell vt-hoy"><span class="vt-monto">${sAbbr}</span></td>${cell(currVal,s1,field,isDeuda)}${cell(currVal,s7,field,isDeuda)}${cell(currVal,s30,field,isDeuda)}</tr>`;
   }
-  el.innerHTML=`<table class="vt-tabla"><thead><tr><th></th><th>Hoy</th><th>Var. 1 día</th><th>Var. 7 días</th><th>Var. 30 días</th></tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table>`;
+  el.innerHTML=`<div class="vt-wrap"><table class="vt-tabla"><thead><tr><th></th><th>Hoy</th><th>Var. 1d</th><th>Var. 7d</th><th>Var. 30d</th></tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table></div>`;
 }
 window.renderVarTable=renderVarTable;
 
