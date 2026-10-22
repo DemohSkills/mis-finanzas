@@ -19,7 +19,7 @@ async function seedAndUnlock(page, estado) {
 }
 
 test.describe('1a: Orden de solapas', () => {
-  test('⚙️ es la última solapa, Compromisos la penúltima', async ({ page }) => {
+  test('⚙️ es la última solapa, Evolución la penúltima', async ({ page }) => {
     await seedAndUnlock(page, baseState);
     const btns = await page.locator('nav.tabs button[role="tab"]').all();
     const n = btns.length;
@@ -27,7 +27,7 @@ test.describe('1a: Orden de solapas', () => {
     const lastText = await btns[n - 1].textContent();
     const prevText = await btns[n - 2].textContent();
     expect(lastText.trim()).toBe('⚙️');
-    expect(prevText.trim()).toContain('A pagar');
+    expect(prevText.trim()).toContain('Evolución');
   });
 
   test('navegar a ⚙️ config funciona', async ({ page }) => {
