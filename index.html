@@ -167,6 +167,15 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .ev-sub{font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:8px;}
 .ev-fin-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
 .ev-fin-grid .bcard{min-width:90px;}
+/* Variation table (Evolución) */
+.vt-tabla{width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:14px;}
+.vt-tabla th,.vt-tabla td{padding:4px 8px;border:1px solid var(--border);}
+.vt-lbl{text-align:left;color:var(--muted);white-space:nowrap;font-weight:normal;}
+.vt-cell{text-align:right;white-space:nowrap;}
+.vt-hoy .amt{font-weight:600;}
+.vt-pct{font-size:.75rem;}
+/* Hint text al pie de Evolución */
+.ev-nota{font-size:.72rem;color:var(--muted);opacity:.7;margin:2px 0 10px;text-align:center;line-height:1.5;}
 /* ── PIN overlay ───────────────────────────────────────────── */
 .overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;}
 .overlay[hidden]{display:none;}
@@ -3572,7 +3581,20 @@ function rChartB(){
   const raw=cargarSnaps();const t=totales();const hoyStr=hoy();
   const full=!raw.length?[{d:hoyStr,a:t.activos,dv:t.deudas,n:t.neto,dd:{}}]:raw[raw.length-1].d===hoyStr?raw:[...raw,{d:hoyStr,a:t.activos,dv:t.deudas,n:t.neto,dd:{}}];
   const data=snapPorMes(full);
-  mkChart('cB',{type:'bar',data:{labels:data.map(s=>mesNom(s.mes)),datasets:[{label:'Activos',data:data.map(s=>s.a),backgroundColor:'rgba(74,222,128,.75)',borderRadius:3,barPercentage:.75},{label:'Deudas',data:data.map(s=>s.dv),backgroundColor:'rgba(248,113,113,.75)',borderRadius:3,barPercentage:.75}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cB'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))}}); applyChartVis('cB');
+  const barLabPlg={id:'barLabelsCB',afterDatasetsDraw(chart){
+    if(document.body.classList.contains('ocultar'))return;
+    const{ctx}=chart;ctx.save();
+    ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.font='bold 10px system-ui,-apple-system,sans-serif';
+    ctx.fillStyle=CV('--text');
+    chart.data.datasets.forEach((ds,dsIdx)=>{
+      const meta=chart.getDatasetMeta(dsIdx);if(meta.hidden)return;
+      meta.data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;
+        ctx.fillText('$'+fmtM(v).replace('.',','),bar.x,bar.y-2);});
+    });
+    ctx.restore();
+  }};
+  mkChart('cB',{type:'bar',data:{labels:data.map(s=>mesNom(s.mes)),datasets:[{label:'Activos',data:data.map(s=>s.a),backgroundColor:'rgba(74,222,128,.75)',borderRadius:3,barPercentage:.75},{label:'Deudas',data:data.map(s=>s.dv),backgroundColor:'rgba(248,113,113,.75)',borderRadius:3,barPercentage:.75}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cB'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))},plugins:[barLabPlg]}); applyChartVis('cB');
 }
 
 function rChartG(){
@@ -4737,7 +4759,7 @@ function initDetDyn(el,sfx,defOpen){
     });
   }
   const btnO=document.getElementById('btnOjo');
-  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();aplicarOjoGraficos();if(typeof _evolReady!=='undefined'&&_evolReady)rChartD();};
+  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();aplicarOjoGraficos();if(typeof _evolReady!=='undefined'&&_evolReady){rChartD();rChartB();}renderVarTable();};
   aplicarOjo();
 })();
 
