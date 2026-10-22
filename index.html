@@ -4269,7 +4269,8 @@ function parseVisaXlsx(filas) {
       const comprobante = cell(row, 3);
       const pesos = parsePesos(cell(row, 4));
       const usd = parseUSD(cell(row, 5));
-      const fecha = cuota && cuota.n > 1 ? cierre : parseDate(lastFecha);
+      const esPlanConsolid = /plan\s+v\s+consolid/i.test(desc);
+      const fecha = (cuota && cuota.n > 1) || esPlanConsolid ? cierre : parseDate(lastFecha);
       movs.push({ fecha, desc, cuota, comprobante, pesos, usd });
     }
     tarjetas.push({ numero: sec.numero, nombre: sec.nombre, tipo: sec.tipo, totalPesos: secTotalPesos, totalUSD: secTotalUSD, movs });
@@ -4832,15 +4833,20 @@ function _renderVisaPreview(data) {
         ${vP}${tarjeta.totalUSD > 0 ? ' &nbsp;·&nbsp; ' + vU : ''}
         <span style="color:var(--muted);margin-left:8px;">Total: ${fmt(tarjeta.totalPesos)}${tarjeta.totalUSD > 0 ? ' · ' + fmtUSD(tarjeta.totalUSD) : ''}</span>
       </div>`;
-    for (const mov of tarjeta.movs) {
-      const catInfo = _categorizarVisa(mov.desc, mov.pesos || mov.usd);
+    for (let mi = 0; mi < tarjeta.movs.length; mi++) {
+      const mov = tarjeta.movs[mi];
+      const esUsd = mov.usd > 0 && !mov.pesos;
+      const catInfo = esUsd ? { cat: 'En dólares', paraRevisar: false } : _categorizarVisa(mov.desc, mov.pesos || mov.usd);
       const cuotaLabel = mov.cuota ? `cuota ${mov.cuota.n}/${mov.cuota.m}` : '';
-      const montoHtml = (mov.usd && !mov.pesos)
+      const montoHtml = esUsd
         ? `<span style="color:var(--muted)">${fmtUSD(mov.usd)}</span>`
         : `<span>${fmt(mov.pesos)}</span>`;
+      const metaCat = esUsd
+        ? `<span class="chip" style="font-size:.72rem;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);">En dólares</span>`
+        : `<span>${esc(catInfo.cat)}</span>${catInfo.paraRevisar ? '<span style="color:var(--warn)">⚠ revisar</span>' : ''}`;
       html += `<div class="imp-row">
         <div class="imp-row-top"><span class="imp-row-desc">${esc(mov.desc.slice(0,55))}</span>${montoHtml}</div>
-        <div class="imp-row-meta"><span>${fechaCorta(mov.fecha)}</span><span>${esc(catInfo.cat)}</span>${cuotaLabel?`<span>${esc(cuotaLabel)}</span>`:''}${catInfo.paraRevisar?'<span style="color:var(--warn)">⚠ revisar</span>':''}</div>
+        <div class="imp-row-meta"><span>${fechaCorta(mov.fecha)}</span>${metaCat}${cuotaLabel?`<span>${esc(cuotaLabel)}</span>`:''}</div>
       </div>`;
     }
     html += '</details>';
