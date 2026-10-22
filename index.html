@@ -4797,6 +4797,7 @@ function _actualizarImpUltimaInfo() {
   const lines = [];
   if (imps['Banco Santander']) lines.push(`Santander: hasta ${fechaCorta(imps['Banco Santander'].hasta)}`);
   if (imps['Mercado Pago'])    lines.push(`Mercado Pago: hasta ${fechaCorta(imps['Mercado Pago'].hasta)}`);
+  if (imps['Visa Santander'])  lines.push(`Visa: hasta ${fechaCorta(imps['Visa Santander'].hasta)}`);
   el.textContent = lines.length ? `Última importación — ${lines.join(' · ')}` : '';
 }
 
@@ -4841,9 +4842,15 @@ function _renderVisaPreview(data) {
       const montoHtml = esUsd
         ? `<span style="color:var(--muted)">${fmtUSD(mov.usd)}</span>`
         : `<span>${fmt(mov.pesos)}</span>`;
-      const metaCat = esUsd
-        ? `<span class="chip" style="font-size:.72rem;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);">En dólares</span>`
-        : `<span>${esc(catInfo.cat)}</span>${catInfo.paraRevisar ? '<span style="color:var(--warn)">⚠ revisar</span>' : ''}`;
+      let metaCat;
+      if (esUsd) {
+        metaCat = `<span class="chip" style="font-size:.72rem;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);">En dólares</span>`;
+      } else if (catInfo.paraRevisar && !mov._catOverride) {
+        const cats = getCats().map(ct => `<option value="${esc(ct)}"${ct === catInfo.cat ? ' selected' : ''}>${esc(ct)}</option>`).join('');
+        metaCat = `<select class="imp-cat-sel visa-cat-sel" data-ti="${data.tarjetas.indexOf(tarjeta)}" data-mi="${mi}" style="font-size:.78rem;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--warn);">${cats}</select>`;
+      } else {
+        metaCat = `<span>${esc(mov._catOverride || catInfo.cat)}</span>`;
+      }
       html += `<div class="imp-row">
         <div class="imp-row-top"><span class="imp-row-desc">${esc(mov.desc.slice(0,55))}</span>${montoHtml}</div>
         <div class="imp-row-meta"><span>${fechaCorta(mov.fecha)}</span>${metaCat}${cuotaLabel?`<span>${esc(cuotaLabel)}</span>`:''}</div>
@@ -4874,13 +4881,241 @@ function _renderVisaPreview(data) {
     html += '</details>';
   }
 
+  // Count importable pesos movements
+  const nPesosMov = data.tarjetas.reduce((s, t) => s + t.movs.filter(m => m.pesos > 0 && !m.usd).length, 0);
+  const nOtros = data.otros.length ? new Set(data.otros.map(o => _categorizarVisa(o.desc, o.monto).cat)).size : 0;
+  const nTotal = nPesosMov + nOtros;
+  const pendRevisa = data.tarjetas.some(t => t.movs.some(m => m.pesos > 0 && !m.usd && _categorizarVisa(m.desc, m.pesos).paraRevisar && !m._catOverride));
+  const lastImpVisa = (estado.importaciones || {})['Visa Santander'];
+  const yaAlDia = lastImpVisa && data.cierre <= lastImpVisa.hasta;
+  const lastImpHtml = lastImpVisa
+    ? `<p class="meta" style="margin:0 0 8px">Última importación Visa Santander: hasta ${fechaCorta(lastImpVisa.hasta)}
+        <button type="button" class="mini" id="btnDeshacerVisaLote" style="margin-left:6px">↩ Deshacer</button></p>` : '';
+  const avisoAlDia = yaAlDia
+    ? `<div style="font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);margin-bottom:8px;">⚠ Este resumen ya está al día (importado hasta ${fechaCorta(lastImpVisa.hasta)}).</div>` : '';
+  const btnHtml = pendRevisa
+    ? `<button type="button" class="primary" id="btnConfirmarVisaImp" disabled style="opacity:.5;cursor:not-allowed;">Asigná categoría a todos los ⚠</button>`
+    : `<button type="button" class="primary" id="btnConfirmarVisaImp">Importar ${nTotal} movimiento${nTotal !== 1 ? 's' : ''}</button>`;
+
+  html = lastImpHtml + avisoAlDia + html;
   html += `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-    <button type="button" class="primary" disabled style="opacity:.5;cursor:not-allowed;">Disponible en la parte 2</button>
+    ${btnHtml}
     <button type="button" class="mini" id="btnCancelarVisaPrev">Cancelar</button>
   </div>`;
   body.innerHTML = html;
   const btnCan = $('btnCancelarVisaPrev');
   if (btnCan) btnCan.onclick = () => { $('impModal').hidden = true; };
+  const btnConf = $('btnConfirmarVisaImp');
+  if (btnConf && !pendRevisa) btnConf.onclick = () => _confirmarImpVisa();
+  const btnDes = $('btnDeshacerVisaLote');
+  if (btnDes) btnDes.onclick = () => _deshacerUltimaImpVisa();
+  // Wire category selectors for paraRevisar movements
+  body.querySelectorAll('.visa-cat-sel').forEach(sel => {
+    sel.onchange = () => {
+      const ti = +sel.dataset.ti, mi = +sel.dataset.mi;
+      _visaData.tarjetas[ti].movs[mi]._catOverride = sel.value;
+      _renderVisaPreview(_visaData);
+    };
+  });
+}
+
+// ── Visa deduplication ────────────────────────────────
+function _deduplicarVisaImp(candidatos, medio) {
+  const existentes = estado.gastos.filter(g => g.medio === medio); // includes soloHistorial
+  const pool = [...existentes];
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  for (const c of candidatos) {
+    c.yaExiste = false;
+    // 1. Refs match
+    if (c.refs && c.refs.length) {
+      const found = existentes.some(g => Array.isArray(g.refs) && g.refs.some(r => c.refs.includes(r)));
+      if (found) { c.yaExiste = true; continue; }
+    }
+    const bMonto = c.monto;
+    const cuotaN = c.cuota ? c.cuota.n : 0;
+    if (cuotaN > 1) {
+      // 3. Cuota n>1: by norm desc + cuota suffix + monto, ignore date
+      const cuotaSuffix = `(cuota ${cuotaN}/${c.cuota.m})`;
+      const found = existentes.some(g => {
+        if (Math.abs(g.monto - bMonto) >= 0.01) return false;
+        const gd = norm(g.descripcion || '');
+        return gd.includes(norm(cuotaSuffix));
+      });
+      if (found) { c.yaExiste = true; continue; }
+    } else {
+      // 2. monto + fecha ±3 días
+      const idx = pool.findIndex(g => {
+        if ((g.tipo || 'gasto') !== 'gasto') return false;
+        if (Math.abs(g.monto - bMonto) >= 0.01) return false;
+        return Math.abs(new Date(g.fecha) - new Date(c.fecha)) / 86400000 <= 3;
+      });
+      if (idx >= 0) { c.yaExiste = true; pool.splice(idx, 1); continue; }
+    }
+  }
+}
+
+// ── Confirm Visa import ───────────────────────────────
+function _confirmarImpVisa() {
+  const data = _visaData;
+  if (!data) return;
+  const medio = 'Visa Santander';
+  const cierre = data.cierre;
+  const loteId = nuevoId();
+  const now = Date.now();
+
+  // Save previous state for undo
+  const compromisoVisa = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === medio);
+  const prevCompromiso = compromisoVisa ? JSON.parse(JSON.stringify(compromisoVisa)) : null;
+  const prevImportacion = (estado.importaciones || {})[medio] ? JSON.parse(JSON.stringify((estado.importaciones || {})[medio])) : null;
+
+  // Check pending reviews
+  for (const tarjeta of data.tarjetas) {
+    for (const mov of tarjeta.movs) {
+      const esUsd = mov.usd > 0 && !mov.pesos;
+      if (esUsd || !mov.pesos) continue;
+      const ci = _categorizarVisa(mov.desc, mov.pesos);
+      if (ci.paraRevisar && !mov._catOverride) {
+        alert('Hay movimientos sin categoría. Asigná una categoría antes de importar.');
+        return;
+      }
+    }
+  }
+
+  // Build candidates
+  const candidatos = [];
+  for (const tarjeta of data.tarjetas) {
+    for (const mov of tarjeta.movs) {
+      const esUsd = mov.usd > 0 && !mov.pesos;
+      if (esUsd || !mov.pesos || mov.pesos === 0) continue;
+      const ci = _categorizarVisa(mov.desc, mov.pesos);
+      const cat = mov._catOverride || ci.cat;
+      const origDesc = mov.desc.trim().replace(/\s+/g, ' ');
+      const desc = mov.cuota ? `${origDesc} (cuota ${mov.cuota.n}/${mov.cuota.m})` : origDesc;
+      const ref = mov.comprobante ? `${mov.comprobante}|${mov.fecha}|${mov.pesos.toFixed(2)}` : null;
+      candidatos.push({
+        fecha: mov.fecha, desc, monto: mov.pesos, cat,
+        catInfo: { tipo: 'gasto', cat, paraRevisar: false },
+        medio, ref, refs: ref ? [ref] : [], cuota: mov.cuota || null,
+        _origDesc: origDesc, yaExiste: false,
+      });
+    }
+  }
+  // Otros conceptos — grouped by category
+  if (data.otros.length) {
+    const bycat = new Map();
+    for (const o of data.otros) {
+      const cat = _categorizarVisa(o.desc, o.monto).cat;
+      bycat.set(cat, (bycat.get(cat) || 0) + o.monto);
+    }
+    for (const [cat, monto] of bycat) {
+      const isIIBB = cat === 'Ingresos brutos (retenciones)';
+      const desc = isIIBB
+        ? `IIBB percepciones del resumen ${fechaCorta(cierre)}`
+        : `Impuestos e intereses del resumen ${fechaCorta(cierre)}`;
+      candidatos.push({
+        fecha: cierre, desc, monto, cat,
+        catInfo: { tipo: 'gasto', cat, paraRevisar: false },
+        medio, ref: null, refs: [], cuota: null, _esOtro: true, yaExiste: false,
+      });
+    }
+  }
+
+  _deduplicarVisaImp(candidatos, medio);
+
+  let cnt = 0;
+  for (const c of candidatos) {
+    if (c.yaExiste) continue;
+    const gasto = {
+      id: nuevoId(), creado: now + cnt,
+      monto: c.monto, fecha: c.fecha, categoria: c.cat,
+      medio, descripcion: c.desc, tipo: 'gasto', soloHistorial: false,
+      refs: c.refs, lote: loteId,
+    };
+    estado.gastos.push(gasto);
+    cnt++;
+    // Mark matching fijo (use original desc without cuota suffix)
+    if (!c._esOtro) {
+      const mes = c.fecha.slice(0, 7);
+      for (const f of (estado.compromisos || [])) {
+        if (f.tipo !== 'fijo' || !f.activo) continue;
+        if (!_fijoMesCorresponde(f, mes)) continue;
+        if (f.pagos && f.pagos[mes]) continue;
+        if (_fijoCoincide(f, c._origDesc || c.desc)) {
+          f.pagos = f.pagos || {};
+          f.pagos[mes] = { fecha: c.fecha, monto: gasto.monto, gastoId: gasto.id, lote: loteId };
+          break;
+        }
+      }
+    }
+  }
+
+  // Update compromiso resumen
+  if (compromisoVisa) {
+    const prevCierre = compromisoVisa.cierre;
+    if (!prevCierre || cierre > prevCierre) {
+      compromisoVisa.monto = data.totalPesos;
+      compromisoVisa.cierre = cierre;
+      compromisoVisa.proxVenc = data.vencimiento;
+      if (data.totalUSD > 0) { compromisoVisa.usd = data.totalUSD; compromisoVisa.usdPagado = false; }
+    }
+  }
+
+  // Update USD field even if resumen was updated (only if cierre is newer)
+  if (compromisoVisa && data.totalUSD > 0 && (!compromisoVisa.cierre || cierre >= compromisoVisa.cierre)) {
+    compromisoVisa.usd = data.totalUSD;
+    compromisoVisa.usdPagado = false;
+  }
+
+  estado.importaciones ||= {};
+  estado.importaciones[medio] = {
+    hasta: cierre, lote: loteId, fecha: hoy(),
+    _prevCompromiso: prevCompromiso, _prevImportacion: prevImportacion,
+  };
+  guardar(); guardarSnap(); render();
+  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  _actualizarImpUltimaInfo();
+  $('impModal').hidden = true;
+  alert(`${cnt} movimientos importados correctamente (lote ${loteId.slice(0,8)}…).`);
+}
+
+// ── Undo Visa import ──────────────────────────────────
+function _deshacerUltimaImpVisa() {
+  const imp = (estado.importaciones || {})['Visa Santander'];
+  if (!imp) return;
+  const { lote, _prevCompromiso, _prevImportacion } = imp;
+  if (!lote) {
+    if (!confirm(`¿Borrar la marca "conciliado hasta ${fechaCorta(imp.hasta)}" de Visa Santander?`)) return;
+    delete estado.importaciones['Visa Santander'];
+    guardar(); render(); _actualizarImpUltimaInfo(); $('impModal').hidden = true; return;
+  }
+  const n = estado.gastos.filter(g => g.lote === lote).length;
+  if (!n) { alert('No hay movimientos de esta importación para deshacer.'); return; }
+  if (!confirm(`¿Deshacer la importación de Visa del ${fechaCorta(imp.hasta)} (${n} movimientos)?`)) return;
+  estado.gastos = estado.gastos.filter(g => g.lote !== lote);
+  for (const f of (estado.compromisos || [])) {
+    if (f.tipo !== 'fijo' || !f.pagos) continue;
+    for (const mes of Object.keys(f.pagos)) {
+      if (f.pagos[mes]?.lote === lote) delete f.pagos[mes];
+    }
+  }
+  const compromisoVisa = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === 'Visa Santander');
+  if (compromisoVisa && _prevCompromiso) {
+    compromisoVisa.monto     = _prevCompromiso.monto;
+    compromisoVisa.cierre    = _prevCompromiso.cierre;
+    compromisoVisa.proxVenc  = _prevCompromiso.proxVenc;
+    compromisoVisa.usd       = _prevCompromiso.usd;
+    compromisoVisa.usdPagado = _prevCompromiso.usdPagado;
+  }
+  if (_prevImportacion) {
+    estado.importaciones['Visa Santander'] = _prevImportacion;
+  } else {
+    delete estado.importaciones['Visa Santander'];
+  }
+  guardar(); guardarSnap(); render();
+  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  _actualizarImpUltimaInfo();
+  $('impModal').hidden = true;
+  alert('Importación de Visa deshecha correctamente.');
 }
 
 // ── Open Visa Excel import modal ───────────────────────
@@ -5074,6 +5309,9 @@ window._getImpCandidatos = () => _impCandidatos;
 window._fijoCoincide = _fijoCoincide;
 window._confirmarImpBanco = _confirmarImpBanco;
 window._deshacerUltimaImp = _deshacerUltimaImp;
+window._confirmarImpVisa = _confirmarImpVisa;
+window._deshacerUltimaImpVisa = _deshacerUltimaImpVisa;
+window._deduplicarVisaImp = _deduplicarVisaImp;
 window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = medio; _impSaldoInfo = null; _impFechaFinal = cands.reduce((mx,c)=>c.fecha>mx?c.fecha:mx,''); };
 
 // ═══════════════════════════════════════════════════════

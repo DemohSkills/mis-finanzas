@@ -489,14 +489,15 @@ test.describe('importar-visa', () => {
     expect(html).toContain('Otros conceptos');
   });
 
-  test('(v) botón confirmar deshabilitado con texto "Disponible en la parte 2"', async ({ page }) => {
+  test('(v) botón "Importar N movimientos" habilitado cuando no hay para revisar', async ({ page }) => {
     await seedAndLoad(page);
     await enterPIN(page);
 
     const aoa = buildVisaAoa({
       cards: [{
         nombre: 'Titular', numero: '1111', tipo: 'titular',
-        totalPesos: 0, totalUSD: 0, movs: [],
+        totalPesos: 1000, totalUSD: 0,
+        movs: [{ fecha: '01/10/2026', desc: 'Pedidosya*local uno', comp: '001K', pesos: 1000 }],
       }],
     });
 
@@ -506,10 +507,351 @@ test.describe('importar-visa', () => {
       window._renderVisaPreview(data);
     }, result.data);
 
-    const btn = page.locator('#impModalBody button[disabled]');
+    const btn = page.locator('#btnConfirmarVisaImp');
     await expect(btn).toBeVisible();
-    await expect(btn).toBeDisabled();
-    expect(await btn.textContent()).toMatch(/parte 2/i);
+    await expect(btn).not.toBeDisabled();
+    expect(await btn.textContent()).toMatch(/importar/i);
+  });
+
+  // ── Parte 2 tests ─────────────────────────────────────
+
+  test('(w) importar crea gastos con fechas y categorías correctas', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      compromisos: [{ id: 'cVisa', tipo: 'resumen', nombre: 'Visa Santander', entidad: 'Visa Santander',
+        monto: 0, pendientes: 1, proxVenc: '2026-09-10', cierre: '2026-09-01', pagoMinimo: 0, estimado: false }],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026', vencimiento: '09/10/2026',
+      totalPesos: 14000, totalUSD: 0,
+      cards: [{
+        nombre: 'Titular', numero: '1111', tipo: 'titular',
+        totalPesos: 14000, totalUSD: 0,
+        movs: [
+          { fecha: '30/09/2026', desc: 'Pedidosya*local uno', comp: '001K', pesos: 12000 },
+          { fecha: '30/09/2026', desc: 'Shellbox estacion', comp: '002K', pesos: 2000 },
+        ],
+      }],
+    });
+
+    const result = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      const est = window._getEstado();
+      return { gastos: est.gastos, imp: est.importaciones['Visa Santander'] };
+    }, aoa);
+
+    expect(result.gastos).toHaveLength(2);
+    const g1 = result.gastos.find(g => g.descripcion.includes('Pedidosya'));
+    expect(g1).toBeTruthy();
+    expect(g1.categoria).toBe('Comida y Delivery');
+    expect(g1.fecha).toBe('2026-09-30');
+    expect(g1.medio).toBe('Visa Santander');
+    expect(g1.tipo).toBe('gasto');
+    expect(g1.soloHistorial).toBe(false);
+    expect(result.imp.hasta).toBe('2026-10-01');
+    expect(result.imp.lote).toBeTruthy();
+  });
+
+  test('(x) cuotas n>1 y Plan v consolid usan fecha de cierre', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026',
+      totalPesos: 53000, totalUSD: 0,
+      cards: [{
+        nombre: 'Titular', numero: '1111', tipo: 'titular',
+        totalPesos: 53000, totalUSD: 0,
+        movs: [
+          { fecha: '04/05/2026', desc: 'Merpago*mercadolibre', comp: '111*', pesos: 1000, cuotaN: 5, cuotaM: 12 },
+          { fecha: '07/06/2026', desc: 'Plan v consolid 3-36 (tna 40,10) 505603', comp: '', pesos: 50000 },
+          { fecha: '28/09/2026', desc: 'Farmacity centro', comp: '222K', pesos: 2000, cuotaN: 1, cuotaM: 6 },
+        ],
+      }],
+    });
+
+    const result = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      return window._getEstado().gastos;
+    }, aoa);
+
+    const gcuota = result.find(g => g.descripcion.toLowerCase().includes('merpago*mercadolibre') && g.descripcion.includes('cuota 5/12'));
+    expect(gcuota).toBeTruthy();
+    expect(gcuota.fecha).toBe('2026-10-01'); // cierre
+
+    const gplan = result.find(g => g.descripcion.toLowerCase().includes('plan v consolid'));
+    expect(gplan).toBeTruthy();
+    expect(gplan.fecha).toBe('2026-10-01'); // cierre
+
+    const gtienda = result.find(g => g.descripcion.toLowerCase().includes('farmacity') && g.descripcion.includes('cuota 1/6'));
+    expect(gtienda).toBeTruthy();
+    expect(gtienda.fecha).toBe('2026-09-28'); // fecha de compra
+  });
+
+  test('(y) USD no crea gastos y actualiza usd del compromiso', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      compromisos: [{ id: 'cVisa', tipo: 'resumen', nombre: 'Visa Santander', entidad: 'Visa Santander',
+        monto: 0, pendientes: 1, proxVenc: null, cierre: null, pagoMinimo: 0, estimado: false, usd: 0 }],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026', vencimiento: '09/10/2026',
+      totalPesos: 1000, totalUSD: 7.29,
+      cards: [{
+        nombre: 'Titular', numero: '1111', tipo: 'titular',
+        totalPesos: 1000, totalUSD: 7.29,
+        movs: [
+          { fecha: '30/09/2026', desc: 'Pedidosya*local uno', comp: '001K', pesos: 1000 },
+          { fecha: '30/09/2026', desc: 'Google *servicio p1xx', comp: '002K', usd: 7.29 },
+        ],
+      }],
+    });
+
+    const result = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      const est = window._getEstado();
+      const comp = est.compromisos.find(c => c.entidad === 'Visa Santander');
+      return { gastos: est.gastos, compUsd: comp?.usd };
+    }, aoa);
+
+    // USD movement should NOT create a gasto
+    expect(result.gastos.every(g => !g.descripcion.toLowerCase().includes('google'))).toBe(true);
+    expect(result.gastos).toHaveLength(1);
+    expect(result.compUsd).toBeCloseTo(7.29, 2);
+  });
+
+  test('(z1) compromiso resumen actualizado con monto, cierre y proxVenc', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      compromisos: [{ id: 'cVisa', tipo: 'resumen', nombre: 'Visa Santander', entidad: 'Visa Santander',
+        monto: 50000, pendientes: 1, proxVenc: '2026-09-10', cierre: '2026-09-01', pagoMinimo: 5000, estimado: false }],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026', vencimiento: '09/10/2026',
+      totalPesos: 170621.25, totalUSD: 0,
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 170621.25, totalUSD: 0,
+        movs: [{ fecha: '30/09/2026', desc: 'Merpago*mercadolibre', comp: '001K', pesos: 170621.25 }] }],
+    });
+
+    const comp = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      return window._getEstado().compromisos.find(c => c.entidad === 'Visa Santander');
+    }, aoa);
+
+    expect(comp.monto).toBeCloseTo(170621.25, 2);
+    expect(comp.cierre).toBe('2026-10-01');
+    expect(comp.proxVenc).toBe('2026-10-09');
+    expect(comp.pagoMinimo).toBe(5000); // NOT touched
+  });
+
+  test('(z2) reimportar el mismo archivo no duplica gastos', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026',
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 3000, totalUSD: 0,
+        movs: [
+          { fecha: '30/09/2026', desc: 'Pedidosya local', comp: '001K', pesos: 1000 },
+          { fecha: '30/09/2026', desc: 'Shellbox estacion', comp: '002K', pesos: 2000 },
+        ] }],
+    });
+
+    const n = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      // First import
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      // Second import (same data, _visaData still set after confirm)
+      window._visaData = window.parseVisaXlsx(aoa);
+      window._renderVisaPreview(window._visaData);
+      window._confirmarImpVisa();
+      return window._getEstado().gastos.length;
+    }, aoa);
+
+    expect(n).toBe(2); // exactly 2, not 4
+  });
+
+  test('(z3) dedupe contra gasto histórico existente del mismo medio', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      gastos: [{
+        id: 'hist1', creado: 1000, monto: 1000, fecha: '2026-09-30',
+        categoria: 'Comida y Delivery', medio: 'Visa Santander',
+        descripcion: 'Pedidosya local', tipo: 'gasto', soloHistorial: true, refs: ['001K|2026-09-30|1000.00'],
+      }],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026',
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 1000, totalUSD: 0,
+        movs: [{ fecha: '30/09/2026', desc: 'Pedidosya local', comp: '001K', pesos: 1000 }] }],
+    });
+
+    const n = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      return window._getEstado().gastos.length;
+    }, aoa);
+
+    expect(n).toBe(1); // Only the historical one, no new gasto added
+  });
+
+  test('(z4) fijo marcado pagado con gastoId; deshacer lo desmarca', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      compromisos: [{
+        id: 'fijo1', tipo: 'fijo', nombre: 'Netflix', activo: true, monto: 2000,
+        palabrasClave: 'pedidosya', diaMes: 15, cadaMeses: 1, pagos: {},
+      }],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026',
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 2000, totalUSD: 0,
+        movs: [{ fecha: '15/09/2026', desc: 'Pedidosya*netflix sub', comp: '001K', pesos: 2000 }] }],
+    });
+
+    // Import
+    const after = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      const est = window._getEstado();
+      const fijo = est.compromisos.find(c => c.tipo === 'fijo');
+      return { pagos: fijo.pagos, gastos: est.gastos };
+    }, aoa);
+
+    const lote = after.gastos[0]?.lote;
+    expect(after.pagos['2026-09']).toBeTruthy();
+    expect(after.pagos['2026-09'].gastoId).toBeTruthy();
+    expect(after.pagos['2026-09'].lote).toBe(lote);
+
+    // Undo — need to use the undo function (simulate confirm dialog)
+    const afterUndo = await page.evaluate(async () => {
+      // Patch confirm to auto-accept
+      const origConfirm = window.confirm;
+      window.confirm = () => true;
+      window._deshacerUltimaImpVisa();
+      window.confirm = origConfirm;
+      const est = window._getEstado();
+      const fijo = est.compromisos.find(c => c.tipo === 'fijo');
+      return { pagos: fijo.pagos, gastos: est.gastos };
+    });
+
+    expect(Object.keys(afterUndo.pagos)).toHaveLength(0);
+    expect(afterUndo.gastos).toHaveLength(0);
+  });
+
+  test('(z5) deshacer restaura el compromiso resumen', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      compromisos: [{ id: 'cVisa', tipo: 'resumen', nombre: 'Visa Santander', entidad: 'Visa Santander',
+        monto: 50000, pendientes: 1, proxVenc: '2026-09-10', cierre: '2026-09-01',
+        pagoMinimo: 5000, estimado: false, usd: 3 }],
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026', vencimiento: '09/10/2026',
+      totalPesos: 99000, totalUSD: 10,
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 99000, totalUSD: 10,
+        movs: [
+          { fecha: '30/09/2026', desc: 'Pedidosya*local uno', comp: '001K', pesos: 99000 },
+          { fecha: '30/09/2026', desc: 'Google *servicio p1xx', comp: '002K', usd: 10 },
+        ] }],
+    });
+
+    const result = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      window._confirmarImpVisa();
+      // Now undo
+      const origConfirm = window.confirm;
+      window.confirm = () => true;
+      window._deshacerUltimaImpVisa();
+      window.confirm = origConfirm;
+      const est = window._getEstado();
+      return {
+        comp: est.compromisos.find(c => c.entidad === 'Visa Santander'),
+        gastos: est.gastos,
+        imp: est.importaciones?.['Visa Santander'],
+      };
+    }, aoa);
+
+    expect(result.gastos).toHaveLength(0);
+    expect(result.comp.monto).toBe(50000);
+    expect(result.comp.cierre).toBe('2026-09-01');
+    expect(result.comp.proxVenc).toBe('2026-09-10');
+    expect(result.comp.usd).toBe(3);
+    expect(result.imp).toBeUndefined();
+  });
+
+  test('(z6) resumen más viejo no pisa el compromiso', async ({ page }) => {
+    const state = {
+      ...BASE_STATE,
+      compromisos: [{ id: 'cVisa', tipo: 'resumen', nombre: 'Visa Santander', entidad: 'Visa Santander',
+        monto: 200000, pendientes: 1, proxVenc: '2026-11-09', cierre: '2026-11-01',
+        pagoMinimo: 0, estimado: false }],
+      importaciones: { 'Visa Santander': { hasta: '2026-11-01', lote: null, fecha: '2026-10-30' } },
+    };
+    await seedAndLoad(page, state);
+    await enterPIN(page);
+
+    // Import an older resumen (cierre = 01/10/2026, which is < 2026-11-01)
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026', vencimiento: '09/10/2026',
+      totalPesos: 50000, totalUSD: 0,
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 50000, totalUSD: 0,
+        movs: [{ fecha: '30/09/2026', desc: 'Pedidosya*local uno', comp: '001K', pesos: 50000 }] }],
+    });
+
+    const result = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      // Should NOT call _confirmarImpVisa because the UI shows "ya al día" warning
+      // but we call it anyway to test the compromiso protection
+      window._confirmarImpVisa();
+      return window._getEstado().compromisos.find(c => c.entidad === 'Visa Santander');
+    }, aoa);
+
+    // The compromiso should NOT be updated (older cierre)
+    expect(result.monto).toBe(200000);
+    expect(result.cierre).toBe('2026-11-01');
+    expect(result.proxVenc).toBe('2026-11-09');
   });
 
 });
+

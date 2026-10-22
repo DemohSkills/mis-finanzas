@@ -14,6 +14,15 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 22/10/2026 (7): importador Visa (Excel) — Parte 2: confirmación + deshacer + deduplicación + fijos. 9 tests nuevos (v–z6). Suite completa: **444/444 pasan**.
+  - **Ajustes a Parte 1**: (a) "Plan v consolid" usa la fecha de cierre del resumen (igual que cuotas n>1). (b) Movimientos en dólares muestran chip "En dólares" sin selector de categoría ni "⚠ revisar"; no generan gasto en pesos.
+  - **`_confirmarImpVisa()`**: crea un gasto (medio 'Visa Santander', tipo 'gasto', soloHistorial:false) por cada movimiento en pesos de todas las tarjetas (titular y adicional). Descripción limpia; agrega "(cuota n/m)" si corresponde. "Otros conceptos" agrupados por categoría, fecha=cierre. Pagos y dólares no generan gasto. Botón habilitado solo cuando todos los "⚠ revisar" tienen categoría asignada.
+  - **Deduplicación** (`_deduplicarVisaImp`): por refs (comprobante+fecha+monto), luego por monto+fecha±3 días, y para cuotas n>1 por descripción normalizada+cuota+monto ignorando fecha. Incluye gastos `soloHistorial`. Reimportar el mismo archivo no duplica nada.
+  - **Compromiso resumen**: si el cierre del Excel es posterior al guardado, actualiza monto, cierre y proxVenc. No toca pagoMinimo. Si el cierre es anterior o igual, no actualiza.
+  - **USD**: actualiza `c.usd` y `c.usdPagado=false` en el compromiso 'Visa Santander' cuando el cierre es más nuevo.
+  - **Fijos**: marca pagado el fijo que coincide por palabras clave con el mes del movimiento.
+  - **`_deshacerUltimaImpVisa()`**: quita gastos del lote, desmarca pagos de fijos del lote, restaura compromiso y importaciones al estado previo.
+  - **`estado.importaciones['Visa Santander']`**: `{hasta: cierre, lote, fecha}`. Si ya se importó un resumen con cierre <= hasta, la vista muestra aviso.
 - 22/10/2026 (5): importador de resumen Visa (Excel) — Parte 1: parser + vista previa + verificación. 22 tests nuevos en `tests/importar-visa.spec.js`. Suite completa: **435/435 pasan**.
   - **`parseVisaXlsx(filas)`** función pura expuesta en `window`. Parsea el Excel que baja el home banking de Santander: fechas arrastradas por celdas combinadas, importes negativos, USD sin pesos, tarjeta adicional, cuotas (n>1 usa fecha de cierre), "Pago de tarjeta y devoluciones" (solo informativo), "Otros conceptos". Lanza error claro si no es un resumen de Visa.
   - **`_REGLAS_VISA`** y **`_categorizarVisa`**: 18 reglas con los nombres exactos del catálogo (Transporte/Auto, Comida y Delivery, Propinas y Extras, Proyectos Web, Compras Online, Servicios/Telecom, Hogar y Materiales, Tecnología/Electrónica, Indumentaria y Calzado, Salud, Financiación Consolidada, Ingresos brutos (retenciones), Impuestos e Intereses, Otros/Varios). Sin categoría → paraRevisar + selector igual que otros importadores.
