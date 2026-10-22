@@ -4,6 +4,7 @@ const path = require('path');
 const INDEX = 'file:///' + path.resolve(__dirname, '..', 'index.html').replace(/\\/g, '/');
 const SK = 'finanzas-v1';
 const PIN_KEY = 'finanzas-v1-pin';
+const SNAPS_KEY = 'finanzas-v1-snaps';
 const TEST_PIN = '1234';
 const SK_TICKER = 'finanzas-v1-ticker-mode';
 const SK_OJO = 'finanzas-v1-ocultar';
@@ -16,6 +17,39 @@ function buildEstado() {
     patrimonioCargado: true,
     compromisos: [],
   };
+}
+
+function buildEstadoCon2() {
+  return {
+    iniciales: {},
+    gastos: [],
+    items: [
+      { id: 'ia1', nombre: 'Efectivo', grupo: 'Cuentas y efectivo', tipo: 'activo', monto: 300000 },
+      { id: 'id1', nombre: 'Visa', grupo: 'Tarjetas', tipo: 'deuda', monto: 80000 },
+    ],
+    patrimonioCargado: true,
+    compromisos: [],
+  };
+}
+
+function buildEstadoNetoNeg() {
+  return {
+    iniciales: {},
+    gastos: [],
+    items: [
+      { id: 'ia1', nombre: 'Efectivo', grupo: 'Cuentas y efectivo', tipo: 'activo', monto: 50000 },
+      { id: 'id1', nombre: 'Visa', grupo: 'Tarjetas', tipo: 'deuda', monto: 100000 },
+    ],
+    patrimonioCargado: true,
+    compromisos: [],
+  };
+}
+
+function buildSnapsRef() {
+  // Snap 10 days ago so it qualifies as 7-day reference in snapRef()
+  const d = new Date(); d.setDate(d.getDate() - 10);
+  const ds = d.toISOString().slice(0, 10);
+  return [{ d: ds, a: 250000, dv: 90000, n: 160000, dd: {} }];
 }
 
 async function seedAndUnlock(page, opts = {}) {
@@ -197,5 +231,99 @@ test.describe('ticker-evol: layout responsive sin scroll horizontal', () => {
       );
       expect(noHScroll).toBe(true);
     } finally { await ctx.close(); }
+  });
+});
+
+test.describe('ticker-evol: signo y flecha reales', () => {
+  async function seedWithSnaps(page, estadoData, snapsData) {
+    await page.addInitScript(({ sk, pk, pin, data, snk, sndata }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      if (sndata) localStorage.setItem(snk, JSON.stringify(sndata));
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: estadoData, snk: SNAPS_KEY, sndata: snapsData });
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+  }
+
+  test('(q) deuda que baja muestra flecha ▼ y signo − en la cinta', async ({ page }) => {
+    // deudas: 80000, prev: 90000 → diff -10000 → ▼ −11.1%
+    await seedWithSnaps(page, buildEstadoCon2(), buildSnapsRef());
+    const pcts = await page.locator('#tickerEvol .tk-item').evaluateAll(items => {
+      return items
+        .filter(el => /deuda/i.test(el.querySelector('.tk-lbl')?.textContent || ''))
+        .map(el => ({
+          pct: el.querySelector('.tk-pct')?.textContent || '',
+          arrow: el.querySelector('.tk-arrow')?.textContent || '',
+        }));
+    });
+    expect(pcts.length).toBeGreaterThan(0);
+    expect(pcts[0].arrow).toBe('▼');
+    expect(pcts[0].pct).toMatch(/^−/);
+  });
+
+  test('(r) activo que sube muestra flecha ▲ y signo + en la cinta', async ({ page }) => {
+    // activos: 300000, prev: 250000 → diff +50000 → ▲ +20.0%
+    await seedWithSnaps(page, buildEstadoCon2(), buildSnapsRef());
+    const pcts = await page.locator('#tickerEvol .tk-item').evaluateAll(items => {
+      return items
+        .filter(el => /activo/i.test(el.querySelector('.tk-lbl')?.textContent || ''))
+        .map(el => ({
+          pct: el.querySelector('.tk-pct')?.textContent || '',
+          arrow: el.querySelector('.tk-arrow')?.textContent || '',
+        }));
+    });
+    expect(pcts.length).toBeGreaterThan(0);
+    expect(pcts[0].arrow).toBe('▲');
+    expect(pcts[0].pct).toMatch(/^\+/);
+  });
+
+  test('(s) cinta y cuadro de variaciones coinciden en signo y porcentaje (7 días)', async ({ page }) => {
+    await seedWithSnaps(page, buildEstadoCon2(), buildSnapsRef());
+    // Collect ticker pct texts
+    const tkPcts = await page.locator('#tickerEvol .tk-item').evaluateAll(items =>
+      items.reduce((acc, el) => {
+        const lbl = (el.querySelector('.tk-lbl')?.textContent || '').toLowerCase().trim();
+        acc[lbl] = el.querySelector('.tk-pct')?.textContent || '';
+        return acc;
+      }, {})
+    );
+    // Collect varTable 7-day column (4th th = Var. 7 días, so td index 2 in each row)
+    const vtPcts = await page.locator('#varTable .vt-tabla tbody tr').evaluateAll(rows =>
+      rows.reduce((acc, tr) => {
+        const lbl = (tr.querySelector('th')?.textContent || '').toLowerCase().trim();
+        const cells = tr.querySelectorAll('td');
+        // cells: [hoy, 1día, 7días, 30días]
+        const pctEl = cells[2]?.querySelector('.vt-pct');
+        acc[lbl] = pctEl ? pctEl.textContent : '';
+        return acc;
+      }, {})
+    );
+    // Check Patrimonio, Activos, Deudas
+    for (const [tkKey, vtKey] of [
+      ['patrimonio neto', 'patrimonio neto'],
+      ['activos', 'activos'],
+      ['deudas', 'deudas'],
+    ]) {
+      const tkVal = tkPcts[tkKey] || tkPcts[Object.keys(tkPcts).find(k => k.includes(tkKey.split(' ')[0])) || ''];
+      const vtVal = vtPcts[vtKey] || vtPcts[Object.keys(vtPcts).find(k => k.includes(vtKey.split(' ')[0])) || ''];
+      if (tkVal && tkVal !== '—' && vtVal && vtVal !== '—') {
+        expect(tkVal).toBe(vtVal);
+      }
+    }
+  });
+
+  test('(t) la cinta muestra − para Patrimonio neto negativo', async ({ page }) => {
+    // activos 50000, deudas 100000 → neto = −50000 → ticker val must show −$50k
+    await seedWithSnaps(page, buildEstadoNetoNeg(), []);
+    const valTexts = await page.locator('#tickerEvol .tk-item').evaluateAll(items =>
+      items
+        .filter(el => /patrimonio/i.test(el.querySelector('.tk-lbl')?.textContent || ''))
+        .map(el => el.querySelector('.tk-val')?.textContent || '')
+    );
+    expect(valTexts.length).toBeGreaterThan(0);
+    expect(valTexts[0]).toMatch(/^−/);
   });
 });

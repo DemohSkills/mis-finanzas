@@ -11,22 +11,27 @@
 :root {
   --bg:#f4f6fa;--card:#fff;--text:#1e293b;--muted:#64748b;
   --border:#e2e8f0;--accent:#2563eb;--danger:#dc2626;--ok:#16a34a;--warn:#d97706;
+  --grid-color:#e2e8f0;
 }
 @media(prefers-color-scheme:dark){html:not([data-theme]){
   --bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;
   --border:#334155;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+  --grid-color:#334155;
 }}
 html[data-theme="claro"]{
   --bg:#f4f6fa;--card:#fff;--text:#1e293b;--muted:#64748b;
   --border:#e2e8f0;--accent:#2563eb;--danger:#dc2626;--ok:#16a34a;--warn:#d97706;
+  --grid-color:#e2e8f0;
 }
 html[data-theme="oscuro"]{
   --bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;
   --border:#334155;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+  --grid-color:#334155;
 }
 html[data-theme="negro"]{
   --bg:#000;--card:#0b0b0d;--text:#e2e8f0;--muted:#94a3b8;
   --border:#222;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+  --grid-color:rgba(255,255,255,.08);
 }
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
@@ -3577,7 +3582,7 @@ const S7=['#60a5fa','#f87171','#4ade80','#fb923c','#c084fc','#fbbf24','#38bdf8']
 const fmtM=n=>{const a=Math.abs(n);const v=a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?Math.round(a/1e3)+'k':String(Math.round(a));return(n<0?'−':'')+v;};
 const mesNom=mes=>['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+mes.split('-')[1]-1];
 function ttO(){return{backgroundColor:CV('--card'),titleColor:CV('--text'),bodyColor:CV('--muted'),borderColor:CV('--border'),borderWidth:1,padding:10,cornerRadius:8,usePointStyle:true,boxPadding:4};}
-function axO(yFmt,stacked=false){const t=CV('--muted'),g=CV('--border');return{x:{stacked,ticks:{color:t},grid:{color:g,lineWidth:.5},border:{display:false}},y:{stacked,ticks:{color:t,callback:yFmt},grid:{color:g,lineWidth:.5},border:{display:false}}};}
+function axO(yFmt,stacked=false){const t=CV('--muted'),g=CV('--grid-color');return{x:{stacked,ticks:{color:t},grid:{color:g,lineWidth:.5},border:{display:false}},y:{stacked,ticks:{color:t,callback:yFmt},grid:{color:g,lineWidth:.5},border:{display:false}}};}
 function legO(pos='bottom',chartId=null){const labels={color:CV('--muted'),boxWidth:12,boxHeight:12,padding:10,font:{size:10},usePointStyle:true};const base={position:pos,labels};if(!chartId)return base;return{...base,onClick:(e,item,legend)=>{const ci=legend.chart,idx=item.datasetIndex;if(ci.isDatasetVisible(idx))ci.hide(idx);else ci.show(idx);const hidden=ci.data.datasets.map((ds,i)=>ci.isDatasetVisible(i)?null:ds.label).filter(Boolean);if(hidden.length)setChartVis(chartId,hidden);else clearChartVis(chartId);if(_cfgDSync)_cfgDSync();}};}
 function applyChartVis(id){const chart=_ci[id];if(!chart)return;const hidden=getChartVis(id);if(!hidden||!hidden.length)return;chart.data.datasets.forEach((ds,i)=>{if(hidden.includes(ds.label))chart.hide(i);});}
 function showAllChartSeries(id){clearChartVis(id);const chart=_ci[id];if(!chart)return;chart.data.datasets.forEach((_,i)=>chart.show(i));if(_cfgDSync)_cfgDSync();}
@@ -3620,10 +3625,11 @@ function renderTickerEvol(){
       const diff=val-prevVal;
       const isPos=isDeuda?diff<=0:diff>=0;
       rowCls=isPos?'pos':'neg';
-      arrow=isPos?'▲':'▼';
-      pctStr=prevVal!==0?(isPos?'+':'−')+Math.abs(diff/Math.abs(prevVal)*100).toFixed(1)+'%':'—';
+      arrow=diff>0?'▲':diff<0?'▼':'';
+      pctStr=prevVal!==0?(diff>=0?'+':'−')+Math.abs(diff/Math.abs(prevVal)*100).toFixed(1)+'%':'—';
     }
-    return`<span class="tk-item"><span class="tk-lbl">${label}</span><span class="tk-row ${rowCls}">${arrow?`<span class="tk-arrow">${arrow}</span>`:'<span class="tk-arrow"></span>'}<span class="tk-pct">${pctStr}</span><span class="tk-val">\$${fmtM(Math.abs(val))}</span></span></span>`;
+    const valStr=(val<0?'−':'')+'$'+fmtM(Math.abs(val));
+    return`<span class="tk-item"><span class="tk-lbl">${label}</span><span class="tk-row ${rowCls}">${arrow?`<span class="tk-arrow">${arrow}</span>`:'<span class="tk-arrow"></span>'}<span class="tk-pct">${pctStr}</span><span class="tk-val">${valStr}</span></span></span>`;
   }
   const items=[
     tkItem('Patrimonio neto',t.neto,snap?snap.n:null,false),

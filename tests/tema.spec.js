@@ -93,4 +93,27 @@ test.describe('Selector de tema', () => {
     const attr = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
     expect(attr).toBeNull();
   });
+
+  test('(h) en tema Negro --grid-color usa color tenue; Oscuro y Claro usan sus valores de borde', async () => {
+    const { page } = await openApp(browser);
+    await page.locator('.tabs button[data-vista="config"]').click();
+
+    await page.locator('.tema-btn[data-tema="negro"]').click();
+    const gridNegro = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim()
+    );
+    expect(gridNegro).toBe('rgba(255,255,255,.08)');
+
+    await page.locator('.tema-btn[data-tema="oscuro"]').click();
+    const gridOscuro = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim()
+    );
+    expect(gridOscuro).toBe('#334155');
+
+    await page.locator('.tema-btn[data-tema="claro"]').click();
+    const gridClaro = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim()
+    );
+    expect(gridClaro).toBe('#e2e8f0');
+  });
 });
