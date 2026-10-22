@@ -14,6 +14,9 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 22/10/2026 (10): overflow horizontal en tarjetas "Mis cuentas" a 360 px. 11 tests nuevos en `tests/saldos-responsive.spec.js`. Suite completa: **467/467 pasan**.
+  - **Bug:** las tarjetas `.saldo` usaban `min-width:auto` (valor por defecto en grid items), lo que impedía que la cuadrícula las comprimiera por debajo de su contenido mínimo. Saldos de 8 dígitos con `font-size:1.2rem` desbordaban la tarjeta y el `.saldos-grid` excedía el ancho del viewport (scrollWidth 373 > clientWidth 360).
+  - **Fix en CSS:** `min-width:0` en `.saldo` permite que el item de grid se comprima; `font-size:clamp(.75rem,3.5vw,1.2rem)` en `.saldo .monto` reduce la fuente escalonadamente en pantallas estrechas sin afectar el botón "Ajustar saldo". A 390 px y 412 px el tamaño sigue siendo el mismo de antes (≥1.2rem).
 - 22/10/2026 (9): bug "Conciliado hasta" — al marcar un banco el campo del otro se preserva. 4 tests nuevos en `tests/conciliado-bug.spec.js`. Suite completa: **456/456 pasan**.
   - **Bug:** `_marcarConciliadoHasta()` llamaba a `abrirImportModal()` que hacía `body.innerHTML = ...`, borrando la fecha que el usuario había tipeado en el input del otro banco.
   - **Fix:** antes de redibujar, se guarda el valor del input del otro banco (`concilFechaMP` o `concilFechaSant`); después de `abrirImportModal()` se restaura.

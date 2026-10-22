@@ -64,9 +64,9 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 @media(max-width:600px){.resumen{grid-template-columns:1fr 1fr;}}
 /* Saldos */
 .saldos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
-.saldo{border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+.saldo{border:1px solid var(--border);border-radius:10px;padding:10px 12px;min-width:0;}
 .saldo .nombre{font-size:.82rem;color:var(--muted);}
-.saldo .monto{font-size:1.2rem;font-weight:600;font-variant-numeric:tabular-nums;}
+.saldo .monto{font-size:clamp(.75rem,3.5vw,1.2rem);font-weight:600;font-variant-numeric:tabular-nums;}
 .saldo button{margin-top:6px;font-size:.78rem;padding:2px 8px;}
 #saldos{display:block;}
 .div-resumen{border:0;border-top:1px solid var(--border);margin:14px 0;}
