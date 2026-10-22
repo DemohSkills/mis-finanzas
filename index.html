@@ -276,6 +276,7 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
 .imp-saldo-ok{color:var(--accent);font-size:.83rem;margin-top:4px;}
 .imp-saldo-diff{color:var(--warn);font-size:.83rem;margin-top:4px;}
 .imp-saldo-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.imp-fijo-tag{font-size:.72rem;font-weight:600;color:#16a34a;padding:1px 5px;border-radius:4px;background:color-mix(in srgb,#16a34a 12%,transparent);}
 details.imp-sec{margin-top:8px;}
 details.imp-sec>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:5px 0;font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;border-top:1px solid var(--border);}
 details.imp-sec>summary::-webkit-details-marker{display:none;}
@@ -560,6 +561,10 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
       <div id="fijoMesBaseWrap" class="wiz-field" hidden>
         <label>Próximo mes de pago</label>
         <input type="month" id="fijoMesBase">
+      </div>
+      <div class="wiz-field">
+        <label>Palabras clave del banco (separadas por coma)</label>
+        <input type="text" id="fijoPalabrasClave" maxlength="200" placeholder="Ej: alquiler, rent, expensas">
       </div>
       <div class="wiz-actions" style="margin-top:16px;">
         <button type="submit" class="primary">Guardar</button>
@@ -1741,6 +1746,17 @@ function _fijoMesCorresponde(fijo,mesStr){
   const[ys,ms]=mesStr.split('-').map(Number);
   return((ys-yb)*12+(ms-mb))%n===0;
 }
+function _fijoCoincide(fijo,descripcion){
+  const pk=fijo.palabrasClave;
+  if(!pk||!pk.trim()) return false;
+  const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const normDesc=norm(descripcion);
+  for(const kw of pk.split(',')){
+    const k=norm(kw.trim());
+    if(k.length>=4&&normDesc.includes(k)) return true;
+  }
+  return false;
+}
 function _fijoRowHtml(fijo,mesStr){
   const est=_fijoEstadoMes(fijo,mesStr);
   const pagado=est==='pagado',vencido=est==='vencido';
@@ -1787,10 +1803,12 @@ function abrirFijoModal(id){
     $('fijoNombreWrap').removeAttribute('hidden');
     $('fijoNombre').value='';$('fijoMonto').value='';$('fijoDiaMes').value='1';
     $('fijoRepite').value='1';$('fijoMesBase').value='';$('fijoMesBaseWrap').setAttribute('hidden','');
+    $('fijoPalabrasClave').value='';
   } else {
     $('fijoNombreWrap').setAttribute('hidden','');
     $('fijoMonto').value=fmtInput(f.monto);$('fijoDiaMes').value=f.diaMes;
     $('fijoRepite').value=String(f.cadaMeses||1);$('fijoMesBase').value=f.mesBase||'';
+    $('fijoPalabrasClave').value=f.palabrasClave||'';
     _toggleMesBase();
   }
   $('fijoModal').removeAttribute('hidden');
@@ -1808,14 +1826,15 @@ $('fijoForm').onsubmit=function(e){
   const medio=$('fijoMedioPago').value;
   const cadaMeses=parseInt($('fijoRepite').value)||1;
   const mesBase=cadaMeses>1?($('fijoMesBase').value||null):null;
+  const palabrasClave=$('fijoPalabrasClave').value.trim();
   if(!_fijoModalId){
     const nombre=$('fijoNombre').value.trim();
     if(!nombre){alert('Ingresá un nombre.');return;}
-    estado.compromisos.push({id:nuevoId(),tipo:'fijo',nombre,categoria:cat,monto:m,estimado:true,diaMes:dia,medioPago:medio||null,palabrasClave:'',activo:true,pagos:{},cadaMeses:cadaMeses>1?cadaMeses:undefined,mesBase:mesBase||undefined});
+    estado.compromisos.push({id:nuevoId(),tipo:'fijo',nombre,categoria:cat,monto:m,estimado:true,diaMes:dia,medioPago:medio||null,palabrasClave,activo:true,pagos:{},cadaMeses:cadaMeses>1?cadaMeses:undefined,mesBase:mesBase||undefined});
   } else {
     const f=(estado.compromisos||[]).find(x=>x.id===_fijoModalId);
     if(!f) return;
-    f.monto=m;f.diaMes=dia;f.categoria=cat;f.medioPago=medio||null;
+    f.monto=m;f.diaMes=dia;f.categoria=cat;f.medioPago=medio||null;f.palabrasClave=palabrasClave;
     if(cadaMeses>1){f.cadaMeses=cadaMeses;f.mesBase=mesBase||f.mesBase||null;}
     else{delete f.cadaMeses;delete f.mesBase;}
   }
@@ -3987,16 +4006,31 @@ function _renderImpPreview() {
     }).join('');
   }
 
+  // Compute fijo match for each new gasto candidate (not agrupado, no existing payment)
+  const _fijosCargados=(estado.compromisos||[]).filter(f=>f.tipo==='fijo'&&f.activo);
+  for(const c of nuevos){
+    c._fijoMatch=null;
+    if(!c._agrupado&&c.catInfo?.tipo==='gasto'){
+      const mes=c.fecha.slice(0,7);
+      for(const f of _fijosCargados){
+        if(!_fijoMesCorresponde(f,mes)) continue;
+        if(f.pagos&&f.pagos[mes]) continue;
+        if(_fijoCoincide(f,c.desc)){c._fijoMatch=f;break;}
+      }
+    }
+  }
+
   const mkSec = (id, label, items, open=false) => {
     if (!items.length) return '';
     const rows = items.map(c => {
       const sgn = c.monto >= 0;
+      const fijoTag=c._fijoMatch?`<span class="imp-fijo-tag">✓ Fijo: ${esc(c._fijoMatch.nombre)}</span>`:'';
       return `<div class="imp-row">
         <div class="imp-row-top">
           <span class="imp-row-desc">${esc(c.desc.slice(0,60))}</span>
           <span class="imp-row-monto ${sgn?'pos':'neg'}">${sgn?'+':''}${fmt(Math.abs(c.monto))}</span>
         </div>
-        <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span><span>${esc(c.catInfo?.cat||'')}</span></div>
+        <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span><span>${esc(c.catInfo?.cat||'')}</span>${fijoTag}</div>
       </div>`;
     }).join('');
     return `<details class="imp-sec" ${open?'open':''}>
@@ -4158,6 +4192,20 @@ function _confirmarImpBanco(conAjuste) {
     }
     estado.gastos.push(gasto);
     cnt++;
+    // Mark matching fijo as paid (first match per fijo+mes wins)
+    if(!c._agrupado&&gasto.tipo==='gasto'){
+      const mes=c.fecha.slice(0,7);
+      for(const f of (estado.compromisos||[])){
+        if(f.tipo!=='fijo'||!f.activo) continue;
+        if(!_fijoMesCorresponde(f,mes)) continue;
+        if(f.pagos&&f.pagos[mes]) continue;
+        if(_fijoCoincide(f,c.desc)){
+          f.pagos=f.pagos||{};
+          f.pagos[mes]={fecha:c.fecha,monto:gasto.monto,gastoId:gasto.id,lote:loteId};
+          break;
+        }
+      }
+    }
     // Create pair movement in target account
     if (visaPair) {
       estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto, fecha:c.fecha,
@@ -4208,6 +4256,12 @@ function _deshacerUltimaImp(medio) {
   if (!n) { alert('No hay movimientos de esta importación para deshacer.'); return; }
   if (!confirm(`¿Deshacer la importación del ${fechaCorta(imp.hasta)} (${n} movimientos)?`)) return;
   estado.gastos = estado.gastos.filter(g => g.lote !== lote);
+  for(const f of (estado.compromisos||[])){
+    if(f.tipo!=='fijo'||!f.pagos) continue;
+    for(const mes of Object.keys(f.pagos)){
+      if(f.pagos[mes]?.lote===lote) delete f.pagos[mes];
+    }
+  }
   delete estado.importaciones[medio];
   guardar(); guardarSnap(); render();
   if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
@@ -4375,6 +4429,10 @@ window.buildBackupJson = buildBackupJson;
 window._marcarConciliadoHasta = _marcarConciliadoHasta;
 window._getImpOmitidas = () => _impOmitidas;
 window._getImpCandidatos = () => _impCandidatos;
+window._fijoCoincide = _fijoCoincide;
+window._confirmarImpBanco = _confirmarImpBanco;
+window._deshacerUltimaImp = _deshacerUltimaImp;
+window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = medio; _impSaldoInfo = null; _impFechaFinal = cands.reduce((mx,c)=>c.fecha>mx?c.fecha:mx,''); };
 
 // ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
