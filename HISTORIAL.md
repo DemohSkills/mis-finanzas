@@ -215,6 +215,12 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **Gráficos:** `axO()`, `ttO()`, `legO()` ya leían CSS variables; al cambiar tema se llama `iniciarEvolucion()` que los redibuja con los nuevos valores.
   - 7 tests nuevos en `tests/tema.spec.js`. Suite completa: 336/336 ✓. Rama: trabajo-nocturno.
 
+- 22/10/2026: 4 mejoras visuales en Evolución y barra de solapas (rama trabajo-nocturno). 4 commits, 28 tests nuevos. Suite completa: 388/388 ✓.
+  - **Parte 1 — etiquetas en cB:** plugin `barLabelsCB` dibuja `$fmtM` encima de cada barra del gráfico "Activos vs Deudas" con coma decimal (ej. `$2,2M`). Con modo ojo activo el plugin omite el dibujo; al desactivar se vuelve a llamar `rChartB()`. Legible en los 4 temas. 5 tests en `tests/bar-labels-cb.spec.js`.
+  - **Parte 2 — cuadro de variaciones:** `renderVarTable()` muestra una tabla al inicio de Evolución con filas Patrimonio neto / Activos / Deudas y columnas Hoy / Var. 1 día / 7 días / 30 días usando los snapshots diarios. Sin snapshot suficientemente antiguo muestra "—". Verde/rojo según signo; en Deudas que baje es verde. Importes en `span.amt` (ocultos por modo ojo); porcentajes en `span.vt-pct` siempre visibles. 10 tests en `tests/var-table.spec.js`.
+  - **Parte 3 — leyenda al pie:** el texto "Los gráficos usan snapshots..." se mueve del encabezado al final de la vista, como `<p class="ev-nota">` con font-size .72rem y opacidad .7 (discreto). El botón "Plegar todo" queda solo arriba. 6 tests en `tests/evolucion-layout.spec.js`.
+  - **Parte 4 — orden de solapas:** nuevo orden Inicio / Movimientos / A pagar / Patrimonio / Vínculos / Evolución / ⚙️. IDs y data-vista sin cambios. Funciona sin desborde a 360 px. Actualizado `tests/orden-solapas.spec.js`; 7 tests nuevos en `tests/orden-solapas-v2.spec.js`.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.
