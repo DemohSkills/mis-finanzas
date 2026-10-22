@@ -1022,6 +1022,7 @@ body.ocultar .tk-val{display:none!important;}
       <h2>🏦 Importar Visa (CSV)</h2>
       <p class="meta">Importá movimientos desde el resumen de tu banco. Parseo local: el archivo no se sube a ningún servidor.</p>
       <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar Santander / Mercado Pago</button>
+      <button type="button" class="mini" id="btnImportarVisa" style="margin-top:8px;">📥 Importar Visa (Excel)</button>
       <div id="impUltimaInfo" style="margin-top:6px;font-size:.75rem;color:var(--muted);"></div>
     </div>
 
@@ -4146,6 +4147,152 @@ function parseMercadoPago(lineas) {
   return rows;
 }
 
+// ── Visa Excel parser ─────────────────────────────────
+function parseVisaXlsx(filas) {
+  const cell = (row, i) => String(row?.[i] ?? '').trim();
+  const parsePesos = s => {
+    const m = String(s).replace(/[$\s ]/g, '');
+    if (!m) return 0;
+    return parseFloat(m.replace(/\./g, '').replace(',', '.')) || 0;
+  };
+  const parseUSD = s => {
+    const m = String(s).replace(/U\$S\s*/i, '').trim();
+    if (!m) return 0;
+    return parseFloat(m.replace(/\./g, '').replace(',', '.')) || 0;
+  };
+  const parseDate = s => {
+    const mm = String(s).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return mm ? `${mm[3]}-${mm[2]}-${mm[1]}` : null;
+  };
+
+  // Find "Fecha de cierre" header
+  let cierreHeaderIdx = -1;
+  for (let i = 0; i < filas.length; i++) {
+    if (/fecha de cierre/i.test(cell(filas[i], 0))) { cierreHeaderIdx = i; break; }
+  }
+  if (cierreHeaderIdx < 0) throw new Error('No parece un resumen de Visa (no se encontró "Fecha de cierre").');
+
+  const dateRow = filas[cierreHeaderIdx + 1];
+  const cierre = dateRow ? parseDate(cell(dateRow, 0)) : null;
+  const vencimiento = dateRow ? parseDate(cell(dateRow, 1)) : null;
+  if (!cierre) throw new Error('No parece un resumen de Visa (no se encontró fecha de cierre).');
+
+  // "Total a pagar" — value row follows
+  let totalPesos = 0, totalUSD = 0;
+  for (let i = 0; i < filas.length; i++) {
+    if (/total a pagar/i.test(cell(filas[i], 0))) {
+      const nxt = filas[i + 1];
+      if (nxt) for (const c of nxt) {
+        const s = String(c || '').trim();
+        if (/^\$/.test(s) && !/U\$S/i.test(s) && !totalPesos) totalPesos = parsePesos(s);
+        if (/U\$S/i.test(s) && !totalUSD) totalUSD = parseUSD(s);
+      }
+      break;
+    }
+  }
+
+  // "Cierres y vencimientos" — prox dates in col 1
+  let proxCierre = null, proxVencimiento = null;
+  for (let i = 0; i < filas.length; i++) {
+    if (/cierres y vencimientos/i.test(cell(filas[i], 0))) {
+      for (let j = i + 1; j < Math.min(i + 8, filas.length); j++) {
+        for (let col = 0; col < filas[j].length; col++) {
+          const t = cell(filas[j], col);
+          const mC = t.match(/Cierre:\s*(\d{2}\/\d{2}\/\d{4})/i);
+          const mV = t.match(/Vencimiento:\s*(\d{2}\/\d{2}\/\d{4})/i);
+          if (mC && col === 1) proxCierre = parseDate(mC[1]);
+          if (mV && col === 1) proxVencimiento = parseDate(mV[1]);
+        }
+      }
+      break;
+    }
+  }
+
+  // Find card sections
+  const cardSections = [];
+  for (let i = 0; i < filas.length; i++) {
+    const c0 = cell(filas[i], 0);
+    const mT = c0.match(/^Tarjeta de (.+?) - Visa Cr[eé]dito terminada en (\d{4})$/i);
+    const mA = c0.match(/^Adicional de (.+?) - Visa Cr[eé]dito terminada en (\d{4})$/i);
+    if (mT) cardSections.push({ startRow: i, nombre: mT[1].trim(), numero: mT[2], tipo: 'titular' });
+    else if (mA) cardSections.push({ startRow: i, nombre: mA[1].trim(), numero: mA[2], tipo: 'adicional' });
+  }
+  if (!cardSections.length) throw new Error('No parece un resumen de Visa (no se encontró ninguna sección de tarjeta).');
+
+  // "Pago de tarjeta y devoluciones"
+  const pagos = [];
+  for (let si = 0; si < filas.length; si++) {
+    if (/pago de tarjeta y devoluciones/i.test(cell(filas[si], 0))) {
+      const stopRow = cardSections[0]?.startRow ?? filas.length;
+      let lastFechaPago = null;
+      for (let i = si + 1; i < stopRow; i++) {
+        const row = filas[i];
+        const c0 = cell(row, 0);
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(c0)) lastFechaPago = c0;
+        if (/^fecha$/i.test(c0)) continue;
+        if (!lastFechaPago) continue;
+        const desc = cell(row, 1);
+        if (!desc) continue;
+        const pesos = parsePesos(cell(row, 4));
+        const usd = parseUSD(cell(row, 5));
+        if (pesos !== 0 || usd !== 0) pagos.push({ fecha: parseDate(lastFechaPago), desc, pesos, usd });
+      }
+      break;
+    }
+  }
+
+  // Parse each card section
+  const tarjetas = [];
+  for (let si = 0; si < cardSections.length; si++) {
+    const sec = cardSections[si];
+    const endRow = si + 1 < cardSections.length ? cardSections[si + 1].startRow : filas.length;
+    let secTotalPesos = 0, secTotalUSD = 0;
+    let lastFecha = null;
+    const movs = [];
+    for (let i = sec.startRow + 1; i < endRow; i++) {
+      const row = filas[i];
+      const c0 = cell(row, 0);
+      if (/^Total de Visa Cr[eé]dito terminada en/i.test(c0)) {
+        secTotalPesos = parsePesos(cell(row, 4));
+        secTotalUSD = parseUSD(cell(row, 5));
+        break;
+      }
+      if (/^fecha$/i.test(c0)) continue;
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(c0)) lastFecha = c0;
+      if (!lastFecha) continue;
+      const desc = cell(row, 1);
+      if (!desc) continue;
+      const cuotaStr = cell(row, 2);
+      let cuota = null;
+      const cuotaM = cuotaStr.match(/^(\d+)\s+de\s+(\d+)$/i);
+      if (cuotaM) cuota = { n: parseInt(cuotaM[1]), m: parseInt(cuotaM[2]) };
+      const comprobante = cell(row, 3);
+      const pesos = parsePesos(cell(row, 4));
+      const usd = parseUSD(cell(row, 5));
+      const fecha = cuota && cuota.n > 1 ? cierre : parseDate(lastFecha);
+      movs.push({ fecha, desc, cuota, comprobante, pesos, usd });
+    }
+    tarjetas.push({ numero: sec.numero, nombre: sec.nombre, tipo: sec.tipo, totalPesos: secTotalPesos, totalUSD: secTotalUSD, movs });
+  }
+
+  // "Otros conceptos"
+  const otros = [];
+  for (let i = 0; i < filas.length; i++) {
+    if (/^otros conceptos$/i.test(cell(filas[i], 0))) {
+      for (let j = i + 1; j < filas.length; j++) {
+        const desc = cell(filas[j], 0);
+        if (!desc || /^descripci[oó]n$/i.test(desc)) continue;
+        if (/aviso importante/i.test(desc)) break;
+        const monto = parsePesos(cell(filas[j], 1));
+        if (monto !== 0) otros.push({ desc, monto });
+      }
+      break;
+    }
+  }
+
+  return { cierre, vencimiento, proxCierre, proxVencimiento, totalPesos, totalUSD, tarjetas, pagos, otros };
+}
+
 // ── Categorization ────────────────────────────────────
 const _REGLAS_SANT = [
   { t: d => d.includes('debito automatico') && d.includes('arca'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Débito automático ARCA (monotributo)' },
@@ -4214,6 +4361,40 @@ function _categorizarMP(desc, monto) {
     }
   }
   return { tipo: monto >= 0 ? 'ingreso' : 'gasto', cat:'Otros/Varios', paraRevisar:true };
+}
+
+// ── Visa categorization ───────────────────────────────
+const _REGLAS_VISA = [
+  { t: d => d.includes('dlo*pedidosya propina'), tipo:'gasto', cat:'Propinas y Extras' },
+  { t: d => d.includes('dlo*pedidosya plus'), tipo:'gasto', cat:'Comida y Delivery' },
+  { t: d => d.includes('dlo*pedidosya market'), tipo:'gasto', cat:'Comida y Delivery' },
+  { t: d => d.includes('pedidosya'), tipo:'gasto', cat:'Comida y Delivery' },
+  { t: d => d.includes('diarco'), tipo:'gasto', cat:'Comida y Delivery' },
+  { t: d => d.includes('appypf') || d.includes('mercpago*appypfcomb') || d.includes('shellbox') || d.includes('shell') || d.includes('uber') || d.includes('ecoebikebat') || d.includes('federacion pat') || d.includes('arba-impuesto'), tipo:'gasto', cat:'Transporte/Auto' },
+  { t: d => d.includes('donweb') || d.includes('hostinger'), tipo:'gasto', cat:'Proyectos Web' },
+  { t: d => d.includes('merpago*mercadolibre') || d.includes('merpago*meli'), tipo:'gasto', cat:'Compras Online' },
+  { t: d => d.includes('merpago*iplan') || d.includes('personal'), tipo:'gasto', cat:'Servicios/Telecom' },
+  { t: d => ['merpago*bidcom','merpago*diluce','merpago*thonetvander','merpago*shopferretero'].some(k=>d.includes(k)), tipo:'gasto', cat:'Hogar y Materiales' },
+  { t: d => d.includes('hp com') || d.includes('merpago*airporttech'), tipo:'gasto', cat:'Tecnología/Electrónica' },
+  { t: d => d.includes('merpago*calzettancos'), tipo:'gasto', cat:'Indumentaria y Calzado' },
+  { t: d => d.includes('farmacity'), tipo:'gasto', cat:'Salud' },
+  { t: d => d.includes('plan v consolid'), tipo:'gasto', cat:'Financiación Consolidada' },
+  { t: d => d.includes('iibb percep'), tipo:'gasto', cat:'Ingresos brutos (retenciones)' },
+  { t: d => ['db iva','impuesto de sellos','intereses financiacion','db.rg','iva rg'].some(k=>d.includes(k)), tipo:'gasto', cat:'Impuestos e Intereses' },
+  { t: d => ['strix','san juan y solis','merpago*gramabi','nicolai'].some(k=>d.includes(k)), tipo:'gasto', cat:'Otros/Varios' },
+];
+
+function _categorizarVisa(desc, monto) {
+  const d = desc.toLowerCase();
+  const userCat = aplicarRegla(desc);
+  if (userCat) {
+    const isIncome = getCatsIncome().includes(userCat);
+    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
+  }
+  for (const r of _REGLAS_VISA) {
+    if (r.t(d)) return { tipo: r.tipo, cat: r.cat, paraRevisar: false };
+  }
+  return { tipo: 'gasto', cat: 'Otros/Varios', paraRevisar: true };
 }
 
 // ── Deduplication ─────────────────────────────────────
@@ -4618,6 +4799,116 @@ function _actualizarImpUltimaInfo() {
   el.textContent = lines.length ? `Última importación — ${lines.join(' · ')}` : '';
 }
 
+// ── Visa preview (Part 1 — read-only) ─────────────────
+let _visaData = null;
+
+function _renderVisaPreview(data) {
+  _visaData = data;
+  const body = $('impModalBody');
+  const fmtD = d => d ? fechaCorta(d) : '—';
+  const fmtUSD = n => `US$ ${n.toFixed(2).replace('.', ',')}`;
+
+  let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:.82rem;margin-bottom:10px;">
+    <div><span style="color:var(--muted)">Cierre:</span> <b>${fmtD(data.cierre)}</b></div>
+    <div><span style="color:var(--muted)">Vencimiento:</span> <b>${fmtD(data.vencimiento)}</b></div>
+    <div><span style="color:var(--muted)">Prox. cierre:</span> <b>${fmtD(data.proxCierre)}</b></div>
+    <div><span style="color:var(--muted)">Prox. vencimiento:</span> <b>${fmtD(data.proxVencimiento)}</b></div>
+  </div>
+  <div style="font-size:.9rem;margin-bottom:10px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);">
+    <b>Total a pagar:</b> ${fmt(data.totalPesos)}${data.totalUSD ? ` &nbsp;·&nbsp; <b>${fmtUSD(data.totalUSD)}</b>` : ''}
+  </div>`;
+
+  for (const tarjeta of data.tarjetas) {
+    const sumP = tarjeta.movs.reduce((s,m) => s + m.pesos, 0);
+    const sumU = tarjeta.movs.reduce((s,m) => s + m.usd, 0);
+    const okP = Math.abs(sumP - tarjeta.totalPesos) < 0.02;
+    const okU = Math.abs(sumU - tarjeta.totalUSD) < 0.005;
+    const vP = okP ? '✓ coincide' : `⚠ diferencia ${fmt(Math.abs(sumP - tarjeta.totalPesos))}`;
+    const vU = okU ? '✓ USD coincide' : `⚠ diferencia USD ${Math.abs(sumU - tarjeta.totalUSD).toFixed(2)}`;
+    const adicTag = tarjeta.tipo === 'adicional' ? ' <span style="font-size:.72rem;background:var(--warn,#f59e0b);color:#fff;border-radius:4px;padding:1px 5px;vertical-align:middle;">Adicional</span>' : '';
+    html += `<details class="imp-sec" open>
+      <summary><span class="det-arrow">▶</span>${esc(tarjeta.nombre)} ···${esc(tarjeta.numero)}${adicTag}</summary>
+      <div style="font-size:.78rem;color:${(okP&&okU)?'var(--ok,#16a34a)':'var(--warn,#f59e0b)'};padding:3px 0 6px;">
+        ${vP}${tarjeta.totalUSD > 0 ? ' &nbsp;·&nbsp; ' + vU : ''}
+        <span style="color:var(--muted);margin-left:8px;">Total: ${fmt(tarjeta.totalPesos)}${tarjeta.totalUSD > 0 ? ' · ' + fmtUSD(tarjeta.totalUSD) : ''}</span>
+      </div>`;
+    for (const mov of tarjeta.movs) {
+      const catInfo = _categorizarVisa(mov.desc, mov.pesos || mov.usd);
+      const cuotaLabel = mov.cuota ? `cuota ${mov.cuota.n}/${mov.cuota.m}` : '';
+      const montoHtml = (mov.usd && !mov.pesos)
+        ? `<span style="color:var(--muted)">${fmtUSD(mov.usd)}</span>`
+        : `<span>${fmt(mov.pesos)}</span>`;
+      html += `<div class="imp-row">
+        <div class="imp-row-top"><span class="imp-row-desc">${esc(mov.desc.slice(0,55))}</span>${montoHtml}</div>
+        <div class="imp-row-meta"><span>${fechaCorta(mov.fecha)}</span><span>${esc(catInfo.cat)}</span>${cuotaLabel?`<span>${esc(cuotaLabel)}</span>`:''}${catInfo.paraRevisar?'<span style="color:var(--warn)">⚠ revisar</span>':''}</div>
+      </div>`;
+    }
+    html += '</details>';
+  }
+
+  if (data.pagos.length) {
+    html += `<details class="imp-sec"><summary><span class="det-arrow">▶</span>Pagos y devoluciones (${data.pagos.length}) — solo informativo</summary>`;
+    for (const p of data.pagos) {
+      const sgn = p.pesos >= 0;
+      html += `<div class="imp-row"><div class="imp-row-top"><span class="imp-row-desc">${esc(p.desc.slice(0,55))}</span><span class="${sgn?'pos':'neg'}">${sgn?'+':''}${fmt(Math.abs(p.pesos))}</span></div><div class="imp-row-meta"><span>${fechaCorta(p.fecha)}</span></div></div>`;
+    }
+    html += '</details>';
+  }
+
+  if (data.otros.length) {
+    const bycat = new Map();
+    for (const o of data.otros) {
+      const cat = _categorizarVisa(o.desc, o.monto).cat;
+      bycat.set(cat, (bycat.get(cat) || 0) + o.monto);
+    }
+    html += `<details class="imp-sec"><summary><span class="det-arrow">▶</span>Otros conceptos (${data.otros.length} ítem${data.otros.length!==1?'s':''})</summary>`;
+    for (const [cat, monto] of bycat) {
+      html += `<div class="imp-row"><div class="imp-row-top"><span class="imp-row-desc">${esc(cat)}</span><span>${fmt(monto)}</span></div></div>`;
+    }
+    html += '</details>';
+  }
+
+  html += `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+    <button type="button" class="primary" disabled style="opacity:.5;cursor:not-allowed;">Disponible en la parte 2</button>
+    <button type="button" class="mini" id="btnCancelarVisaPrev">Cancelar</button>
+  </div>`;
+  body.innerHTML = html;
+  const btnCan = $('btnCancelarVisaPrev');
+  if (btnCan) btnCan.onclick = () => { $('impModal').hidden = true; };
+}
+
+// ── Open Visa Excel import modal ───────────────────────
+function abrirImportVisaModal() {
+  const body = $('impModalBody');
+  body.innerHTML = `
+    <p class="meta">Seleccioná el resumen de Visa en Excel (<b>.xls/.xlsx</b>) del home banking de Santander. El parseo es local.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+      <input type="file" id="impVisaFile" accept=".xls,.xlsx" style="flex:1;font-size:.82rem;">
+    </div>
+    <div id="impVisaStatus" style="margin-top:8px;font-size:.8rem;color:var(--muted);min-height:1em;"></div>`;
+  const fileEl = $('impVisaFile');
+  fileEl.onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const st = $('impVisaStatus');
+    st.textContent = 'Cargando SheetJS…';
+    let XLSX;
+    try { XLSX = await _cargarSheetJS(); }
+    catch (err) { st.textContent = `❌ ${err.message}`; fileEl.value = ''; return; }
+    st.textContent = 'Leyendo archivo…';
+    try {
+      const ab = await file.arrayBuffer();
+      const wb = XLSX.read(ab, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      const data = parseVisaXlsx(filas);
+      st.textContent = '';
+      _renderVisaPreview(data);
+    } catch (err) { st.textContent = `❌ ${err.message}`; }
+    fileEl.value = '';
+  };
+  $('impModal').hidden = false;
+}
+
 // ── Open import modal ──────────────────────────────────
 function abrirImportModal() {
   const body = $('impModalBody');
@@ -4748,6 +5039,9 @@ window.parseSantander = parseSantander;
 window._categorizarSant = _categorizarSant;
 window.parseMercadoPago = parseMercadoPago;
 window._categorizarMP = _categorizarMP;
+window.parseVisaXlsx = parseVisaXlsx;
+window._categorizarVisa = _categorizarVisa;
+window._renderVisaPreview = _renderVisaPreview;
 window._deduplicarImp = _deduplicarImp;
 window._agruparRuidoImp = _agruparRuidoImp;
 window._verifSaldo = _verifSaldo;
@@ -4833,6 +5127,7 @@ function wireEvents(){
     addCatIncome(nombre); renderCfgCats(); fillCatSelect('categoria', null, true);
   };
   $('btnImportarBanco').onclick=abrirImportModal;
+  $('btnImportarVisa').onclick=abrirImportVisaModal;
   $('btnCerrarImpModal').onclick=()=>{ $('impModal').hidden=true; };
 }
 
