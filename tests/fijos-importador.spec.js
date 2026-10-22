@@ -143,7 +143,7 @@ test('(m) _fijoCoincide: descripción con tab y espacios múltiples coincide con
   const result = await page.evaluate(() => {
     const fijo = { palabrasClave: 'debito automatico arca' };
     return {
-      tab: window._fijoCoincide(fijo, 'Debito automatico \t Arca  ex afip   -20339692344'),
+      tab: window._fijoCoincide(fijo, 'Debito automatico \t Arca  ex afip   -20111111112'),
       multi: window._fijoCoincide(fijo, 'DEBITO  AUTOMATICO   ARCA SA'),
       noMatch: window._fijoCoincide(fijo, 'transferencia bancaria'),
     };
@@ -172,7 +172,7 @@ test('(o) _fijoCoincide: caso exacto Santander — tab interno con kw "imp.afip"
   await seedAndUnlock(page, buildEstado());
   const result = await page.evaluate(() => {
     const fijo = { palabrasClave: 'imp.afip' };
-    return window._fijoCoincide(fijo, 'Pago de servicios \t Imp.afip: 2033969234433969234');
+    return window._fijoCoincide(fijo, 'Pago de servicios \t Imp.afip: 2011111111211111111');
   });
   expect(result).toBe(true);
 });

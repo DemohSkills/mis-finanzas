@@ -258,12 +258,15 @@ test.describe('importar-mp', () => {
     expect(dr.descFija).toBe('Pago Meli Envíos');
   });
 
-  test('(k) categorización: transferencia enviada urbanc dimitri → transferencia entre cuentas', async ({ page }) => {
+  test('(k) categorización: transferencia enviada titular prueba → transferencia entre cuentas', async ({ page }) => {
     await seedAndLoad(page);
     await enterPIN(page);
+    await page.evaluate(() => {
+      localStorage.setItem('finanzas-v1-mi-nombre-banco', 'Titular Prueba');
+    });
 
     const result = await page.evaluate(() =>
-      window._categorizarMP('Transferencia enviada Urbanc Dimitri cuenta propia', -200000)
+      window._categorizarMP('Transferencia enviada Titular Prueba cuenta propia', -200000)
     );
     expect(result.transf).toBe(true);
     expect(result.cat).toBe('Transferencia entre cuentas');
@@ -554,7 +557,7 @@ test.describe('importar-mp', () => {
     // Synthetic lineas reproducing real PDF structure: description between date and ID
     const lineas = [
       { y: 10,  text: 'RESUMEN DE CUENTA EN PESOS' },
-      { y: 20,  text: 'Dimitri Urbanc' },
+      { y: 20,  text: 'Titular Prueba' },
       { y: 30,  text: 'CVU: 0000003100096655555555' },
       { y: 40,  text: 'Periodo: Del 21 de septiembre al 20 de octubre de 2026' },
       { y: 50,  text: 'Saldo inicial: $ 50.000,00' },
@@ -586,7 +589,7 @@ test.describe('importar-mp', () => {
     const lineas = [
       // Global header
       { y: 10,  text: 'RESUMEN DE CUENTA EN PESOS' },
-      { y: 20,  text: 'Dimitri Urbanc' },
+      { y: 20,  text: 'Titular Prueba' },
       { y: 30,  text: 'CVU: 0000003100096655555555' },
       { y: 40,  text: 'Saldo inicial: $ 100.000,00' },
       { y: 50,  text: 'Saldo final: $ 99.700,00' },
@@ -604,7 +607,7 @@ test.describe('importar-mp', () => {
       { y: 130, text: 'ante la AFIP.' },
       // Page-break header on next page (close in Y to row 1 — must be ignored)
       { y: 400, text: 'RESUMEN DE CUENTA EN PESOS' },
-      { y: 410, text: 'Dimitri Urbanc' },
+      { y: 410, text: 'Titular Prueba' },
       { y: 420, text: 'CVU: 0000003100096655555555' },
       { y: 430, text: 'Fecha de generación: 20-10-2026' },
       { y: 440, text: 'ID de la' },
@@ -622,7 +625,7 @@ test.describe('importar-mp', () => {
 
     // First row: desc should be the inline text only, no noise
     expect(result.rows[0].desc).toBe('Pago con QR');
-    expect(result.rows[0].desc).not.toMatch(/Mercado Libre|Dimitri|CVU|Fecha|operaci/i);
+    expect(result.rows[0].desc).not.toMatch(/Mercado Libre|Titular Prueba|CVU|Fecha|operaci/i);
 
     // Second row: desc should be the inline text only, no noise
     expect(result.rows[1].desc).toContain('Dinero recibido pago-drivers');

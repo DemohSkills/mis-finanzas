@@ -1026,6 +1026,15 @@ body.ocultar .tk-val{display:none!important;}
     </div>
 
     <div class="cfg-section">
+      <h2>👤 Mi nombre en los bancos</h2>
+      <p class="meta">Se usa para detectar tus propias transferencias al importar Mercado Pago. Dejalo vacío para deshabilitar la detección.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" id="cfgMiNombre" placeholder="Ej: Apellido Nombre" style="flex:1;border-radius:8px;border:1px solid var(--border);padding:8px 10px;background:var(--bg);color:var(--text);font:inherit;">
+        <button type="button" id="btnGuardarMiNombre" class="primary" style="flex:0 0 auto;">Guardar</button>
+      </div>
+    </div>
+
+    <div class="cfg-section">
       <h2>🔒 PIN de acceso</h2>
       <p class="meta">Protección casual. Cualquier persona con acceso al localStorage del navegador puede eludirla.</p>
       <button type="button" id="btnCambiarPIN" class="mini" style="margin-top:8px;">Cambiar PIN</button>
@@ -1176,6 +1185,7 @@ const BACKUP_DK      = 'finanzas-v1-backup-date';
 const BACKUP_META_K  = 'finanzas-v1-backup-meta';
 const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
 const TEMA_K         = 'finanzas-v1-tema';
+const MY_NAME_K      = 'finanzas-v1-mi-nombre-banco';
 
 // ═══════════════════════════════════════════════════════
 // UTILIDADES
@@ -2801,6 +2811,7 @@ function renderConfig(){
   fillCatSelect('reglaCat');
   const apiKey=ls.get(APIKEY_K)||'';
   $('cfgApiKey').value=apiKey?'••••••••••••':'';
+  $('cfgMiNombre').value=ls.get(MY_NAME_K)||'';
   actualizarInfoBackup();
   renderFotosConfig();
   _actualizarImpUltimaInfo();
@@ -2832,6 +2843,12 @@ $('btnGuardarApiKey').onclick=()=>{
   const val=$('cfgApiKey').value.trim();
   if(val&&!val.startsWith('••')) ls.set(APIKEY_K,val);
   alert('API key guardada.');
+};
+
+$('btnGuardarMiNombre').onclick=()=>{
+  const val=$('cfgMiNombre').value.trim();
+  if(val) ls.set(MY_NAME_K,val); else localStorage.removeItem(MY_NAME_K);
+  alert('Nombre guardado.');
 };
 
 $('btnCambiarPIN').onclick=()=>{
@@ -4173,7 +4190,7 @@ const _REGLAS_MP = [
   { t: d => d.includes('iibb') || d.includes('ingresos brutos'), tipo:'gasto', cat:'Ingresos brutos (retenciones)' },
   { t: d => d.includes('pago de cuota creditos de mercado pago'), tipo:'gasto', cat:'Pago de créditos' },
   { t: d => d.includes('pago de resumen tarjeta'), tipo:'gasto', cat:'Pago de Visa/MP', transferPair:'Mastercard MP' },
-  { t: d => d.includes('ingreso de dinero') || (d.includes('transferencia enviada') && d.includes('urbanc dimitri')), tipo:'auto', cat:'Transferencia entre cuentas', transf:true },
+  { t: d => { const n=(localStorage.getItem(MY_NAME_K)||'').trim().toLowerCase(); return d.includes('ingreso de dinero') || (n && d.includes('transferencia enviada') && d.includes(n)); }, tipo:'auto', cat:'Transferencia entre cuentas', transf:true },
   { t: d => d.includes('cashback mercado pago') || d.includes('pago-drivers'), tipo:'ingreso', cat:'Sueldo/Honorarios', descFija:'Pago Meli Envíos' },
   { t: d => ['pago de servicio','pago aysa','movistar','personal','iplan'].some(k=>d.includes(k)), tipo:'gasto', cat:'Servicios/Telecom' },
   { t: d => d.includes('pago con qr'), tipo:'gasto', cat:'Otros/Varios', paraRevisar:true },
