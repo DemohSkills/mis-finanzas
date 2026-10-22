@@ -183,6 +183,13 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - Cubre el caso real de Santander: "Debito automatico \t Arca  ex afip" coincide con "debito automatico arca".
   - Palabras clave con espacios múltiples escritas por el usuario también funcionan.
   - 3 tests nuevos en `tests/fijos-importador.spec.js` (m, n, o). Suite completa: 307/307 ✓. Rama: trabajo-nocturno.
+- 21/10/2026: transferencias separadas en resultados del buscador. Cambios en `index.html`:
+  - Con búsqueda activa, los pares completos de transferencias (`transferId` con 2 legs) se separan de los resultados normales.
+  - Los resultados normales (gastos e ingresos reales, más transferencias huérfanas) se muestran primero; sus totales en `#busqSummary` no incluyen transferencias.
+  - Una sección `<details>` "Transferencias entre cuentas (N)" aparece debajo, cerrada por defecto.
+  - Si la búsqueda solo coincide con transferencias: aviso "Solo hay transferencias entre cuentas para esta búsqueda" y la sección se abre automáticamente.
+  - Sin búsqueda: comportamiento original sin cambios.
+  - 8 tests nuevos en `tests/buscador-transferencias.spec.js`. Suite completa: 315/315 ✓. Rama: trabajo-nocturno.
 
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.

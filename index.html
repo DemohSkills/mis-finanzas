@@ -2260,75 +2260,132 @@ function renderHistorial() {
   const allLista=[...estado.gastos].sort((a,b) => b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
   const lista=query?filtrarMovimientos(query,allLista):allLista;
   const sumEl=$('busqSummary');
-  if(sumEl){
-    if(query){
-      const transCount=new Set(lista.filter(g=>g.transferencia&&g.transferId).map(g=>g.transferId)).size;
-      const norm=lista.filter(g=>!g.transferencia);
-      const gG=norm.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
-      const gI=norm.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
-      let stxt=`${lista.length} resultado${lista.length!==1?'s':''} · Gastos ${fmtV(gG)} · Ingresos ${fmtV(gI)}`;
-      if(transCount) stxt+=` · ${transCount} transferencia${transCount>1?'s':''}`;
-      sumEl.innerHTML=stxt;
-    } else sumEl.innerHTML='';
-  }
+  if(sumEl&&!query) sumEl.innerHTML='';
   if (!allLista.length) { cont.innerHTML='<div class="vacio">Todavía no cargaste movimientos.</div>'; $('total').textContent=''; return; }
   const totalGastos = allLista.filter(g=>(g.tipo||'gasto')==='gasto'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   const totalIngresos = allLista.filter(g=>(g.tipo||'gasto')==='ingreso'&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   $('total').innerHTML=`${allLista.length} movimiento${allLista.length>1?'s':''} · Gastos: ${fmtV(totalGastos)} · Ingresos: ${fmtV(totalIngresos)}`;
-  if (!lista.length) { cont.innerHTML='<div class="vacio">Sin resultados para esa búsqueda.</div>'; return; }
+  if (!lista.length) { cont.innerHTML='<div class="vacio">Sin resultados para esa búsqueda.</div>'; if(sumEl) sumEl.innerHTML=''; return; }
 
-  // Build transfer pairs map
+  // Build transfer pairs map from matched items
   const transPairs={};
   for(const g of lista){ if(g.transferId){ if(!transPairs[g.transferId]) transPairs[g.transferId]=[]; transPairs[g.transferId].push(g); } }
-  const seenTrans=new Set();
 
-  for (const g of lista) {
-    if(g.transferId){
-      if(seenTrans.has(g.transferId)) continue;
-      seenTrans.add(g.transferId);
-      const par=transPairs[g.transferId]||[];
-      if(par.length===2){
-        const orig=par.find(p=>(p.tipo||'gasto')==='gasto')||par[0];
-        const dest=par.find(p=>(p.tipo||'gasto')==='ingreso')||par[1];
-        const div=document.createElement('div');
-        div.className='gasto';
-        div.innerHTML=`
-          <div class="row">
-            <div class="info">
-              <div class="desc">⇄ ${esc(orig.medio)} → ${esc(dest.medio)}<span class="chip hist">transferencia</span></div>
-              <div class="meta">${fechaCorta(orig.fecha)} · ${esc(orig.categoria)}${orig.descripcion&&orig.descripcion!==orig.medio+' → '+dest.medio&&orig.descripcion!=='Pago '+dest.medio?` · ${esc(orig.descripcion)}`:''}  </div>
-            </div>
-            <div class="importe">${fmtV(orig.monto)}</div>
-          </div>
-          <div class="btns">
-            <button type="button" class="mini" data-a="editar-trans">Editar</button>
-            <button type="button" class="mini danger" data-a="borrar-trans">Borrar</button>
-          </div>`;
-        div.querySelector('[data-a=editar-trans]').onclick=()=>alert('Para editar una transferencia, borrala y volvé a cargarla.');
-        div.querySelector('[data-a=borrar-trans]').onclick=()=>borrarTransferencia(g.transferId);
-        cont.appendChild(div);
-        continue;
-      }
-      // Orphan transfer — fall through to normal render
-    }
-    const isIng = (g.tipo||'gasto')==='ingreso';
+  // Helper: render one transfer pair row into a target element
+  function _appendTransDiv(par, target){
+    const orig=par.find(p=>(p.tipo||'gasto')==='gasto')||par[0];
+    const dest=par.find(p=>(p.tipo||'gasto')==='ingreso')||par[1];
     const div=document.createElement('div');
-    div.className='gasto'+(g.id===editandoId?' editando':'');
+    div.className='gasto';
     div.innerHTML=`
       <div class="row">
         <div class="info">
-          <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
-          <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
+          <div class="desc">⇄ ${esc(orig.medio)} → ${esc(dest.medio)}<span class="chip hist">transferencia</span></div>
+          <div class="meta">${fechaCorta(orig.fecha)} · ${esc(orig.categoria)}${orig.descripcion&&orig.descripcion!==orig.medio+' → '+dest.medio&&orig.descripcion!=='Pago '+dest.medio?` · ${esc(orig.descripcion)}`:''}  </div>
         </div>
-        <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmtV(g.monto)}</div>
+        <div class="importe">${fmtV(orig.monto)}</div>
       </div>
       <div class="btns">
-        <button type="button" class="mini" data-a="editar">Editar</button>
-        <button type="button" class="mini danger" data-a="borrar">Borrar</button>
+        <button type="button" class="mini" data-a="editar-trans">Editar</button>
+        <button type="button" class="mini danger" data-a="borrar-trans">Borrar</button>
       </div>`;
-    div.querySelector('[data-a=editar]').onclick = () => empezarEdicion(g.id);
-    div.querySelector('[data-a=borrar]').onclick = () => borrar(g.id);
-    cont.appendChild(div);
+    div.querySelector('[data-a=editar-trans]').onclick=()=>alert('Para editar una transferencia, borrala y volvé a cargarla.');
+    div.querySelector('[data-a=borrar-trans]').onclick=()=>borrarTransferencia(orig.transferId);
+    target.appendChild(div);
+  }
+
+  if(query){
+    // Separate complete transfer pairs from normal items
+    const seenTrans=new Set();
+    const normalItems=[];
+    const transItems=[];
+    for(const g of lista){
+      if(g.transferId){
+        const par=transPairs[g.transferId]||[];
+        if(par.length===2){
+          if(!seenTrans.has(g.transferId)){ seenTrans.add(g.transferId); transItems.push(par); }
+          continue; // both legs excluded from normalItems
+        }
+        // Orphan transfer — treat as normal item
+      }
+      normalItems.push(g);
+    }
+
+    // Update summary with normal items only
+    if(sumEl){
+      const norm=normalItems.filter(g=>!g.transferencia);
+      const gG=norm.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
+      const gI=norm.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
+      const rc=norm.length;
+      sumEl.innerHTML=rc?`${rc} resultado${rc!==1?'s':''} · Gastos ${fmtV(gG)} · Ingresos ${fmtV(gI)}`:'';
+    }
+
+    if(!normalItems.length && transItems.length){
+      cont.appendChild(Object.assign(document.createElement('div'),{className:'vacio',textContent:'Solo hay transferencias entre cuentas para esta búsqueda.'}));
+    }
+
+    // Render normal items
+    for(const g of normalItems){
+      const isIng=(g.tipo||'gasto')==='ingreso';
+      const div=document.createElement('div');
+      div.className='gasto'+(g.id===editandoId?' editando':'');
+      div.innerHTML=`
+        <div class="row">
+          <div class="info">
+            <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
+            <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
+          </div>
+          <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmtV(g.monto)}</div>
+        </div>
+        <div class="btns">
+          <button type="button" class="mini" data-a="editar">Editar</button>
+          <button type="button" class="mini danger" data-a="borrar">Borrar</button>
+        </div>`;
+      div.querySelector('[data-a=editar]').onclick=()=>empezarEdicion(g.id);
+      div.querySelector('[data-a=borrar]').onclick=()=>borrar(g.id);
+      cont.appendChild(div);
+    }
+
+    // Render collapsible transfer section
+    if(transItems.length){
+      const det=document.createElement('details');
+      if(!normalItems.length) det.open=true;
+      const sumTag=document.createElement('summary');
+      sumTag.textContent=`Transferencias entre cuentas (${transItems.length})`;
+      det.appendChild(sumTag);
+      for(const par of transItems) _appendTransDiv(par, det);
+      cont.appendChild(det);
+    }
+  } else {
+    // No query — original behavior: mixed list
+    const seenTrans=new Set();
+    for(const g of lista){
+      if(g.transferId){
+        if(seenTrans.has(g.transferId)) continue;
+        seenTrans.add(g.transferId);
+        const par=transPairs[g.transferId]||[];
+        if(par.length===2){ _appendTransDiv(par, cont); continue; }
+        // Orphan transfer — fall through to normal render
+      }
+      const isIng=(g.tipo||'gasto')==='ingreso';
+      const div=document.createElement('div');
+      div.className='gasto'+(g.id===editandoId?' editando':'');
+      div.innerHTML=`
+        <div class="row">
+          <div class="info">
+            <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
+            <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
+          </div>
+          <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmtV(g.monto)}</div>
+        </div>
+        <div class="btns">
+          <button type="button" class="mini" data-a="editar">Editar</button>
+          <button type="button" class="mini danger" data-a="borrar">Borrar</button>
+        </div>`;
+      div.querySelector('[data-a=editar]').onclick=()=>empezarEdicion(g.id);
+      div.querySelector('[data-a=borrar]').onclick=()=>borrar(g.id);
+      cont.appendChild(div);
+    }
   }
 }
 
