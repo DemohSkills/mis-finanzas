@@ -376,6 +376,28 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   .inf-det-tbl tr{page-break-inside:avoid;}
   body{background:#fff;color:#000;}
 }
+/* ── TICKER EVOLUCIÓN ── */
+#tickerEvol{margin-bottom:10px;}
+.tk-wrap{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:100%;}
+.tk-inner{flex:1;min-width:0;}
+.tk-scroll .tk-inner{overflow:hidden;}
+.tk-fixed .tk-inner{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tk-track{display:flex;align-items:center;}
+.tk-scroll .tk-track{animation:tkScroll 32s linear infinite;will-change:transform;}
+.tk-scroll .tk-track.tk-paused{animation-play-state:paused;}
+@keyframes tkScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.tk-scroll .tk-track{animation:none!important;}}
+.tk-item{display:inline-flex;flex-direction:column;padding:5px 12px;border-right:1px solid var(--border);flex-shrink:0;gap:1px;}
+.tk-lbl{font-size:.63rem;color:var(--muted);white-space:nowrap;}
+.tk-row{display:flex;align-items:baseline;gap:3px;white-space:nowrap;}
+.tk-arrow,.tk-pct{font-size:.76rem;font-weight:700;}
+.tk-val{font-size:.70rem;color:var(--muted);}
+.tk-row.pos .tk-arrow,.tk-row.pos .tk-pct{color:#4ade80;}
+.tk-row.neg .tk-arrow,.tk-row.neg .tk-pct{color:#f87171;}
+.tk-btn{flex-shrink:0;align-self:stretch;padding:0 8px;font-size:.72rem;background:none;border:none;border-left:1px solid var(--border);color:var(--muted);cursor:pointer;display:flex;align-items:center;}
+.tk-btn:hover{color:var(--text);}
+body.ocultar .tk-val{display:none!important;}
+/* ── /TICKER EVOLUCIÓN ── */
 </style>
 <script>(function(){try{var t=JSON.parse(localStorage.getItem('finanzas-v1-tema'));if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
 </head>
@@ -925,6 +947,9 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 
   <!-- ── EVOLUCIÓN ── -->
   <div class="vista" id="vista-evolucion" hidden>
+    <!-- ── TICKER EVOLUCIÓN ── -->
+    <div id="tickerEvol"></div>
+    <!-- ── /TICKER EVOLUCIÓN ── -->
     <div id="varTable" style="margin-bottom:14px"></div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
       <button type="button" class="mini btn-pleg-all" id="btnPlegEvol" style="flex-shrink:0">Plegar todo</button>
@@ -3570,6 +3595,74 @@ function initCfgD(){
 }
 function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;return Object.entries(m).sort(([a],[b])=>a.localeCompare(b)).slice(-12).map(([mes,s])=>({mes,...s}));}
 
+// ── TICKER EVOLUCIÓN ──
+const SK_TICKER='finanzas-v1-ticker-mode';
+function renderTickerEvol(){
+  const el=document.getElementById('tickerEvol');if(!el)return;
+  const t=totales();
+  const snaps=cargarSnaps().slice().sort((a,b)=>a.d.localeCompare(b.d));
+  const hoyStr=hoy();
+  const mesActual=hoyStr.slice(0,7);
+  // Snap de referencia: 7 días atrás, o el más antiguo disponible si hay menos historia
+  function snapRef(){
+    const ref=new Date();ref.setDate(ref.getDate()-7);
+    const refStr=ref.toLocaleDateString('sv');
+    const past=snaps.filter(s=>s.d<hoyStr);
+    const cands=past.filter(s=>s.d<=refStr);
+    return cands.length?cands[cands.length-1]:past[0]||null;
+  }
+  const snap=snapRef();
+  const gastosMes=estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos'&&!g.transferencia&&g.fecha.startsWith(mesActual)).reduce((s,g)=>s+g.monto,0);
+  const ingresosMes=estado.gastos.filter(g=>g.tipo==='ingreso'&&!g.transferencia&&g.fecha.startsWith(mesActual)).reduce((s,g)=>s+g.monto,0);
+  function tkItem(label,val,prevVal,isDeuda){
+    let rowCls='',arrow='',pctStr='—';
+    if(prevVal!=null){
+      const diff=val-prevVal;
+      const isPos=isDeuda?diff<=0:diff>=0;
+      rowCls=isPos?'pos':'neg';
+      arrow=isPos?'▲':'▼';
+      pctStr=prevVal!==0?(isPos?'+':'−')+Math.abs(diff/Math.abs(prevVal)*100).toFixed(1)+'%':'—';
+    }
+    return`<span class="tk-item"><span class="tk-lbl">${label}</span><span class="tk-row ${rowCls}">${arrow?`<span class="tk-arrow">${arrow}</span>`:'<span class="tk-arrow"></span>'}<span class="tk-pct">${pctStr}</span><span class="tk-val">\$${fmtM(Math.abs(val))}</span></span></span>`;
+  }
+  const items=[
+    tkItem('Patrimonio neto',t.neto,snap?snap.n:null,false),
+    tkItem('Activos',t.activos,snap?snap.a:null,false),
+    tkItem('Deudas',t.deudas,snap?snap.dv:null,true),
+    tkItem('Gastos mes',gastosMes,null,false),
+    tkItem('Ingresos mes',ingresosMes,null,false),
+  ].join('');
+  let prefRed=false;try{prefRed=window.matchMedia('(prefers-reduced-motion:reduce)').matches;}catch{}
+  const stored=localStorage.getItem(SK_TICKER);
+  const mode=stored||(prefRed?'fixed':'scroll');
+  el.innerHTML=
+    `<div class="tk-wrap tk-${mode}">`+
+      `<div class="tk-inner"><div class="tk-track" id="tkTrack">${mode==='scroll'?items+items:items}</div></div>`+
+      `<button class="tk-btn" id="tkModeBtn" type="button" title="${mode==='scroll'?'Fijar cinta':'Animar cinta'}" aria-label="${mode==='scroll'?'Fijar cinta':'Animar cinta'}">${mode==='scroll'?'❙❙':'▶'}</button>`+
+    `</div>`;
+  const track=document.getElementById('tkTrack');
+  const inner=el.querySelector('.tk-inner');
+  // Pausar animación al tocar
+  if(mode==='scroll'&&track&&inner){
+    const pause=()=>track.classList.add('tk-paused');
+    const resume=()=>track.classList.remove('tk-paused');
+    inner.addEventListener('touchstart',pause,{passive:true});
+    inner.addEventListener('touchend',resume,{passive:true});
+    inner.addEventListener('touchcancel',resume,{passive:true});
+    inner.addEventListener('pointerdown',pause);
+    inner.addEventListener('pointerup',resume);
+    inner.addEventListener('pointerleave',resume);
+  }
+  // Alternar modo
+  const btn=document.getElementById('tkModeBtn');
+  if(btn) btn.onclick=()=>{
+    const newMode=el.querySelector('.tk-wrap').classList.contains('tk-scroll')?'fixed':'scroll';
+    try{localStorage.setItem(SK_TICKER,newMode);}catch{}
+    renderTickerEvol();
+  };
+}
+// ── /TICKER EVOLUCIÓN ──
+
 function renderVarTable(){
   const el=document.getElementById('varTable');if(!el)return;
   const t=totales();
@@ -3736,6 +3829,7 @@ function rChartF(){
 
 let _evolReady=false,_evolDetInited=false;
 function iniciarEvolucion(){
+  renderTickerEvol();
   renderVarTable();
   withChartJs(()=>{
     rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;
