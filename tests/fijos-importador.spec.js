@@ -138,6 +138,45 @@ test('(d) _fijoCoincide: palabra de < 4 caracteres es ignorada', async ({ page }
   expect(result.gaso).toBe(true);
 });
 
+test('(m) _fijoCoincide: descripción con tab y espacios múltiples coincide con kw de varias palabras', async ({ page }) => {
+  await seedAndUnlock(page, buildEstado());
+  const result = await page.evaluate(() => {
+    const fijo = { palabrasClave: 'debito automatico arca' };
+    return {
+      tab: window._fijoCoincide(fijo, 'Debito automatico \t Arca  ex afip   -20339692344'),
+      multi: window._fijoCoincide(fijo, 'DEBITO  AUTOMATICO   ARCA SA'),
+      noMatch: window._fijoCoincide(fijo, 'transferencia bancaria'),
+    };
+  });
+  expect(result.tab).toBe(true);
+  expect(result.multi).toBe(true);
+  expect(result.noMatch).toBe(false);
+});
+
+test('(n) _fijoCoincide: palabra clave con espacios dobles escritos por el usuario también coincide', async ({ page }) => {
+  await seedAndUnlock(page, buildEstado());
+  const result = await page.evaluate(() => {
+    const fijo = { palabrasClave: 'debito  automatico,  expensas  consorcio  ' };
+    return {
+      debito: window._fijoCoincide(fijo, 'DEBITO AUTOMATICO VISA'),
+      expensas: window._fijoCoincide(fijo, 'pago expensas consorcio agosto'),
+      noMatch: window._fijoCoincide(fijo, 'sueldo empresa'),
+    };
+  });
+  expect(result.debito).toBe(true);
+  expect(result.expensas).toBe(true);
+  expect(result.noMatch).toBe(false);
+});
+
+test('(o) _fijoCoincide: caso exacto Santander — tab interno con kw "imp.afip"', async ({ page }) => {
+  await seedAndUnlock(page, buildEstado());
+  const result = await page.evaluate(() => {
+    const fijo = { palabrasClave: 'imp.afip' };
+    return window._fijoCoincide(fijo, 'Pago de servicios \t Imp.afip: 2033969234433969234');
+  });
+  expect(result).toBe(true);
+});
+
 test('(e) confirmar importación marca fijo como pagado', async ({ page }) => {
   const fijo = mkFijo();
   await seedAndUnlock(page, buildEstado([fijo]));

@@ -178,6 +178,11 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **Reimport sin duplicar:** la deduplicación existente (`yaExiste`) previene crear el gasto dos veces; el check `if(f.pagos[mes]) continue` en confirmar previene sobreescribir el pago.
   - **Expuesto para tests:** `_fijoCoincide`, `_confirmarImpBanco`, `_deshacerUltimaImp`, `_setImpState`.
   - 12 tests nuevos en `tests/fijos-importador.spec.js`. Suite completa: 304/304 ✓. Rama: trabajo-nocturno.
+- 21/10/2026: corrección en `_fijoCoincide` — colapso de espacios y tabs. Cambios en `index.html`:
+  - `norm()` ahora aplica `.replace(/\s+/g,' ').trim()` después de quitar tildes y pasar a minúsculas, tanto a la descripción como a cada keyword.
+  - Cubre el caso real de Santander: "Debito automatico \t Arca  ex afip" coincide con "debito automatico arca".
+  - Palabras clave con espacios múltiples escritas por el usuario también funcionan.
+  - 3 tests nuevos en `tests/fijos-importador.spec.js` (m, n, o). Suite completa: 307/307 ✓. Rama: trabajo-nocturno.
 
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.

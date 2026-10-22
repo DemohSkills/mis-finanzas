@@ -1749,10 +1749,10 @@ function _fijoMesCorresponde(fijo,mesStr){
 function _fijoCoincide(fijo,descripcion){
   const pk=fijo.palabrasClave;
   if(!pk||!pk.trim()) return false;
-  const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const normDesc=norm(descripcion);
   for(const kw of pk.split(',')){
-    const k=norm(kw.trim());
+    const k=norm(kw);
     if(k.length>=4&&normDesc.includes(k)) return true;
   }
   return false;
