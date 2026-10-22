@@ -203,6 +203,14 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - Sin migración de datos: los gastos ya cargados conservan su categoría anterior.
   - Tests actualizados: `importar-santander.spec.js` (cat del grupo SIRCREB en fixture), `importar-mp.spec.js` (test h: IIBB Bs. As.). 11 tests nuevos en `tests/iibb-retenciones.spec.js`. Suite completa: 329/329 ✓. Rama: trabajo-nocturno.
 
+- 21/10/2026: selector de tema manual en ⚙️ (Auto / Claro / Oscuro / Negro). Cambios en `index.html` y nuevo `tests/tema.spec.js`:
+  - **CSS:** `:root` mantiene los valores claros por defecto; `@media(prefers-color-scheme:dark)` pasa a apuntar a `html:not([data-theme])` para no pisar la elección manual. Nuevos selectores `html[data-theme="claro"]`, `html[data-theme="oscuro"]`, `html[data-theme="negro"]`. Negro: `--bg:#000;--card:#0b0b0d;--border:#222`; acentos iguales al oscuro.
+  - **Anti-FOUC:** script inline en `<head>` lee `localStorage['finanzas-v1-tema']` y aplica `data-theme` a `<html>` antes de que el body se pinte.
+  - **JS:** constante `TEMA_K='finanzas-v1-tema'`; función `aplicarTema(t)` que setea/quita `data-theme`, actualiza `<meta name="theme-color">` y redibuja los gráficos de Evolución si ya estaban iniciados; `renderConfig()` marca el botón activo con clase `primary`; listener en `#temaOpciones`.
+  - **Informe:** sin cambios — usa colores fijos (`#fff`, `#000`) y no se ve afectado por el tema.
+  - **Gráficos:** `axO()`, `ttO()`, `legO()` ya leían CSS variables; al cambiar tema se llama `iniciarEvolucion()` que los redibuja con los nuevos valores.
+  - 7 tests nuevos en `tests/tema.spec.js`. Suite completa: 336/336 ✓. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.

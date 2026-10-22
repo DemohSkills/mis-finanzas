@@ -12,10 +12,22 @@
   --bg:#f4f6fa;--card:#fff;--text:#1e293b;--muted:#64748b;
   --border:#e2e8f0;--accent:#2563eb;--danger:#dc2626;--ok:#16a34a;--warn:#d97706;
 }
-@media(prefers-color-scheme:dark){:root{
+@media(prefers-color-scheme:dark){html:not([data-theme]){
   --bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;
   --border:#334155;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
 }}
+html[data-theme="claro"]{
+  --bg:#f4f6fa;--card:#fff;--text:#1e293b;--muted:#64748b;
+  --border:#e2e8f0;--accent:#2563eb;--danger:#dc2626;--ok:#16a34a;--warn:#d97706;
+}
+html[data-theme="oscuro"]{
+  --bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;
+  --border:#334155;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+}
+html[data-theme="negro"]{
+  --bg:#000;--card:#0b0b0d;--text:#e2e8f0;--muted:#94a3b8;
+  --border:#222;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+}
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
 main{max-width:760px;margin:0 auto;padding:16px;}
@@ -348,6 +360,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   body{background:#fff;color:#000;}
 }
 </style>
+<script>(function(){try{var t=JSON.parse(localStorage.getItem('finanzas-v1-tema'));if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
 </head>
 <body>
 
@@ -940,6 +953,17 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   <!-- ── CONFIG ── -->
   <div class="vista vista-config" id="vista-config" hidden>
     <div class="cfg-section">
+      <h2>🌗 Apariencia</h2>
+      <p class="meta">Tema de color de la aplicación.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;" id="temaOpciones">
+        <button type="button" class="mini tema-btn" data-tema="auto">Auto</button>
+        <button type="button" class="mini tema-btn" data-tema="claro">Claro</button>
+        <button type="button" class="mini tema-btn" data-tema="oscuro">Oscuro</button>
+        <button type="button" class="mini tema-btn" data-tema="negro">Negro</button>
+      </div>
+    </div>
+
+    <div class="cfg-section">
       <h2>📄 Informe financiero</h2>
       <p class="meta">Generá un informe imprimible con resumen, situación y detalle de movimientos.</p>
       <button type="button" class="mini" id="btnInformeConfig" style="margin-top:8px;">📄 Informe</button>
@@ -1102,6 +1126,7 @@ const APIKEY_K   = 'finanzas-v1-apikey';
 const BACKUP_DK      = 'finanzas-v1-backup-date';
 const BACKUP_META_K  = 'finanzas-v1-backup-meta';
 const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
+const TEMA_K         = 'finanzas-v1-tema';
 
 // ═══════════════════════════════════════════════════════
 // UTILIDADES
@@ -2663,6 +2688,23 @@ function renderVinculos(){
 // ═══════════════════════════════════════════════════════
 // CONFIG TAB
 // ═══════════════════════════════════════════════════════
+const _THEME_META={auto:'#0f172a',claro:'#f4f6fa',oscuro:'#0f172a',negro:'#000'};
+function aplicarTema(t){
+  if(!t||t==='auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme',t);
+  ls.set(TEMA_K,t||'auto');
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta){
+    if(!t||t==='auto'){
+      const dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+      meta.content=dark?'#0f172a':'#f4f6fa';
+    } else meta.content=_THEME_META[t]||'#0f172a';
+  }
+  if(typeof _evolReady!=='undefined'&&_evolReady) iniciarEvolucion();
+  document.querySelectorAll('.tema-btn').forEach(b=>{
+    b.classList.toggle('primary',b.dataset.tema===(t||'auto'));
+  });
+}
 function renderConfig(){
   renderCfgCats();
   renderReglasLista();
@@ -2672,6 +2714,10 @@ function renderConfig(){
   actualizarInfoBackup();
   renderFotosConfig();
   _actualizarImpUltimaInfo();
+  const temaActual=ls.get(TEMA_K)||'auto';
+  document.querySelectorAll('.tema-btn').forEach(b=>{
+    b.classList.toggle('primary',b.dataset.tema===temaActual);
+  });
 }
 
 $('btnNuevaCat').onclick=()=>{
@@ -2706,6 +2752,12 @@ $('btnCambiarPIN').onclick=()=>{
   renderPinDots();
   $('pinScr').hidden=false;
 };
+
+document.getElementById('temaOpciones').addEventListener('click',e=>{
+  const btn=e.target.closest('.tema-btn');
+  if(!btn) return;
+  aplicarTema(btn.dataset.tema==='auto'?null:btn.dataset.tema);
+});
 
 // ═══════════════════════════════════════════════════════
 // VOZ
