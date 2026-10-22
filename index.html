@@ -1088,7 +1088,7 @@ const CATS_DEFAULT = [
   'Transporte/Auto','Comida y Delivery','Propinas y Extras','Proyectos Web',
   'Servicios/Telecom','Salud','Tecnología/Electrónica','Compras Online',
   'Indumentaria y Calzado','Hogar y Materiales','Otros/Varios',
-  'Financiación Consolidada','Impuestos e Intereses',
+  'Financiación Consolidada','Impuestos e Intereses','Ingresos brutos (retenciones)',
 ];
 const CATS_INCOME_DEFAULT = ['Regalo','Sueldo/Honorarios','Reintegro','Transferencia recibida','Otros ingresos'];
 
@@ -3874,7 +3874,8 @@ function parseMercadoPago(lineas) {
 const _REGLAS_SANT = [
   { t: d => d.includes('debito automatico') && d.includes('arca'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Débito automático ARCA (monotributo)' },
   { t: d => ['comision por servicio','iva 21%','ley 25.413','impuesto de sellos','interes por descubierto','comision por sorpresa'].some(k => d.includes(k)), tipo:'gasto', cat:'Impuestos e Intereses' },
-  { t: d => d.includes('sircreb') || d.includes('iibb tucuman'), tipo:'gasto', cat:'Impuestos e Intereses', agrupable:'Retenciones SIRCREB / IIBB Tucumán' },
+  { t: d => d.includes('sircreb') || d.includes('iibb tucuman'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', agrupable:'Retenciones SIRCREB / IIBB Tucumán' },
+  { t: d => d.includes('iibb') || d.includes('ingresos brutos'), tipo:'gasto', cat:'Ingresos brutos (retenciones)' },
   { t: d => d.includes('bonif') || d.includes('pago interes por saldo'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Bonificaciones y promos Santander' },
   { t: d => d.includes('prestamo personal'), tipo:'gasto', cat:'Pago de créditos' },
   { t: d => d.includes('pago de tarjeta de credito'), tipo:'gasto', cat:'Pago de Visa/MP', transferPair:'Visa Santander' },
@@ -3907,9 +3908,10 @@ function _categorizarSant(desc, monto) {
 const _REGLAS_MP = [
   { t: d => d.includes('rendimientos'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Rendimientos Mercado Pago' },
   { t: d => ['pago ausa','pago au oeste','peaje','rutas sur','emova subte','ceamse','ausol'].some(k=>d.includes(k)), tipo:'gasto', cat:'Transporte/Auto', agrupable:'Peajes y subte' },
-  { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('bs. as.'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Impuesto a los IIBB Bs. As.' },
-  { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('caba'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Impuesto a los IIBB CABA' },
-  { t: d => d.includes('pago de impuesto') && d.includes('iibb'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Impuesto a los IIBB' },
+  { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('bs. as.'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', descFija:'Impuesto a los IIBB Bs. As.' },
+  { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('caba'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', descFija:'Impuesto a los IIBB CABA' },
+  { t: d => d.includes('pago de impuesto') && d.includes('iibb'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', descFija:'Impuesto a los IIBB' },
+  { t: d => d.includes('iibb') || d.includes('ingresos brutos'), tipo:'gasto', cat:'Ingresos brutos (retenciones)' },
   { t: d => d.includes('pago de cuota creditos de mercado pago'), tipo:'gasto', cat:'Pago de créditos' },
   { t: d => d.includes('pago de resumen tarjeta'), tipo:'gasto', cat:'Pago de Visa/MP', transferPair:'Mastercard MP' },
   { t: d => d.includes('ingreso de dinero') || (d.includes('transferencia enviada') && d.includes('urbanc dimitri')), tipo:'auto', cat:'Transferencia entre cuentas', transf:true },

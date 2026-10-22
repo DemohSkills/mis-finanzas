@@ -196,6 +196,13 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - **JS:** En `renderCompromisos`, `mesPara` se calcula antes del cómputo de totales; `fijoTotal` excluye fijos que ya tienen `pagos[mesPara]`; la lógica de `subHtml` oculta el segmento "Fijos" si `fijoTotal===0` y el segmento "Cuotas" si `cuotaTotal===0`.
   - 3 tests nuevos en `tests/fijos.spec.js` (encabezado sin overflow, 4 fijos pagados ocultan "Fijos", 1 pendiente muestra solo ese monto). Suite completa: 318/318 ✓. Rama: trabajo-nocturno.
 
+- 21/10/2026: nueva categoría de gasto "Ingresos brutos (retenciones)". Cambios en `index.html`:
+  - **`CATS_DEFAULT`:** agregada `'Ingresos brutos (retenciones)'` al catálogo por defecto; aparece automáticamente en selectores, filtros de gráficos e informe.
+  - **`_REGLAS_SANT`:** la regla de SIRCREB / IIBB Tucumán cambia su `cat` a `'Ingresos brutos (retenciones)'` (manteniendo `agrupable:'Retenciones SIRCREB / IIBB Tucumán'` para el agrupado semanal). Nueva regla genérica: cualquier descripción con `'iibb'` o `'ingresos brutos'` también va a la nueva categoría (sin agrupado).
+  - **`_REGLAS_MP`:** las tres reglas de "pago de impuesto IIBB" (Bs. As., CABA, genérico) cambian su `cat` a `'Ingresos brutos (retenciones)'`. Nueva regla genérica: `'iibb'` o `'ingresos brutos'` en cualquier descripción de MP → nueva categoría.
+  - Sin migración de datos: los gastos ya cargados conservan su categoría anterior.
+  - Tests actualizados: `importar-santander.spec.js` (cat del grupo SIRCREB en fixture), `importar-mp.spec.js` (test h: IIBB Bs. As.). 11 tests nuevos en `tests/iibb-retenciones.spec.js`. Suite completa: 329/329 ✓. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.

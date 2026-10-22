@@ -532,7 +532,7 @@ test.describe('importar-santander', () => {
       if (grp) {
         const est = window._getEstado();
         est.gastos.push({ id: 'grp1', creado: Date.now(), monto: Math.abs(grp.monto),
-          fecha: grp.fecha, categoria: 'Impuestos e Intereses', medio: 'Banco Santander',
+          fecha: grp.fecha, categoria: 'Ingresos brutos (retenciones)', medio: 'Banco Santander',
           tipo: 'gasto', soloHistorial: false, refs: grp.refs, lote: 'lote-first' });
         window._guardar();
       }

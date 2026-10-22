@@ -228,7 +228,7 @@ test.describe('importar-mp', () => {
       window._categorizarMP('Pago de impuesto IIBB Bs. As.', -2000)
     );
     expect(result.tipo).toBe('gasto');
-    expect(result.cat).toBe('Impuestos e Intereses');
+    expect(result.cat).toBe('Ingresos brutos (retenciones)');
     expect(result.descFija).toMatch(/Bs\. As\./);
   });
 
