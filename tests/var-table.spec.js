@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, chromium } = require('@playwright/test');
 const path = require('path');
 
 const INDEX = 'file:///' + path.resolve(__dirname, '..', 'index.html').replace(/\\/g, '/');
@@ -150,5 +150,73 @@ test.describe('Part 2: cuadro de variaciones en Evolución', () => {
     await goToEvolucion(page);
     await page.waitForTimeout(300);
     expect(errors).toHaveLength(0);
+  });
+});
+
+test.describe('Part 3: cuadro de variaciones — layout responsive', () => {
+  let browser;
+  test.beforeAll(async () => { browser = await chromium.launch(); });
+  test.afterAll(async () => { await browser.close(); });
+
+  async function seedUnlockGoEvolucion(width) {
+    const ctx = await browser.newContext({ viewport: { width, height: 844 } });
+    await ctx.addInitScript(({ sk, pk, pin, data, snk, sndata }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      localStorage.setItem(snk, JSON.stringify(sndata));
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: buildEstado(), snk: SNAPS_KEY, sndata: buildSnaps() });
+    const page = await ctx.newPage();
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+    return { page, ctx };
+  }
+
+  test('(k) a 360 px no hay scroll horizontal y las 4 columnas de datos son visibles', async () => {
+    const { page, ctx } = await seedUnlockGoEvolucion(360);
+    try {
+      const noHScroll = await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      );
+      expect(noHScroll).toBe(true);
+
+      const colsVisible = await page.evaluate(() => {
+        const ths = Array.from(document.querySelectorAll('#varTable .vt-tabla thead th'));
+        const dataCols = ths.filter(th => th.textContent.trim() !== '');
+        if (dataCols.length < 4) return false;
+        return dataCols.every(th => {
+          const r = th.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+      });
+      expect(colsVisible).toBe(true);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test('(l) a 390 px no hay scroll horizontal y las 4 columnas de datos son visibles', async () => {
+    const { page, ctx } = await seedUnlockGoEvolucion(390);
+    try {
+      const noHScroll = await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      );
+      expect(noHScroll).toBe(true);
+
+      const colsVisible = await page.evaluate(() => {
+        const ths = Array.from(document.querySelectorAll('#varTable .vt-tabla thead th'));
+        const dataCols = ths.filter(th => th.textContent.trim() !== '');
+        if (dataCols.length < 4) return false;
+        return dataCols.every(th => {
+          const r = th.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+      });
+      expect(colsVisible).toBe(true);
+    } finally {
+      await ctx.close();
+    }
   });
 });

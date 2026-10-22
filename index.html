@@ -3595,9 +3595,9 @@ function renderVarTable(){
   }
   function row(label,currVal,field,isDeuda=false){
     const sAbbr=(currVal<0?'−':'')+'$'+fmtM(Math.abs(currVal));
-    return`<tr><th class="vt-lbl">${label}</th><td class="vt-cell vt-hoy"><span class="vt-monto">${sAbbr}</span></td>${cell(currVal,s1,field,isDeuda)}${cell(currVal,s7,field,isDeuda)}${cell(currVal,s30,field,isDeuda)}</tr>`;
+    return`<tr><th class="vt-lbl">${label}</th><td class="vt-cell vt-hoy"><span class="amt vt-monto">${sAbbr}</span></td>${cell(currVal,s1,field,isDeuda)}${cell(currVal,s7,field,isDeuda)}${cell(currVal,s30,field,isDeuda)}</tr>`;
   }
-  el.innerHTML=`<div class="vt-wrap"><table class="vt-tabla"><thead><tr><th></th><th>Hoy</th><th>Var. 1d</th><th>Var. 7d</th><th>Var. 30d</th></tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table></div>`;
+  el.innerHTML=`<div class="vt-wrap"><table class="vt-tabla"><thead><tr><th></th><th>Hoy</th><th>Var. 1 día</th><th>Var. 7 días</th><th>Var. 30 días</th></tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table></div>`;
 }
 window.renderVarTable=renderVarTable;
 
@@ -3739,6 +3739,7 @@ function iniciarEvolucion(){
   renderVarTable();
   withChartJs(()=>{
     rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;
+    if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
     if(!_evolDetInited){
       _evolDetInited=true;
       const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cD',['cD']],['det-ev-cF',['cF']]];
@@ -4792,8 +4793,9 @@ function initDetDyn(el,sfx,defOpen){
       chart.update('none');
     });
   }
+  window._aplicarOjoGraficos=aplicarOjoGraficos;
   const btnO=document.getElementById('btnOjo');
-  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();aplicarOjoGraficos();if(typeof _evolReady!=='undefined'&&_evolReady){rChartD();rChartB();}renderVarTable();};
+  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();if(typeof _evolReady!=='undefined'&&_evolReady){rChartD();rChartB();}aplicarOjoGraficos();renderVarTable();};
   aplicarOjo();
 })();
 
