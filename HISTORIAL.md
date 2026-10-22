@@ -14,6 +14,11 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 22/10/2026 (9): bug "Conciliado hasta" — al marcar un banco el campo del otro se preserva. 4 tests nuevos en `tests/conciliado-bug.spec.js`. Suite completa: **456/456 pasan**.
+  - **Bug:** `_marcarConciliadoHasta()` llamaba a `abrirImportModal()` que hacía `body.innerHTML = ...`, borrando la fecha que el usuario había tipeado en el input del otro banco.
+  - **Fix:** antes de redibujar, se guarda el valor del input del otro banco (`concilFechaMP` o `concilFechaSant`); después de `abrirImportModal()` se restaura.
+- 22/10/2026 (8): botón Actualizar movido a ⚙️ + atajo toque en "Pulse". 8 tests nuevos en `tests/actualizar-btn.spec.js`. Suite completa: **452/452 pasan** (acumulado con tarea siguiente: 456).
+  - **Cambios:** botón `#refreshBtn` eliminado del header; nuevo `#btnActualizarApp` en la sección Apariencia de ⚙️. Hint: "También podés tocar la palabra Pulse del título". Función `_recargarApp()`: muestra toast "Actualizando…", llama `r.update()` en todos los service workers registrados y luego `location.reload()`. Toque corto (`touchstart`/`touchend` < 300 ms, sin `touchmove`) en `<span class="pulse">` dispara `_recargarApp()`. Toast `.toast-actualizar` con fade. El header funciona a 360 px sin overflow. La palabra "Pulse" no tiene cursor pointer.
 - 22/10/2026 (7): importador Visa (Excel) — Parte 2: confirmación + deshacer + deduplicación + fijos. 9 tests nuevos (v–z6). Suite completa: **444/444 pasan**.
   - **Ajustes a Parte 1**: (a) "Plan v consolid" usa la fecha de cierre del resumen (igual que cuotas n>1). (b) Movimientos en dólares muestran chip "En dólares" sin selector de categoría ni "⚠ revisar"; no generan gasto en pesos.
   - **`_confirmarImpVisa()`**: crea un gasto (medio 'Visa Santander', tipo 'gasto', soloHistorial:false) por cada movimiento en pesos de todas las tarjetas (titular y adicional). Descripción limpia; agrega "(cuota n/m)" si corresponde. "Otros conceptos" agrupados por categoría, fecha=cierre. Pagos y dólares no generan gasto. Botón habilitado solo cuando todos los "⚠ revisar" tienen categoría asignada.

@@ -48,10 +48,7 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .app-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
 .app-hdr h1 .accent{color:var(--accent);}
 .app-hdr h1 .pulse{color:var(--warn);}
-.refresh-btn{display:flex;align-items:center;gap:5px;font:600 .78rem/1 inherit;padding:6px 11px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:border-color .15s,color .15s;}
-.refresh-btn:hover{border-color:var(--accent);color:var(--accent);}
-.refresh-btn svg{transition:transform .7s;}
-.refresh-btn.spin svg{transform:rotate(360deg);}
+.toast-actualizar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:7px 18px;border-radius:20px;font-size:.83rem;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;}
 /* Tabs — barra única, sticky, scroll horizontal en móvil */
 .tabs{display:flex;gap:4px;margin-bottom:16px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;flex-wrap:nowrap;}
 .tabs::-webkit-scrollbar{display:none;}
@@ -782,13 +779,9 @@ body.ocultar .tk-val{display:none!important;}
 <main id="app" hidden>
   <div class="app-hdr">
     <h1>Di.<span class="accent">Mi</span>.Trip <span class="pulse">Pulse</span> Finance</h1>
-    <button class="refresh-btn" id="refreshBtn" type="button" title="Actualizar datos">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-      </svg><span>Actualizar</span>
-    </button>
     <button class="eye-btn" id="btnOjo" type="button" title="Ocultar montos" aria-label="Ocultar montos">👁</button>
   </div>
+  <div class="toast-actualizar" id="toastActualizar">Actualizando…</div>
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-vista="inicio">Inicio</button>
@@ -1009,6 +1002,10 @@ body.ocultar .tk-val{display:none!important;}
         <button type="button" class="mini tema-btn" data-tema="claro">Claro</button>
         <button type="button" class="mini tema-btn" data-tema="oscuro">Oscuro</button>
         <button type="button" class="mini tema-btn" data-tema="negro">Negro</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
+        <button type="button" class="mini" id="btnActualizarApp">🔄 Actualizar</button>
+        <span class="meta" style="margin:0;">También podés tocar la palabra <b>Pulse</b> del título.</span>
       </div>
     </div>
 
@@ -4474,11 +4471,17 @@ let _impOmitidas = [], _impIncluirOmitidas = false;
 
 function _marcarConciliadoHasta(medio, fecha) {
   if (!fecha) return;
+  // Preserve the other bank's typed-but-unsaved date before re-rendering
+  const otroId = medio === 'Banco Santander' ? 'concilFechaMP' : 'concilFechaSant';
+  const otroValor = document.getElementById(otroId)?.value || '';
   estado.importaciones ||= {};
   estado.importaciones[medio] = { hasta: fecha, lote: null, fecha: hoy() };
   guardar(); render();
   _actualizarImpUltimaInfo();
   abrirImportModal();
+  // Restore the other bank's input so the user doesn't lose what they typed
+  const otroEl = document.getElementById(otroId);
+  if (otroEl && otroValor) otroEl.value = otroValor;
 }
 
 function _renderImpPreview() {
@@ -5317,13 +5320,22 @@ window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = me
 // ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
 // ═══════════════════════════════════════════════════════
+function _recargarApp(){
+  const toast=$('toastActualizar');
+  if(toast){toast.style.opacity='1';setTimeout(()=>{toast.style.opacity='0';},1500);}
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>{regs.forEach(r=>r.update());}).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),400));
+  } else { setTimeout(()=>location.reload(),400); }
+}
 function wireEvents(){
   document.addEventListener('click',e=>{const btn=e.target.closest('.btn-show-all');if(btn){e.stopPropagation();showAllChartSeries(btn.dataset.chart);}});
-  $('refreshBtn').onclick=function(){
-    this.classList.add('spin'); this.querySelector('span').textContent='Actualizando…';
-    guardarSnap(); render(); if(_evolReady) iniciarEvolucion();
-    setTimeout(()=>{this.classList.remove('spin');this.querySelector('span').textContent='Actualizar';},700);
-  };
+  $('btnActualizarApp').onclick=_recargarApp;
+  // Toque corto en "Pulse" del título
+  (()=>{const p=document.querySelector('.app-hdr h1 .pulse');if(!p)return;let _t=0,_moved=false;
+    p.addEventListener('touchstart',()=>{_t=Date.now();_moved=false;},{passive:true});
+    p.addEventListener('touchmove',()=>{_moved=true;},{passive:true});
+    p.addEventListener('touchend',()=>{if(!_moved&&Date.now()-_t<300)_recargarApp();},{passive:true});
+  })();
   $('btnExportCSV').onclick=exportarCSV;
   $('btnExportPDF').onclick=abrirInforme;
   if($('btnInformeConfig')) $('btnInformeConfig').onclick=abrirInforme;
