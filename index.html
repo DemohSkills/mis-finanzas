@@ -238,13 +238,13 @@ details.pat-grp>summary .det-arrow{font-size:.7rem;transition:transform .15s;opa
 details.pat-grp[open]>summary .det-arrow{transform:rotate(90deg);}
 details.pat-grp>summary .pat-sub{font-size:.78rem;font-weight:700;white-space:nowrap;}
 details.comp-mes{margin-bottom:2px;}
-details.comp-mes>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 0 5px;border-top:1px solid var(--border);}
+details.comp-mes>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:flex-start;flex-wrap:wrap;gap:2px 6px;padding:7px 0 5px;border-top:1px solid var(--border);}
 details.comp-mes:first-of-type>summary{border-top:none;}
 details.comp-mes>summary::-webkit-details-marker{display:none;}
-details.comp-mes>summary .comp-mes-lbl{font-size:.8rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:5px;}
+details.comp-mes>summary .comp-mes-lbl{font-size:.8rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:5px;flex:1 1 100%;}
 details.comp-mes>summary .det-arrow{font-size:.7rem;transition:transform .15s;opacity:.55;}
 details.comp-mes[open]>summary .det-arrow{transform:rotate(90deg);}
-details.comp-mes>summary .comp-mes-sub{font-size:.78rem;white-space:nowrap;}
+details.comp-mes>summary .comp-mes-sub{font-size:.78rem;white-space:normal;flex:1 1 100%;}
 details.ev-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
 details.ev-card>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 details.ev-card>summary::-webkit-details-marker{display:none;}
@@ -1493,11 +1493,12 @@ function renderCompromisos(){
       }
     }
     const {cuotas,fijos}=grupos.get(key);
+    const mesPara=(key==='__fijos__')?todayYM:key;
     const cuotaTotal=cuotas.reduce((s,c)=>{
       if(c.tipo==='resumen') return s+Math.max(0,c.monto-_sumaPagadoCiclo(c));
       return s+c.monto;
     },0);
-    const fijoTotal=fijos.reduce((s,f)=>s+f.monto,0);
+    const fijoTotal=fijos.reduce((s,f)=>s+(f.pagos&&f.pagos[mesPara]?0:f.monto),0);
     const total=cuotaTotal+fijoTotal;
     const lbl=key==='__fin__'?'Finalizados':key==='__sf__'?'Sin fecha':key==='__fijos__'?'Gastos Fijos':(orden==='entidad'?key:_mesLabel(key));
     const sk='comp-'+key.replace(/[^a-z0-9]/gi,'-');
@@ -1506,13 +1507,16 @@ function renderCompromisos(){
     let subHtml;
     if(cuotaTotal>0&&fijoTotal>0){
       subHtml=`Cuotas <span class="amt">${fmt2(cuotaTotal)}</span> · Fijos <span class="amt">${fmt2(fijoTotal)}</span> · <span class="amt">${fmt2(total)}</span>`;
+    } else if(cuotaTotal>0){
+      subHtml=`Cuotas <span class="amt">${fmt2(cuotaTotal)}</span>`;
+    } else if(fijoTotal>0){
+      subHtml=`Fijos <span class="amt">${fmt2(fijoTotal)}</span>`;
     } else {
       subHtml=`<span class="amt">${fmt2(total)}</span>`;
     }
     det.innerHTML=`<summary><span class="comp-mes-lbl"><span class="det-arrow">▶</span>${esc(lbl)}</span><span class="comp-mes-sub neg">${subHtml}</span></summary>`;
     if(cuotas.length) det.insertAdjacentHTML('beforeend',cuotas.map(_compRowHtml).join(''));
     if(fijos.length){
-      const mesPara=(key==='__fijos__')?todayYM:key;
       fijos.forEach(f=>det.insertAdjacentHTML('beforeend',_fijoRowHtml(f,mesPara)));
     }
     initDetDyn(det,'comp-'+sk,true);

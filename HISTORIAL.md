@@ -191,6 +191,11 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
   - Sin búsqueda: comportamiento original sin cambios.
   - 8 tests nuevos en `tests/buscador-transferencias.spec.js`. Suite completa: 315/315 ✓. Rama: trabajo-nocturno.
 
+- 21/10/2026: encabezado de mes en "A pagar" sin overflow en móvil; subtotal fijos muestra solo pendientes. Cambios en `index.html`:
+  - **CSS:** `details.comp-mes>summary` ahora usa `flex-wrap:wrap` con `align-items:flex-start`; `.comp-mes-lbl` toma `flex:1 1 100%` (título en su propia línea); `.comp-mes-sub` cambia de `white-space:nowrap` a `white-space:normal;flex:1 1 100%`. El encabezado ya no desborda a 360 px.
+  - **JS:** En `renderCompromisos`, `mesPara` se calcula antes del cómputo de totales; `fijoTotal` excluye fijos que ya tienen `pagos[mesPara]`; la lógica de `subHtml` oculta el segmento "Fijos" si `fijoTotal===0` y el segmento "Cuotas" si `cuotaTotal===0`.
+  - 3 tests nuevos en `tests/fijos.spec.js` (encabezado sin overflow, 4 fijos pagados ocultan "Fijos", 1 pendiente muestra solo ese monto). Suite completa: 318/318 ✓. Rama: trabajo-nocturno.
+
 ## Pendiente
 - Verificar en el celular: backup/restore y voz.
 - Fuentes de ingreso (vincular movimientos a un proveedor) y gráfico por fuente.

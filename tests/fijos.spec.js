@@ -413,3 +413,44 @@ test('fijo: sin errores JS con fijo activo en compromisos', async ({ page }) => 
   await page.waitForTimeout(300);
   expect(errors).toHaveLength(0);
 });
+
+// ─── 14. Encabezado sin overflow en móvil ────────────────────────────────────
+
+test('fijo: encabezado de mes sin overflow horizontal a 360 px', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await seedAndUnlock(page, buildEstado([mkFijo()]));
+  await goToCompromisos(page);
+  const overflow = await page.evaluate(() => {
+    const summary = document.querySelector('details.comp-mes > summary');
+    if (!summary) return true;
+    return summary.scrollWidth > summary.clientWidth;
+  });
+  expect(overflow).toBe(false);
+});
+
+// ─── 15. Subtotal fijos: solo pendientes ─────────────────────────────────────
+
+test('fijo: con 4 fijos pagados el subtotal fijos no aparece en el mes actual', async ({ page }) => {
+  const mes = mesActual();
+  const fijos = [1, 2, 3, 4].map(i =>
+    mkFijo({ id: `fijo-pg-${i}`, nombre: `Fijo ${i}`, pagos: { [mes]: { fecha: mes + '-05', monto: 50000, gastoId: null } } })
+  );
+  await seedAndUnlock(page, buildEstado(fijos));
+  await goToCompromisos(page);
+  const firstSub = page.locator('details.comp-mes').first().locator('.comp-mes-sub');
+  const txt = await firstSub.textContent();
+  expect(txt).not.toContain('Fijos');
+});
+
+test('fijo: con un fijo pendiente muestra solo ese monto en el mes actual', async ({ page }) => {
+  const mes = mesActual();
+  const pagado = mkFijo({ id: 'fijo-pg-a', nombre: 'Fijo A', pagos: { [mes]: { fecha: mes + '-05', monto: 50000, gastoId: null } } });
+  const pendiente = mkFijo({ id: 'fijo-pg-b', nombre: 'Fijo B', monto: 30000, pagos: {} });
+  await seedAndUnlock(page, buildEstado([pagado, pendiente]));
+  await goToCompromisos(page);
+  const firstSub = page.locator('details.comp-mes').first().locator('.comp-mes-sub');
+  const txt = await firstSub.textContent();
+  expect(txt).toContain('Fijos');
+  expect(txt).toContain('30.000');
+  expect(txt).not.toContain('50.000');
+});
