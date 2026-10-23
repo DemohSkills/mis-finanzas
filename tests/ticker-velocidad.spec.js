@@ -130,14 +130,14 @@ test.describe('ticker-velocidad: ciclo de 4 estados', () => {
     await seedAndUnlock(page, '1x');
     await goToEvolucion(page);
     const itemCount = await page.locator('#tickerEvol .tk-track .tk-item').count();
-    expect(itemCount).toBeGreaterThan(5); // 5 items × 2 copies = 10
+    expect(itemCount).toBeGreaterThan(5); // 6 items × 2 copies = 12
   });
 
   test('(j) en modo pause los ítems NO están duplicados', async ({ page }) => {
     await seedAndUnlock(page, 'pause');
     await goToEvolucion(page);
     const itemCount = await page.locator('#tickerEvol .tk-track .tk-item').count();
-    expect(itemCount).toBe(5);
+    expect(itemCount).toBe(6);
   });
 
   test('(k) aria-label del botón es correcto para cada modo nativo', async ({ page }) => {

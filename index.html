@@ -189,6 +189,23 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .bcard .bl{font-size:.7rem;color:var(--muted);margin-bottom:3px;}
 .bcard .bv{font-size:clamp(.72rem,3.2vw,1.05rem);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ev-sub{font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:8px;}
+/* Comparativa de gastos (Gastos) */
+.gc-sw{display:flex;gap:6px;margin-bottom:8px;}
+.gc-sw button{flex:1;min-width:0;}
+.gc-sw button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+.gc-nota{font-size:.72rem;color:var(--muted);margin:0 0 10px;}
+.gc-leyenda{font-weight:400;font-size:.68rem;margin-left:4px;}
+.gc-sub{font-size:.66rem;color:var(--muted);margin-top:2px;white-space:normal;}
+.bcard .bv.gc-var{font-size:.8rem;white-space:normal;margin-top:2px;}
+.gc-pos{color:var(--ok);}.gc-neg{color:var(--danger);}
+.gc-tabla-wrap{margin-top:10px;}
+.gc-tabla{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.72rem;}
+.gc-tabla th,.gc-tabla td{padding:3px 4px;border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gc-tabla th{font-size:.68rem;color:var(--muted);}
+.gc-tabla th:not(:first-child),.gc-tabla td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums;}
+.gc-tabla col.c1{width:31%;}.gc-tabla col.c2,.gc-tabla col.c3{width:23%;}.gc-tabla col.c4{width:23%;}
+.gc-prox{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.gc-vacio{font-size:.78rem;color:var(--muted);margin:6px 0;}
 .ev-fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
 .ev-fin-grid .bcard{min-width:0;}
 /* Variation table (Evolución) */
@@ -1046,6 +1063,24 @@ body.ocultar .tk-val{display:none!important;}
       <div class="g2">
         <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Ingresos vs compromisos<button type="button" class="mini btn-show-all" data-chart="cIngD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cIngD"></canvas></div></div>
         <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Proyección 6 meses<button type="button" class="mini btn-show-all" data-chart="cCmpD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cCmpD"></canvas></div></div>
+      </div>
+    </details>
+    <details class="ev-card" id="det-ev-cGC" open>
+      <summary class="ev-hd"><div><h2>Gastos: mes anterior vs actual vs próximos</h2><p class="sub" id="gcSub">Comparativa de gastos</p></div><span class="det-arrow">▶</span><span class="ev-badge" id="evBadgeGC">—</span></summary>
+      <div class="gc-sw" role="group" aria-label="Período a comparar">
+        <button type="button" class="mini" data-gcmodo="dia" aria-pressed="true">Al mismo día</button>
+        <button type="button" class="mini" data-gcmodo="mes" aria-pressed="false">Mes completo</button>
+      </div>
+      <p class="gc-nota" id="gcNota"></p>
+      <div class="brow" id="gcBrow"></div>
+      <div id="gcCuerpo">
+        <div class="ev-sub">Por categoría <span class="gc-leyenda">claro = anterior · intenso = actual</span></div>
+        <div class="cw" id="gcCatWrap"><canvas id="cGC"></canvas></div>
+        <div class="gc-tabla-wrap" id="gcTabla"></div>
+        <div class="ev-sub" style="margin-top:14px">Próximos meses <span class="gc-leyenda">comprometido, no incluye gasto variable</span></div>
+        <div class="gc-prox" id="gcProx"></div>
+        <div class="ev-sub" style="margin-top:14px">Gasto acumulado día a día</div>
+        <div class="cw h200"><canvas id="cGCurva"></canvas></div>
       </div>
     </details>
   </div>
@@ -3761,9 +3796,10 @@ function renderTickerEvol(){
     return cands.length?cands[cands.length-1]:past[0]||null;
   }
   const snap=snapRef();
-  const gastosMes=estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos'&&!g.transferencia&&g.fecha.startsWith(mesActual)).reduce((s,g)=>s+g.monto,0);
+  const gastosMes=gastosParaAnalisis(mesActual).reduce((s,g)=>s+g.monto,0);
+  const gc=datosCompGastos();
   const ingresosMes=estado.gastos.filter(g=>g.tipo==='ingreso'&&!g.transferencia&&g.fecha.startsWith(mesActual)).reduce((s,g)=>s+g.monto,0);
-  function tkItem(label,val,prevVal,isDeuda){
+  function tkItem(label,val,prevVal,isDeuda,nav){
     let rowCls='',arrow='',pctStr='—';
     if(prevVal!=null){
       const diff=val-prevVal;
@@ -3773,13 +3809,15 @@ function renderTickerEvol(){
       pctStr=prevVal!==0?(diff>=0?'+':'−')+Math.abs(diff/Math.abs(prevVal)*100).toFixed(1)+'%':'—';
     }
     const valStr=(val<0?'−':'')+'$'+fmtM(Math.abs(val));
-    return`<span class="tk-item"><span class="tk-lbl">${label}</span><span class="tk-row ${rowCls}">${arrow?`<span class="tk-arrow">${arrow}</span>`:'<span class="tk-arrow"></span>'}<span class="tk-pct">${pctStr}</span><span class="tk-val">${valStr}</span></span></span>`;
+    const navAttr=nav?` data-nav="${nav}" role="button" tabindex="0" style="cursor:pointer"`:'';
+    return`<span class="tk-item"${navAttr}><span class="tk-lbl">${label}</span><span class="tk-row ${rowCls}">${arrow?`<span class="tk-arrow">${arrow}</span>`:'<span class="tk-arrow"></span>'}<span class="tk-pct">${pctStr}</span><span class="tk-val">${valStr}</span></span></span>`;
   }
   const items=[
     tkItem('Patrimonio neto',t.neto,snap?snap.n:null,false),
     tkItem('Activos',t.activos,snap?snap.a:null,false),
     tkItem('Deudas',t.deudas,snap?snap.dv:null,true),
     tkItem('Gastos mes',gastosMes,null,false),
+    tkItem('Gastos vs mes ant.',gc.act,gc.hayAnt&&gc.antDia>0?gc.antDia:null,true,'gastos-comp'),
     tkItem('Ingresos mes',ingresosMes,null,false),
   ].join('');
   const mode=_tkGetMode();
@@ -3808,6 +3846,10 @@ function renderTickerEvol(){
       inner.addEventListener('pointerup',resume);
       inner.addEventListener('pointerleave',resume);
     }
+    el.querySelectorAll('[data-nav="gastos-comp"]').forEach(it=>{
+      it.addEventListener('click',navegarAComparativaGastos);
+      it.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navegarAComparativaGastos();}});
+    });
     // Ciclo de velocidad (compartido por ambas instancias)
     const btn=el.querySelector('.tk-btn');
     if(btn) btn.onclick=()=>{
@@ -3896,13 +3938,20 @@ function rChartB(){
   mkChart('cB',{type:'bar',data:{labels:data.map(s=>mesNom(s.mes)),datasets:[{label:'Activos',data:data.map(s=>s.a),backgroundColor:'rgba(74,222,128,.75)',borderRadius:3,barPercentage:.75},{label:'Deudas',data:data.map(s=>s.dv),backgroundColor:'rgba(248,113,113,.75)',borderRadius:3,barPercentage:.75}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cB'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))},plugins:[barLabPlg]}); applyChartVis('cB');
 }
 
+// Filtro único de "qué gasto cuenta" para análisis (incluye soloHistorial). Lo comparten
+// rChartG, la comparativa de Gastos y la cinta.
+const esGastoAnalisis=g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos'&&!g.transferencia;
+function gastosParaAnalisis(mes,hastaDia){
+  return estado.gastos.filter(g=>esGastoAnalisis(g)&&g.fecha&&g.fecha.slice(0,7)===mes&&(!hastaDia||+g.fecha.slice(8,10)<=hastaDia));
+}
+const PALETA_GASTOS=['rgba(251,146,60,.82)','rgba(163,230,53,.82)','rgba(192,132,252,.82)','rgba(56,189,248,.82)','rgba(251,191,36,.82)','rgba(248,113,113,.82)','rgba(148,163,184,.65)'];
 function rChartG(){
   const byMes={};
-  for(const g of estado.gastos.filter(g=>(g.tipo||'gasto')==='gasto'&&g.categoria!=='Pago de créditos'&&!g.transferencia)){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
+  for(const g of estado.gastos.filter(esGastoAnalisis)){const mes=g.fecha.slice(0,7);if(!byMes[mes])byMes[mes]={};const cat=CATS_DEFAULT.includes(g.categoria)||g.categoria?g.categoria:'Otros/Varios';byMes[mes][cat]=(byMes[mes][cat]||0)+g.monto;}
   const entries=Object.entries(byMes).sort(([a],[b])=>a.localeCompare(b)).slice(-6);
   if(!entries.length){if(_ci['cG']){_ci['cG'].destroy();delete _ci['cG'];}return;}
   const allCats=[...new Set(entries.flatMap(([,c])=>Object.keys(c)))];
-  const colors=['rgba(251,146,60,.82)','rgba(163,230,53,.82)','rgba(192,132,252,.82)','rgba(56,189,248,.82)','rgba(251,191,36,.82)','rgba(248,113,113,.82)','rgba(148,163,184,.65)'];
+  const colors=PALETA_GASTOS;
   mkChart('cG',{type:'bar',data:{labels:entries.map(([m])=>mesNom(m)),datasets:allCats.map((cat,i)=>({label:cat,data:entries.map(([,c])=>c[cat]||0),backgroundColor:colors[i%colors.length]}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cG'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:items=>'  Total: $'+fmtM(items.reduce((s,i)=>s+i.parsed.y,0))}}},scales:axO(v=>'$'+fmtM(v),true)}}); applyChartVis('cG');
 }
 
@@ -3960,6 +4009,127 @@ function rChartIC(){
     ...(hasFijosCtProj?[{label:'Fijos con tarjeta',data:fijosCtProj,backgroundColor:'rgba(251,191,36,.42)',stack:'s'}]:[])
   ];
   mkChart('cCmpD',{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cCmpD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cCmpD');
+  rChartGC(); // la comparativa se refresca siempre junto con Ingresos vs compromisos
+}
+
+// ── Comparativa de gastos: mes anterior vs actual vs próximos ──
+const SK_GC_MODO='finanzas-v1-gc-modo';
+function gcGetModo(){try{return localStorage.getItem(SK_GC_MODO)==='mes'?'mes':'dia';}catch{return 'dia';}}
+// Una sola pasada sobre estado.gastos. Mes actual cuenta hasta hoy; mes anterior se
+// acumula completo y "al mismo día" (hasta min(hoy, días del mes anterior)).
+function datosCompGastos(){
+  const hoyStr=hoy(),mesAct=hoyStr.slice(0,7),dHoy=+hoyStr.slice(8,10);
+  const [y,m]=mesAct.split('-').map(Number);
+  const py=m===1?y-1:y,pm=m===1?12:m-1;
+  const mesAnt=`${py}-${String(pm).padStart(2,'0')}`;
+  const diasAnt=new Date(py,pm,0).getDate(),diasAct=new Date(y,m,0).getDate();
+  const diaCorte=Math.min(dHoy,diasAnt);
+  const totAnt=new Array(32).fill(0),totAct=new Array(32).fill(0),cats=new Map();
+  let nAnt=0;
+  for(const g of estado.gastos){
+    if(!g.fecha||!esGastoAnalisis(g))continue;
+    const mes=g.fecha.slice(0,7),esAnt=mes===mesAnt;
+    if(!esAnt&&mes!==mesAct)continue;
+    const d=+g.fecha.slice(8,10);
+    if(!esAnt&&d>dHoy)continue;
+    const monto=g.monto||0,cat=g.categoria||'Otros/Varios';
+    let c=cats.get(cat);if(!c){c={cat,antDia:0,antMes:0,act:0};cats.set(cat,c);}
+    if(esAnt){nAnt++;totAnt[d]+=monto;c.antMes+=monto;if(d<=diaCorte)c.antDia+=monto;}
+    else{totAct[d]+=monto;c.act+=monto;}
+  }
+  const suma=(arr,hasta)=>{let s=0;for(let d=1;d<=hasta;d++)s+=arr[d];return s;};
+  return{mesAct,mesAnt,dHoy,diasAnt,diasAct,diaCorte,totAnt,totAct,cats:[...cats.values()],hayAnt:nAnt>0,
+    antDia:suma(totAnt,diaCorte),antMes:suma(totAnt,diasAnt),act:suma(totAct,dHoy)};
+}
+// Variación % (null si la base es 0) y diferencia en $.
+function gcVariacion(act,ant){return{dif:act-ant,pct:ant>0?(act-ant)/ant*100:null};}
+const gcFmtPct=p=>p===null?'—':(p>0?'+':p<0?'−':'')+Math.abs(p).toFixed(1).replace('.',',')+'%';
+// Total comprometido de un mes futuro: igual que la proyección de 6 meses (cuotas/resumen + fijos + fijos con tarjeta).
+function comprometidoMes(mes){
+  const ents=new Set((estado.compromisos||[]).filter(c=>c.tipo!=='fijo').map(c=>c.entidad).filter(Boolean));
+  return compromisosMes(mes).filter(c=>ents.has(c.entidad)).reduce((s,c)=>s+c.monto,0)+fijosMontoPendiente(mes)+fijosConTarjetaProyeccion(mes);
+}
+function rChartGC(){
+  const cont=$('gcBrow');if(!cont)return;
+  const D=datosCompGastos(),modo=gcGetModo();
+  const oc=()=>document.body.classList.contains('ocultar');
+  document.querySelectorAll('[data-gcmodo]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.gcmodo===modo?'true':'false'));
+  const ant=modo==='dia'?D.antDia:D.antMes;
+  const v=gcVariacion(D.act,ant);
+  const nAnt=mesNom(D.mesAnt),nAct=mesNom(D.mesAct);
+  const flecha=v.dif>0?'▲':v.dif<0?'▼':'=';
+  const cls=v.dif>0?'gc-neg':v.dif<0?'gc-pos':'';
+  // Rótulos
+  $('gcSub').textContent=modo==='dia'?`${nAnt} 1–${D.diaCorte} vs ${nAct} 1–${D.dHoy}`:`${nAnt} completo vs ${nAct} en curso`;
+  $('gcNota').textContent=!D.hayAnt?'Aún no hay datos del mes anterior'
+    :modo==='dia'?(D.diaCorte<D.dHoy?`${nAnt} tiene ${D.diasAnt} días: se compara hasta el ${D.diaCorte}.`:'Mismo tramo de días en ambos meses.')
+    :`${nAnt} entero vs ${nAct} en curso (hasta hoy, día ${D.dHoy}).`;
+  const bad=$('evBadgeGC');
+  if(D.hayAnt&&v.pct!==null){bad.textContent=`${flecha} ${gcFmtPct(v.pct)}`;bad.className='ev-badge '+(v.dif>0?'dn':'up');}
+  else{bad.textContent='—';bad.className='ev-badge';}
+  // Bloques resumen
+  const proj=D.act+compromisosMes(D.mesAct).reduce((s,c)=>s+c.monto,0)+fijosMontoPendiente(D.mesAct);
+  const sg=n=>n>0?'+':n<0?'−':'';
+  const varHtml=!D.hayAnt?'<div class="gc-sub">Sin mes anterior para comparar</div>'
+    :v.pct===null?'<div class="gc-sub">Variación: —</div>'
+    :`<div class="bv gc-var ${cls}">${flecha} ${gcFmtPct(v.pct)} · ${sg(v.dif)}${fmtV(Math.abs(v.dif))}</div>`;
+  cont.innerHTML=
+    (D.hayAnt?`<div class="bcard"><div class="bl">Mes anterior (${nAnt}${modo==='dia'?` al ${D.diaCorte}`:' completo'})</div><div class="bv">${fmtV(ant)}</div></div>`
+      :`<div class="bcard"><div class="bl">Mes anterior (${nAnt})</div><div class="bv">—</div></div>`)+
+    `<div class="bcard"><div class="bl">Mes actual (${nAct}${modo==='dia'?` al ${D.dHoy}`:' en curso'})</div><div class="bv">${fmtV(D.act)}</div>${varHtml}</div>`+
+    `<div class="bcard" style="grid-column:1/-1"><div class="bl">Proyección mínima fin de mes</div><div class="bv">${fmtV(proj)}</div><div class="gc-sub">mínimo estimado: no incluye gastos variables que aún no hiciste</div></div>`;
+  // Categorías: top 8 + Otras
+  const rows0=D.cats.map(c=>({cat:c.cat,ant:modo==='dia'?c.antDia:c.antMes,act:c.act})).filter(r=>r.ant||r.act).sort((a,b)=>(b.ant+b.act)-(a.ant+a.act));
+  const rows=rows0.slice(0,8);
+  if(rows0.length>8)rows.push({cat:'Otras',ant:rows0.slice(8).reduce((s,r)=>s+r.ant,0),act:rows0.slice(8).reduce((s,r)=>s+r.act,0)});
+  const fmtAmt=n=>`<span class="amt" title="${fmt(n)}">$${fmtM(n)}</span>`;
+  const tabla=$('gcTabla');
+  if(!rows0.length){
+    tabla.innerHTML='<p class="gc-vacio">Sin gastos para comparar.</p>';
+    if(_ci['cGC']){_ci['cGC'].destroy();delete _ci['cGC'];}
+    $('gcCatWrap').style.display='none';
+  }else{
+    $('gcCatWrap').style.display='';
+    $('gcCatWrap').style.height=Math.max(140,rows.length*(D.hayAnt?36:22)+36)+'px';
+    tabla.innerHTML=`<table class="gc-tabla"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup><thead><tr><th>Categoría</th><th>Anterior</th><th>Actual</th><th>Δ</th></tr></thead><tbody>`+
+      rows0.slice().sort((a,b)=>Math.abs(b.act-b.ant)-Math.abs(a.act-a.ant)).map(r=>{
+        const dif=r.act-r.ant,f=dif>0?'▲':dif<0?'▼':'=',k=dif>0?'gc-neg':dif<0?'gc-pos':'';
+        return`<tr><td title="${esc(r.cat)}">${esc(r.cat)}</td><td>${D.hayAnt?fmtAmt(r.ant):'—'}</td><td>${fmtAmt(r.act)}</td><td class="${k}">${D.hayAnt?`${f} ${sg(dif)}${dif?fmtAmt(Math.abs(dif)):''}`:'—'}</td></tr>`;
+      }).join('')+'</tbody></table>';
+    const colorDe=i=>rows[i].cat==='Otras'?PALETA_GASTOS[6]:PALETA_GASTOS[i%6];
+    const alfa=(c,a)=>c.replace(/[\d.]+\)$/,a+')');
+    const abrev=s=>s.length>13?s.slice(0,12)+'…':s;
+    const ds=[];
+    if(D.hayAnt)ds.push({label:nAnt,data:rows.map(r=>r.ant),backgroundColor:rows.map((_,i)=>alfa(colorDe(i),.38)),borderRadius:3,barPercentage:.9,categoryPercentage:.8});
+    ds.push({label:nAct,data:rows.map(r=>r.act),backgroundColor:rows.map((_,i)=>alfa(colorDe(i),.9)),borderRadius:3,barPercentage:.9,categoryPercentage:.8});
+    const labPlg={id:'barLabelsGC',afterDatasetsDraw(chart){
+      if(oc())return;
+      const{ctx}=chart;ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='9px system-ui,-apple-system,sans-serif';ctx.fillStyle=CV('--text');
+      chart.data.datasets.forEach((d,di)=>{chart.getDatasetMeta(di).data.forEach((bar,i)=>{const val=d.data[i];if(!val)return;ctx.fillText('$'+fmtM(val),bar.x+3,bar.y);});});
+      ctx.restore();
+    }};
+    mkChart('cGC',{type:'bar',data:{labels:rows.map(r=>abrev(r.cat)),datasets:ds},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:38}},
+      plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{title:its=>rows[its[0].dataIndex].cat,label:c=>' '+c.dataset.label+': '+(oc()?'••••••':'$'+fmtM(c.parsed.x))}}},
+      scales:{x:{beginAtZero:true,ticks:{color:CV('--muted'),callback:val=>'$'+fmtM(val),maxTicksLimit:4},grid:{color:CV('--grid-color'),lineWidth:.5},border:{display:false}},
+              y:{ticks:{color:CV('--muted'),font:{size:10},keepOjo:true},grid:{display:false},border:{display:false}}}},plugins:[labPlg]});
+  }
+  // Próximos 3 meses (comprometido)
+  $('gcProx').innerHTML=[1,2,3].map(k=>{const mes=addMeses(D.mesAct+'-01',k).slice(0,7);return`<div class="bcard"><div class="bl">${mesNom(mes)} ${mes.slice(2,4)}</div><div class="bv">${fmtV(comprometidoMes(mes))}</div></div>`;}).join('');
+  // Curva acumulada
+  const N=Math.max(D.diasAnt,D.diasAct),labels=Array.from({length:N},(_,i)=>i+1);
+  const acum=(arr,hasta)=>{let s=0;return labels.map(d=>d<=hasta?(s+=arr[d]):null);};
+  const dsC=[];
+  if(D.hayAnt)dsC.push({label:nAnt,data:acum(D.totAnt,D.diasAnt),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2});
+  dsC.push({label:nAct,data:acum(D.totAct,D.dHoy),borderColor:'#fb923c',backgroundColor:'#fb923c',borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.2});
+  mkChart('cGCurva',{type:'line',data:{labels,datasets:dsC},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:legO('bottom'),tooltip:{...ttO(),callbacks:{title:its=>'Día '+its[0].label,label:c=>c.parsed.y==null?'':' '+c.dataset.label+': '+(oc()?'••••••':'$'+fmtM(c.parsed.y))}}},
+    scales:{x:{ticks:{color:CV('--muted'),maxTicksLimit:8,keepOjo:true},grid:{display:false},border:{display:false}},y:{beginAtZero:true,ticks:{color:CV('--muted'),callback:val=>'$'+fmtM(val)},grid:{color:CV('--grid-color'),lineWidth:.5},border:{display:false}}}}});
+}
+function navegarAComparativaGastos(){
+  mostrarVista('analisis');
+  const det=$('det-ev-cGC');if(!det)return;
+  det.open=true;
+  setTimeout(()=>{det.scrollIntoView({behavior:'smooth',block:'start'});Object.values(_ci).forEach(c=>c.resize());},60);
 }
 
 function rChartD(){
@@ -4110,7 +4280,12 @@ function iniciarGastos(){
     if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
     if(!_gastosDetInited){
       _gastosDetInited=true;
-      const gasDets=[['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']]];
+      document.querySelectorAll('[data-gcmodo]').forEach(b=>b.addEventListener('click',()=>{
+        try{localStorage.setItem(SK_GC_MODO,b.dataset.gcmodo);}catch{}
+        rChartGC();
+        if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
+      }));
+      const gasDets=[['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cGC',['cGC','cGCurva']]];
       for(const[id,cids]of gasDets){
         const el=$(id); if(!el) continue;
         el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
@@ -5756,7 +5931,7 @@ function initDetDyn(el,sfx,defOpen){
     Object.values(_ci).forEach(chart=>{
       const scales=chart.options&&chart.options.scales;
       if(!scales)return;
-      Object.values(scales).forEach(scale=>{if(scale.ticks)scale.ticks.display=!oculto;});
+      Object.values(scales).forEach(scale=>{if(scale.ticks&&!scale.ticks.keepOjo)scale.ticks.display=!oculto;});
       chart.update('none');
     });
   }
