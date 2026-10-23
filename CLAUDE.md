@@ -38,3 +38,4 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Hacé ediciones puntuales (`Edit`), no reescribas el archivo entero.
 - Una tarea por conversación. Para probar lógica, extraé la función y corrala con `node`; evitá el navegador con capturas salvo que se pida.
 - No leas `HISTORIAL.md` completo: para registrar un cambio solo agregá la entrada nueva al final del archivo, sin releer el resto.
+- Al empezar una tarea, leé `PENDIENTES.md` (estado, pendientes y reglas); al cerrarla, actualizalo con un Edit puntual.
