@@ -199,6 +199,14 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .vt-bar-hidden,.vt-wrap-hidden{display:none!important;}
 /* Hint text al pie de Evolución */
 .ev-nota{font-size:.72rem;color:var(--muted);opacity:.7;margin:2px 0 10px;text-align:center;line-height:1.5;}
+/* Rendimientos */
+.rend-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
+.rend-tabla{width:100%;border-collapse:collapse;font-size:.75rem;}
+.rend-tabla th,.rend-tabla td{padding:3px 6px;border:1px solid var(--border);text-align:right;white-space:nowrap;min-width:0;}
+.rend-tabla th:first-child,.rend-tabla td:first-child{text-align:left;}
+.rend-tabla thead th{font-size:.69rem;color:var(--muted);font-weight:600;background:var(--card);}
+.rend-tabla tfoot td{font-weight:700;border-top:2px solid var(--border);}
+.rend-vacio{color:var(--muted);text-align:center;padding:16px 0;font-size:.82rem;}
 /* ── PIN overlay ───────────────────────────────────────────── */
 .overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;}
 .overlay[hidden]{display:none;}
@@ -1012,6 +1020,11 @@ body.ocultar .tk-val{display:none!important;}
       <div class="cw h170"><canvas id="cF"></canvas></div>
       <div class="ev-fin-grid" id="evFinGrid"></div>
     </details>
+    <details class="ev-card" id="det-ev-cRend" open>
+      <summary class="ev-hd"><div><h2>📈 Rendimientos</h2><p class="sub">Por cuenta · histórico y % mensual</p></div><span class="det-arrow">▶</span></summary>
+      <div id="rendTablaWrap"></div>
+      <div class="cw h160" id="rendChartWrap" style="margin-top:14px"><canvas id="cRend"></canvas></div>
+    </details>
     <p class="ev-nota">Los gráficos usan snapshots guardados automáticamente al abrir la app. Clic en las leyendas para mostrar/ocultar series.</p>
   </div>
 
@@ -1192,7 +1205,7 @@ const CATS_DEFAULT = [
   'Indumentaria y Calzado','Hogar y Materiales','Otros/Varios',
   'Financiación Consolidada','Impuestos e Intereses','Ingresos brutos (retenciones)',
 ];
-const CATS_INCOME_DEFAULT = ['Regalo','Sueldo/Honorarios','Reintegro','Transferencia recibida','Otros ingresos'];
+const CATS_INCOME_DEFAULT = ['Regalo','Sueldo/Honorarios','Reintegro','Transferencia recibida','Ingresos extras','Rendimientos','Otros ingresos'];
 
 const SK         = 'finanzas-v1';
 const PIN_KEY    = 'finanzas-v1-pin';
@@ -1418,6 +1431,17 @@ function cargar() {
   data.compromisos ||= [];
   for (const it of data.items) if (!it.historial) it.historial = [];
   data.importaciones ||= {};
+  // Migración única: ingresos 'Ingresos extras' con 'rendimiento' en descripción → 'Rendimientos'
+  const _MIG_REND_K = 'finanzas-v1-mig-rend-1';
+  if (!ls.get(_MIG_REND_K)) {
+    const _normR = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    data.gastos.forEach(g => {
+      if (g.tipo === 'ingreso' && g.categoria === 'Ingresos extras' && _normR(g.descripcion||'').includes('rendimiento')) {
+        g.categoria = 'Rendimientos';
+      }
+    });
+    ls.set(_MIG_REND_K, true);
+  }
   return data;
 }
 
@@ -3961,16 +3985,101 @@ function rChartF(){
   mkChart('cF',{type:'bar',data:{labels:items.map(d=>d.label),datasets:[{label:'Gasto mensual',data:items.map(d=>d.value),backgroundColor:items.map(d=>d.color),borderRadius:4,barPercentage:.6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{label:c=>' $'+fmtM(c.parsed.x)+'/mes'}}},scales:{x:{ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}},y:{ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}}}}});
 }
 
+// ── Saldo promedio mensual por medio ──────────────────
+function _saldoPromMes(medio, mesStr) {
+  const gastos = estado.gastos || [];
+  const hoyStr = hoy();
+  const [y, m] = mesStr.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const esActual = mesStr === hoyStr.slice(0, 7);
+  const todayDay = parseInt(hoyStr.split('-')[2]);
+  const daysCount = esActual ? todayDay : daysInMonth;
+  if (daysCount <= 0) return 0;
+  const mesStart = mesStr + '-01';
+  const mesEndStr = mesStr + '-' + String(daysCount).padStart(2, '0');
+  const baseGasto = gastos.filter(g => g.medio === medio && !g.soloHistorial && g.tipo === 'gasto' && g.fecha < mesStart).reduce((s, g) => s + g.monto, 0);
+  const baseIngreso = gastos.filter(g => g.medio === medio && !g.soloHistorial && g.tipo === 'ingreso' && g.fecha < mesStart).reduce((s, g) => s + g.monto, 0);
+  let runSaldo = (estado.iniciales[medio] || 0) - baseGasto + baseIngreso;
+  const movsMes = gastos.filter(g => g.medio === medio && !g.soloHistorial && g.fecha >= mesStart && g.fecha <= mesEndStr);
+  const dailyDelta = new Array(daysCount + 1).fill(0);
+  for (const g of movsMes) {
+    const d = parseInt(g.fecha.split('-')[2]);
+    if (d >= 1 && d <= daysCount) dailyDelta[d] += g.tipo === 'ingreso' ? g.monto : -g.monto;
+  }
+  let total = 0;
+  for (let d = 1; d <= daysCount; d++) { runSaldo += dailyDelta[d]; total += runSaldo; }
+  return total / daysCount;
+}
+
+function rChartRend() {
+  const cont = $('rendTablaWrap');
+  const chartWrap = $('rendChartWrap');
+  if (!cont) return;
+  const gastos = estado.gastos || [];
+  const hoyStr = hoy();
+  const mesActual = hoyStr.slice(0, 7);
+  const rends = gastos.filter(g => g.tipo === 'ingreso' && g.categoria === 'Rendimientos' && !g.transferencia);
+  if (!rends.length) {
+    cont.innerHTML = '<p class="rend-vacio">Aún no hay rendimientos importados.</p>';
+    if (chartWrap) chartWrap.hidden = true;
+    if (_ci['cRend']) { _ci['cRend'].destroy(); delete _ci['cRend']; }
+    return;
+  }
+  if (chartWrap) chartWrap.hidden = false;
+  const medios = [...new Set(rends.map(g => g.medio))].sort();
+  const fmtPct = v => (isNaN(v) || !isFinite(v) || v === 0) ? '—' : v.toFixed(2) + '%';
+  const rows = medios.map(medio => {
+    const rendMes = rends.filter(g => g.medio === medio && g.fecha.slice(0, 7) === mesActual).reduce((s, g) => s + g.monto, 0);
+    const rendAcum = rends.filter(g => g.medio === medio).reduce((s, g) => s + g.monto, 0);
+    const saldoProm = _saldoPromMes(medio, mesActual);
+    const pctMes = saldoProm > 0 ? (rendMes / saldoProm) * 100 : NaN;
+    const pctAnual = isNaN(pctMes) ? NaN : pctMes * 12;
+    return { medio, rendMes, rendAcum, saldoProm, pctMes, pctAnual };
+  });
+  const totRendMes = rows.reduce((s, r) => s + r.rendMes, 0);
+  const totRendAcum = rows.reduce((s, r) => s + r.rendAcum, 0);
+  cont.innerHTML = `<div class="rend-wrap"><table class="rend-tabla"><thead><tr>
+    <th>Cuenta</th><th>Rend. mes</th><th>Rend. acumulado</th><th>Saldo prom. mes</th><th>% mes</th><th>% anualizado</th>
+  </tr></thead><tbody>${rows.map(r => `<tr>
+    <td>${esc(r.medio)}</td><td>${fmtV(r.rendMes)}</td><td>${fmtV(r.rendAcum)}</td>
+    <td>${r.saldoProm > 0 ? fmtV(r.saldoProm) : '—'}</td>
+    <td>${fmtPct(r.pctMes)}</td><td>${fmtPct(r.pctAnual)}</td>
+  </tr>`).join('')}</tbody><tfoot><tr>
+    <td>Total</td><td>${fmtV(totRendMes)}</td><td>${fmtV(totRendAcum)}</td><td>—</td><td>—</td><td>—</td>
+  </tr></tfoot></table></div>`;
+  const mesConRend = [...new Set(rends.map(g => g.fecha.slice(0, 7)))].sort().slice(-12);
+  if (!mesConRend.length) return;
+  const rendPalette = {'Mercado Pago':'#4ade80','Banco Santander':'#60a5fa'};
+  const oculto = document.body.classList.contains('ocultar');
+  mkChart('cRend', {type:'bar', data:{
+    labels: mesConRend.map(m => mesNom(m)),
+    datasets: medios.map((medio, i) => ({
+      label: medio,
+      data: mesConRend.map(mes => rends.filter(g => g.medio === medio && g.fecha.slice(0, 7) === mes).reduce((s, g) => s + g.monto, 0)),
+      backgroundColor: rendPalette[medio] || S7[i % S7.length],
+      borderRadius: 3,
+    })),
+  }, options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:legO('bottom','cRend'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},
+    scales:{
+      x:{stacked:true,ticks:{color:CV('--muted'),display:!oculto},grid:{display:false},border:{display:false}},
+      y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v),display:!oculto},grid:{color:CV('--grid-color'),lineWidth:.5},border:{display:false}},
+    },
+  }});
+  applyChartVis('cRend');
+}
+
 let _evolReady=false,_evolDetInited=false;
 function iniciarEvolucion(){
   renderTickerEvol();
   renderVarTable();
   withChartJs(()=>{
-    rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();_evolReady=true;
+    rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();rChartRend();_evolReady=true;
     if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
     if(!_evolDetInited){
       _evolDetInited=true;
-      const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cD',['cD']],['det-ev-cF',['cF']]];
+      const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cD',['cD']],['det-ev-cF',['cF']],['det-ev-cRend',['cRend']]];
       for(const[id,cids]of evDets){
         const el=$(id); if(!el) continue;
         el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
@@ -4410,7 +4519,8 @@ const _REGLAS_SANT = [
   { t: d => ['comision por servicio','iva 21%','ley 25.413','impuesto de sellos','interes por descubierto','comision por sorpresa'].some(k => d.includes(k)), tipo:'gasto', cat:'Impuestos e Intereses' },
   { t: d => d.includes('sircreb') || d.includes('iibb tucuman'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', agrupable:'Retenciones SIRCREB / IIBB Tucumán' },
   { t: d => d.includes('iibb') || d.includes('ingresos brutos'), tipo:'gasto', cat:'Ingresos brutos (retenciones)' },
-  { t: d => d.includes('bonif') || d.includes('pago interes por saldo'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Bonificaciones y promos Santander' },
+  { t: d => d.includes('pago interes por saldo'), tipo:'ingreso', cat:'Rendimientos', agrupable:'Rendimientos Santander' },
+  { t: d => d.includes('bonif'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Bonificaciones y promos Santander' },
   { t: d => d.includes('prestamo personal'), tipo:'gasto', cat:'Pago de créditos' },
   { t: d => d.includes('pago de tarjeta de credito'), tipo:'gasto', cat:'Pago de Visa/MP', transferPair:'Visa Santander' },
   { t: d => d.includes('cvu mismo titular') || (d.includes('envio de dinero') && d.includes('mercado pago')), tipo:'auto', cat:'Transferencia entre cuentas', transf:true },
@@ -4440,7 +4550,7 @@ function _categorizarSant(desc, monto) {
 
 // ── Mercado Pago categorization ───────────────────────
 const _REGLAS_MP = [
-  { t: d => d.includes('rendimientos'), tipo:'ingreso', cat:'Ingresos extras', agrupable:'Rendimientos Mercado Pago' },
+  { t: d => d.includes('rendimientos'), tipo:'ingreso', cat:'Rendimientos', agrupable:'Rendimientos Mercado Pago' },
   { t: d => ['pago ausa','pago au oeste','peaje','rutas sur','emova subte','ceamse','ausol'].some(k=>d.includes(k)), tipo:'gasto', cat:'Transporte/Auto', agrupable:'Peajes y subte' },
   { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('bs. as.'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', descFija:'Impuesto a los IIBB Bs. As.' },
   { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('caba'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', descFija:'Impuesto a los IIBB CABA' },
@@ -4775,8 +4885,9 @@ function _confirmarImpBanco(conAjuste) {
   const fechaFinal = _impCandidatos.reduce((mx, c) => c.fecha > mx ? c.fecha : mx, '');
   const now = Date.now();
   let cnt = 0;
-  // Ensure "Ingresos extras" category exists
+  // Ensure income categories exist
   addCatIncome('Ingresos extras');
+  addCatIncome('Rendimientos');
   for (const c of _impCandidatos) {
     if (c.yaExiste) continue;
     const soloH = !!c.soloHistorial;
@@ -5431,6 +5542,9 @@ window._confirmarImpVisa = _confirmarImpVisa;
 window._deshacerUltimaImpVisa = _deshacerUltimaImpVisa;
 window._deduplicarVisaImp = _deduplicarVisaImp;
 window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = medio; _impSaldoInfo = null; _impFechaFinal = cands.reduce((mx,c)=>c.fecha>mx?c.fecha:mx,''); };
+window._saldoPromMes = _saldoPromMes;
+window.rChartRend = rChartRend;
+window.getCatsIncome = getCatsIncome;
 
 // ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
@@ -5541,7 +5655,7 @@ function initDetDyn(el,sfx,defOpen){
   initDet('det-historial',true);
   initDet('det-pat-form',true);
   // ev-cards son HTML estático → inicializar estado aquí, no depender de Chart.js
-  ['det-ev-cP','det-ev-cB','det-ev-cG','det-ev-cIC','det-ev-cD','det-ev-cF'].forEach(id=>initDet(id,true));
+  ['det-ev-cP','det-ev-cB','det-ev-cG','det-ev-cIC','det-ev-cD','det-ev-cF','det-ev-cRend'].forEach(id=>initDet(id,true));
 
   // ── Botones "Plegar todo / Desplegar todo" ──────────────────
   function mkPlegBtn(btnId, getScopeEl){

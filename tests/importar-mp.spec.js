@@ -204,7 +204,7 @@ test.describe('importar-mp', () => {
       window._categorizarMP('Rendimientos Mercado Pago', 1500)
     );
     expect(result.tipo).toBe('ingreso');
-    expect(result.cat).toBe('Ingresos extras');
+    expect(result.cat).toBe('Rendimientos');
     expect(result.agrupable).toBe('Rendimientos Mercado Pago');
   });
 

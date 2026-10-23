@@ -14,6 +14,12 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 23/10/2026 (16): categoría "Rendimientos" y tarjeta homónima en Evolución.
+  - **Categoría nueva:** `Rendimientos` añadida a `CATS_INCOME_DEFAULT`; aparece en el selector de ingresos manuales sin duplicarse al recargar.
+  - **Importadores:** Mercado Pago: regla `rendimientos` → `cat:'Rendimientos'` (antes `Ingresos extras`). Santander: regla combinada dividida en dos → `pago interes por saldo` → `Rendimientos`; `bonif` sigue en `Ingresos extras`.
+  - **Migración idempotente:** al arrancar la app, si no existe la flag `finanzas-v1-mig-rend-1`, los ingresos con `categoria='Ingresos extras'` y 'rendimiento' en la descripción se migran a `'Rendimientos'`.
+  - **Tarjeta Rendimientos en Evolución:** tabla por cuenta (Rend. mes, Rend. acumulado, Saldo prom. mes, % mes, % anualizado + fila total) + gráfico de barras apiladas por cuenta (últimos 12 meses). Saldo promedio reconstruido día a día con la misma lógica de `saldoDe`. Transferencias excluidas. Estado vacío si no hay rendimientos. Eye mode oculta importes (`.amt` + CSS automático). Sin overflow a 360/412/450 px.
+  - **Tests:** 16 tests nuevos en `tests/rendimientos.spec.js` (a–p); se actualizó `tests/importar-mp.spec.js` (test f) para reflejar el nuevo `cat:'Rendimientos'`.
 - 22/10/2026 (15): correcciones en tarjeta "Ingresos vs compromisos del mes".
   - **Regresión visual #evBrow:** las cuatro tarjetas (Cobrado, Por cobrar, Disponible, Compromisos) quedaban en una sola fila con importes truncados. `.brow` y `.ev-fin-grid` cambiados a `display:grid; grid-template-columns:1fr 1fr`. Las tarjetas "Con total/mínimo Visa" usan `grid-column:1/-1`. El clamp de `.bv` bajado de `.75rem` a `.72rem` mínimo. Los `flex-basis:100%` del innerHTML de `#evBrow` se reemplazaron por `grid-column:1/-1`. Misma corrección para `#evFinGrid`.
   - **Fijos con tarjeta en proyección:** `fijosMontoPendiente` excluye siempre los fijos cuyo medioPago tiene un resumen cargado (correcto para el mes actual, evita doble cuenta). En la proyección 6 meses (`cCmpD`), los meses estrictamente posteriores al vencimiento del resumen sí deben incluir esos fijos (el resumen ya no existirá). Nueva función `fijosConTarjetaProyeccion(mesStr)` + nueva serie "Fijos con tarjeta" (ámbar más claro, `rgba(251,191,36,.42)`) en la leyenda. El mes actual y el mes del resumen siguen excluyendo el fijo (sin cambio en Cubre/Faltan).
