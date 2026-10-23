@@ -159,6 +159,14 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .persona ul{list-style:none;margin:8px 0 0;padding:0;}
 .persona li{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);padding:2px 0;}
 .persona .sub-label{font-size:.82rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
+details.persona>summary .nombre{flex:1;min-width:0;overflow-wrap:anywhere;}
+details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
+.vinc-hist{font-size:.8rem;}
+.vinc-hist ul{list-style:none;margin:4px 0 0;padding:0;}
+.vinc-hist li{display:flex;align-items:baseline;gap:4px;padding:2px 0;color:var(--muted);}
+.vinc-hist li .vinc-hist-txt{flex:1;min-width:0;overflow-wrap:anywhere;}
+.vinc-hist li .vinc-hist-num{flex-shrink:0;white-space:nowrap;}
+.vinc-hist .vinc-hist-undo{display:block;margin-top:4px;word-break:break-word;}
 /* Evolución */
 .ev-notice{background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--muted);margin-bottom:14px;display:flex;gap:7px;}
 .ev-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
@@ -2744,9 +2752,9 @@ function renderLista(contId, tipo) {
       if((esPrestamo||esCobro)&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const hdet=document.createElement('details');
-        hdet.style='margin-left:8px;font-size:.8rem;';
+        hdet.className='vinc-hist';
         const etiqH={...etiqAjuste,cobre:'Cobré'};
-        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
         hdet.querySelector('.danger').onclick=()=>esCobro?deshacerUltimoCobre(it.id):deshacerUltimoAjuste(it.id);
         det.appendChild(hdet);
       }
@@ -2834,8 +2842,8 @@ function renderVinculos(){
       if(it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const det=document.createElement('details');
-        det.style='margin-left:8px;font-size:.8rem;';
-        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        det.className='vinc-hist';
+        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
         det.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
         li.appendChild(det);
       }
@@ -2863,8 +2871,8 @@ function renderVinculos(){
       if(it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const hdet=document.createElement('details');
-        hdet.style='margin-left:8px;font-size:.8rem;';
-        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul style="list-style:none;margin:4px 0 0;padding:0;">${ultimos.map(h=>`<li style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger" style="margin-top:4px">↩ Deshacer último</button>`;
+        hdet.className='vinc-hist';
+        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
         hdet.querySelector('.danger').onclick=()=>deshacerUltimoCobre(it.id);
         card.appendChild(hdet);
       }

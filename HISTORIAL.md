@@ -14,6 +14,11 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 23/10/2026 (17): corrección de desborde horizontal en la pestaña Vínculos a 360/412 px.
+  - **Problema:** los `<summary>` de `details.persona` no tenían `min-width:0` en el span del nombre, por lo que el importe (`.estado`) podía empujar el layout más allá del ancho del viewport. El bloque Historial tenía `margin-left:8px` y los `<li>` usaban `justify-content:space-between` sin `min-width:0` en el span de texto, causando scroll horizontal al desplegar.
+  - **Fix CSS:** `details.persona>summary .nombre{flex:1;min-width:0;overflow-wrap:anywhere;}` para que el nombre ceda espacio; `details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}` para que el importe nunca se trunque. Nuevas clases `.vinc-hist`, `.vinc-hist-txt`, `.vinc-hist-num`, `.vinc-hist-undo` para el bloque Historial: sin `margin-left` fijo, texto con `overflow-wrap:anywhere`, importe con `flex-shrink:0;white-space:nowrap`, botón con `word-break:break-word`.
+  - **Fix JS:** los tres lugares donde se construía el HTML del Historial (préstamos, cobros standalone, lista de Patrimonio) actualizados para usar las nuevas clases en lugar de `margin-left:8px` y estilos inline.
+  - **Tests:** 19 tests nuevos en `tests/vinculos-responsive.spec.js` (a–s): sin scroll horizontal a 360/412/450 px con tarjetas plegadas y desplegadas, historial desplegado, ningún elemento desborda el viewport, botón "Deshacer último" visible, modo ojo sin romper layout, 3 temas. Suite completa: **601/601 pasan**.
 - 23/10/2026 (16): categoría "Rendimientos" y tarjeta homónima en Evolución.
   - **Categoría nueva:** `Rendimientos` añadida a `CATS_INCOME_DEFAULT`; aparece en el selector de ingresos manuales sin duplicarse al recargar.
   - **Importadores:** Mercado Pago: regla `rendimientos` → `cat:'Rendimientos'` (antes `Ingresos extras`). Santander: regla combinada dividida en dos → `pago interes por saldo` → `Rendimientos`; `bonif` sigue en `Ingresos extras`.
