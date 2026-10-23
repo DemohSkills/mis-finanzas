@@ -64,12 +64,13 @@ test.describe('Botón Actualizar reubicado', () => {
     expect(cfgBtns).toHaveLength(0);
   });
 
-  // (d) En ⚙️ aparece la pista sobre 🔄 y "Pulse"
-  test('(d) la sección Apariencia muestra la pista sobre el botón 🔄 y Pulse', async () => {
+  // (d) En ⚙️ aparece la pista sobre actualizar y "Pulse" para ciclar tema
+  test('(d) la sección Apariencia menciona Pulse y ciclar el tema', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
     const cfgText = await page.locator('#vista-config').textContent();
     expect(cfgText).toMatch(/Pulse/);
+    expect(cfgText).toMatch(/tema/i);
   });
 
   // (e) La palabra Pulse en el título no tiene cursor pointer ni parece botón

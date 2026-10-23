@@ -14,6 +14,9 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 22/10/2026 (13): velocidades de cinta renombradas + Pulse cicla el tema. Suite: **536/536 pasan**.
+  - **Ticker — velocidades:** ciclo ahora es v1(16s)→v2(10,667s)→v3(8s)→pausa→v1. El valor por defecto es v1. Migración: '1x'/'2x'/'scroll'→v1; '3x'→v2; 'fixed'→pause; cualquier otro→v1. CSS actualizado (base 16s, override para v2 y v3). Tests (m) y (n) agregados a `ticker-velocidad.spec.js`; test (f) y (k) corregidos.
+  - **Pulse — ciclo de temas:** un toque corto en la palabra "Pulse" del título cicla Auto→Claro→Oscuro→Negro→Auto usando `aplicarTema`. Ya NO recarga la app (recarga queda solo en el botón ↻ de cabecera). Animación CSS `pulse-flash` (~350ms) y `navigator.vibrate(25)`. Toast breve "Tema: Oscuro". Selector de ⚙️ queda sincronizado. 8 tests nuevos en `tema.spec.js` (i–p); `actualizar-btn.spec.js` test (d) actualizado.
 - 22/10/2026 (12): dos retoques visuales en Inicio. Suite completa: **526/526 pasan**.
   - **Botón Actualizar (cabecera):** reemplazado el emoji 🔄 por un SVG inline de flechas circulares (`stroke="currentColor"`, sin relleno). La clase `.eye-btn` ahora tiene `width`/`height` fijos (36px) y `display:inline-flex` para que ambos botones de cabecera queden con exactamente el mismo tamaño de caja. 4 tests nuevos en `tests/inicio-compacto.spec.js` (q–t).
   - **Tarjeta Efectivo — nombre:** tamaño de fuente `.nombre` subido a `1rem` (igual al de las demás tarjetas `.saldo`). Botón del card achica padding a 5px en pantallas ≤ 380 px para evitar overflow.

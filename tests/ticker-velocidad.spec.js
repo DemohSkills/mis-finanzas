@@ -99,12 +99,12 @@ test.describe('ticker-velocidad: ciclo de 4 estados', () => {
     expect(hasV1).toBe(true);
   });
 
-  test('(f) el valor "2x" persiste en localStorage y se aplica al re-renderizar', async ({ page }) => {
+  test('(f) migración: "2x" se trata como v1 (ya no es 2x)', async ({ page }) => {
     await seedAndUnlock(page, '2x');
     await goToEvolucion(page);
-    const hasV2 = await page.evaluate(() => !!document.querySelector('#tickerEvol .tk-wrap.tk-v2'));
-    expect(hasV2).toBe(true);
-    expect(await page.locator('#tickerEvol .tk-btn').textContent()).toBe('▶▶');
+    const hasV1 = await page.evaluate(() => !!document.querySelector('#tickerEvol .tk-wrap.tk-v1'));
+    expect(hasV1).toBe(true);
+    expect(await page.locator('#tickerEvol .tk-btn').textContent()).toBe('▶');
   });
 
   test('(g) persistencia tras recargar — pause', async ({ page }) => {
@@ -140,11 +140,11 @@ test.describe('ticker-velocidad: ciclo de 4 estados', () => {
     expect(itemCount).toBe(5);
   });
 
-  test('(k) aria-label del botón es correcto para cada modo', async ({ page }) => {
+  test('(k) aria-label del botón es correcto para cada modo nativo', async ({ page }) => {
     const modos = [
-      { mode: '1x', expected: /1x.*2x/i },
-      { mode: '2x', expected: /2x.*3x/i },
-      { mode: '3x', expected: /3x.*pausar/i },
+      { mode: 'v1', expected: /1x.*2x/i },
+      { mode: 'v2', expected: /2x.*3x/i },
+      { mode: 'v3', expected: /3x.*pausar/i },
       { mode: 'pause', expected: /pausado.*1x/i },
     ];
     for (const { mode, expected } of modos) {
@@ -152,6 +152,43 @@ test.describe('ticker-velocidad: ciclo de 4 estados', () => {
       await goToEvolucion(page);
       const label = await page.locator('#tickerEvol .tk-btn').getAttribute('aria-label');
       expect(label).toMatch(expected);
+    }
+  });
+
+  test('(m) migración completa de valores legado', async ({ page }) => {
+    const cases = [
+      { seed: '1x',  expectClass: 'tk-v1', expectLabel: '▶' },
+      { seed: '2x',  expectClass: 'tk-v1', expectLabel: '▶' },
+      { seed: 'scroll', expectClass: 'tk-v1', expectLabel: '▶' },
+      { seed: '3x',  expectClass: 'tk-v2', expectLabel: '▶▶' },
+      { seed: 'fixed', expectClass: 'tk-pause', expectLabel: '❙❙' },
+      { seed: 'unknown-xyz', expectClass: 'tk-v1', expectLabel: '▶' },
+    ];
+    for (const { seed, expectClass, expectLabel } of cases) {
+      await seedAndUnlock(page, seed);
+      await goToEvolucion(page);
+      const hasClass = await page.evaluate(cls => !!document.querySelector(`#tickerEvol .tk-wrap.${cls}`), expectClass);
+      expect(hasClass, `seed="${seed}" expects class ${expectClass}`).toBe(true);
+      const label = await page.locator('#tickerEvol .tk-btn').textContent();
+      expect(label, `seed="${seed}" expects label ${expectLabel}`).toBe(expectLabel);
+    }
+  });
+
+  test('(n) duraciones CSS: v1=16s, v2≈10.667s, v3=8s', async ({ page }) => {
+    const cases = [
+      { mode: 'v1', expectedDur: '16s' },
+      { mode: 'v2', expectedDur: '10.667s' },
+      { mode: 'v3', expectedDur: '8s' },
+    ];
+    for (const { mode, expectedDur } of cases) {
+      await seedAndUnlock(page, mode);
+      await goToEvolucion(page);
+      const dur = await page.evaluate(() => {
+        const track = document.querySelector('#tickerEvol .tk-track');
+        if (!track) return null;
+        return getComputedStyle(track).animationDuration;
+      });
+      expect(dur, `mode=${mode}`).toBe(expectedDur);
     }
   });
 });

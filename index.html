@@ -48,6 +48,9 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .app-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
 .app-hdr h1 .accent{color:var(--accent);}
 .app-hdr h1 .pulse{color:var(--warn);}
+@keyframes pulseTheme{0%,100%{transform:scale(1);}50%{transform:scale(1.18);filter:brightness(1.6);}}
+.pulse-flash{animation:pulseTheme .35s ease-out;}
+@media(prefers-reduced-motion:reduce){.pulse-flash{animation:none!important;}}
 .toast-actualizar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:7px 18px;border-radius:20px;font-size:.83rem;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;}
 /* Tabs — barra única, sticky, scroll horizontal en móvil */
 .tabs{display:flex;gap:4px;margin-bottom:16px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;flex-wrap:nowrap;}
@@ -399,9 +402,9 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 .tk-scroll .tk-inner{overflow:hidden;}
 .tk-fixed .tk-inner{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .tk-track{display:flex;align-items:center;}
-.tk-scroll .tk-track{animation:tkScroll 32s linear infinite;will-change:transform;}
-.tk-v2 .tk-track{animation-duration:16s;}
-.tk-v3 .tk-track{animation-duration:10.667s;}
+.tk-scroll .tk-track{animation:tkScroll 16s linear infinite;will-change:transform;}
+.tk-v2 .tk-track{animation-duration:10.667s;}
+.tk-v3 .tk-track{animation-duration:8s;}
 .tk-scroll .tk-track.tk-paused{animation-play-state:paused;}
 @keyframes tkScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.tk-scroll .tk-track{animation:none!important;}}
@@ -1024,7 +1027,7 @@ body.ocultar .tk-val{display:none!important;}
         <button type="button" class="mini tema-btn" data-tema="negro">Negro</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <span class="meta" style="margin:0;">Para actualizar: botón 🔄 en la cabecera o tocá la palabra <b>Pulse</b> del título.</span>
+        <span class="meta" style="margin:0;">Para actualizar: botón <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> en la cabecera. Tocá <b>Pulse</b> del título para ciclar el tema.</span>
       </div>
     </div>
 
@@ -3655,16 +3658,17 @@ function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;r
 
 // ── TICKER EVOLUCIÓN ──
 const SK_TICKER='finanzas-v1-ticker-mode';
-const _TK_MODES=['1x','2x','3x','pause'];
-const _TK_LABELS={'1x':'▶','2x':'▶▶','3x':'▶▶▶','pause':'❙❙'};
-const _TK_TITLES={'1x':'Velocidad 1x, tocar para 2x','2x':'Velocidad 2x, tocar para 3x','3x':'Velocidad 3x, tocar para pausar','pause':'Pausado, tocar para 1x'};
+const _TK_MODES=['v1','v2','v3','pause'];
+const _TK_LABELS={'v1':'▶','v2':'▶▶','v3':'▶▶▶','pause':'❙❙'};
+const _TK_TITLES={'v1':'Velocidad 1x, tocar para 2x','v2':'Velocidad 2x, tocar para 3x','v3':'Velocidad 3x, tocar para pausar','pause':'Pausado, tocar para 1x'};
 function _tkGetMode(){
   let prefRed=false;try{prefRed=window.matchMedia('(prefers-reduced-motion:reduce)').matches;}catch{}
   let s=localStorage.getItem(SK_TICKER);
-  if(s==='scroll')s='1x';
-  if(s==='fixed')s='pause';
+  if(s==='1x'||s==='2x'||s==='scroll')s='v1';
+  else if(s==='3x')s='v2';
+  else if(s==='fixed')s='pause';
   if(!_TK_MODES.includes(s))s=null;
-  return s||(prefRed?'pause':'1x');
+  return s||(prefRed?'pause':'v1');
 }
 function renderTickerEvol(){
   // Compute data once, render into both containers (Inicio + Evolución)
@@ -3704,7 +3708,7 @@ function renderTickerEvol(){
   const mode=_tkGetMode();
   const isAnim=mode!=='pause';
   // Speed class maps to tk-v1/v2/v3; legacy tk-scroll/tk-fixed kept for backward compat
-  const _tkSpeedMap={'1x':'tk-v1','2x':'tk-v2','3x':'tk-v3','pause':'tk-pause'};
+  const _tkSpeedMap={'v1':'tk-v1','v2':'tk-v2','v3':'tk-v3','pause':'tk-pause'};
   const speedCls=isAnim?`${_tkSpeedMap[mode]} tk-scroll`:`tk-pause tk-fixed`;
   // Renderizar en cada contenedor (sin ids duplicados — usar querySelector por contenedor)
   const containers=[document.getElementById('tickerEvol'),document.getElementById('tickerInicio')].filter(Boolean);
@@ -5391,9 +5395,13 @@ window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = me
 // ═══════════════════════════════════════════════════════
 // WIRE EVENTS (una vez que app está visible)
 // ═══════════════════════════════════════════════════════
+function _showToast(msg,dur=1500){
+  const toast=$('toastActualizar');if(!toast)return;
+  toast.textContent=msg;toast.style.opacity='1';
+  clearTimeout(toast._tid);toast._tid=setTimeout(()=>{toast.style.opacity='0';},dur);
+}
 function _recargarApp(){
-  const toast=$('toastActualizar');
-  if(toast){toast.style.opacity='1';setTimeout(()=>{toast.style.opacity='0';},1500);}
+  _showToast('Actualizando…');
   if('serviceWorker' in navigator){
     navigator.serviceWorker.getRegistrations().then(regs=>{regs.forEach(r=>r.update());}).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),400));
   } else { setTimeout(()=>location.reload(),400); }
@@ -5401,11 +5409,23 @@ function _recargarApp(){
 function wireEvents(){
   document.addEventListener('click',e=>{const btn=e.target.closest('.btn-show-all');if(btn){e.stopPropagation();showAllChartSeries(btn.dataset.chart);}});
   $('btnActualizarApp').onclick=_recargarApp;
-  // Toque corto en "Pulse" del título
-  (()=>{const p=document.querySelector('.app-hdr h1 .pulse');if(!p)return;let _t=0,_moved=false;
+  // Toque corto en "Pulse" del título → ciclar tema
+  (()=>{const p=document.querySelector('.app-hdr h1 .pulse');if(!p)return;
+    const _TC=['auto','claro','oscuro','negro'];
+    let _t=0,_moved=false,_lastTouch=0;
+    function _ciclarTema(){
+      const cur=ls.get(TEMA_K)||'auto';
+      const next=_TC[(_TC.indexOf(cur)+1)%_TC.length];
+      aplicarTema(next==='auto'?null:next);
+      _showToast('Tema: '+next.charAt(0).toUpperCase()+next.slice(1),1200);
+      try{navigator.vibrate(25);}catch{}
+      p.classList.add('pulse-flash');
+      setTimeout(()=>p.classList.remove('pulse-flash'),400);
+    }
     p.addEventListener('touchstart',()=>{_t=Date.now();_moved=false;},{passive:true});
     p.addEventListener('touchmove',()=>{_moved=true;},{passive:true});
-    p.addEventListener('touchend',()=>{if(!_moved&&Date.now()-_t<300)_recargarApp();},{passive:true});
+    p.addEventListener('touchend',e=>{if(!_moved&&Date.now()-_t<300){_lastTouch=Date.now();_ciclarTema();}},{passive:true});
+    p.addEventListener('click',()=>{if(Date.now()-_lastTouch<600)return;_ciclarTema();});
   })();
   $('btnExportCSV').onclick=exportarCSV;
   $('btnExportPDF').onclick=abrirInforme;
