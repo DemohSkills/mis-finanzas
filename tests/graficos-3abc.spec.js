@@ -44,7 +44,7 @@ async function seedAndUnlock(page, estado) {
 
 async function goToEvolucion(page) {
   await page.locator('nav.tabs button[data-vista="evolucion"]').click();
-  // wait for Chart.js to load and at least cB to be initialized
+  // wait for Chart.js to load and at least cD to be initialized
   await page.waitForFunction(() => typeof Chart !== 'undefined' && window._ci && Object.keys(window._ci).length > 0, null, { timeout: 10000 });
   await page.waitForTimeout(300);
 }
@@ -66,11 +66,11 @@ test.describe('3a: clic en leyenda toggle en todos los gráficos', () => {
     expect(await hint.textContent()).toMatch(/clic leyenda/i);
   });
 
-  test('cB tiene leyenda visible y Chart.js soporta toggle', async ({ page }) => {
+  test('cD tiene leyenda visible y Chart.js soporta toggle', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await goToEvolucion(page);
     const visible = await page.evaluate(() => {
-      const chart = window._ci && window._ci['cB'];
+      const chart = window._ci && window._ci['cD'];
       if (!chart) return null;
       return chart.data.datasets.length >= 2;
     });
@@ -109,22 +109,22 @@ test.describe('3a: clic en leyenda toggle en todos los gráficos', () => {
 // ─── 3b: persistencia de series en localStorage ──────────────
 
 test.describe('3b: persistencia de visibilidad + botón Mostrar todo', () => {
-  test('ocultar serie en cB guarda en localStorage', async ({ page }) => {
+  test('ocultar serie en cD guarda en localStorage', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await goToEvolucion(page);
     await page.evaluate(() => {
-      const c = window._ci['cB'];
+      const c = window._ci['cD'];
       c.hide(0); // ocultar "Activos"
       const hidden = c.data.datasets.map((ds,i) => c.isDatasetVisible(i) ? null : ds.label).filter(Boolean);
-      window.setChartVis('cB', hidden);
+      window.setChartVis('cD', hidden);
     });
     const stored = await page.evaluate(() => {
-      try { return JSON.parse(localStorage.getItem('finanzas-v1-chart-vis-cB')); } catch { return null; }
+      try { return JSON.parse(localStorage.getItem('finanzas-v1-chart-vis-cD')); } catch { return null; }
     });
-    expect(stored).toContain('Activos');
+    expect(stored).toContain('Visa Santander');
   });
 
-  test('restaurar app aplica visibilidad guardada en cB', async ({ page }) => {
+  test('restaurar app aplica visibilidad guardada en cD', async ({ page }) => {
     // pre-seed localStorage with hidden state
     await page.addInitScript(({ sk, pk, pin, data, snk, sndata, visK, visData }) => {
       localStorage.setItem(sk, JSON.stringify(data));
@@ -138,8 +138,8 @@ test.describe('3b: persistencia de visibilidad + botón Mostrar todo', () => {
       sndata: [
         { d: '2026-10-20', n: 95000, a: 105000, dv: 10000, dd: { vs:0, mc:0, bm:0, cm:0 } }
       ],
-      visK: 'finanzas-v1-chart-vis-cB',
-      visData: ['Activos'],
+      visK: 'finanzas-v1-chart-vis-cD',
+      visData: ['Visa Santander'],
     });
     await page.goto(INDEX);
     for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
@@ -148,19 +148,19 @@ test.describe('3b: persistencia de visibilidad + botón Mostrar todo', () => {
     await page.waitForFunction(() => typeof Chart !== 'undefined' && window._ci && Object.keys(window._ci).length > 0, null, { timeout: 10000 });
     await page.waitForTimeout(300);
     const visible = await page.evaluate(() => {
-      const c = window._ci && window._ci['cB'];
+      const c = window._ci && window._ci['cD'];
       if (!c) return null;
       return c.isDatasetVisible(0); // Activos should be hidden
     });
     expect(visible).toBe(false);
   });
 
-  test('botón "Mostrar todo" existe en det-ev-cB', async ({ page }) => {
+  test('botón "Mostrar todo" existe en det-ev-cD', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await goToEvolucion(page);
-    const btn = page.locator('#det-ev-cB .btn-show-all');
+    const btn = page.locator('#det-ev-cD .btn-show-all');
     await expect(btn).toBeVisible();
-    expect(await btn.getAttribute('data-chart')).toBe('cB');
+    expect(await btn.getAttribute('data-chart')).toBe('cD');
   });
 
   test('botón "Mostrar todo" en cD restaura todas las series y borra localStorage', async ({ page }) => {

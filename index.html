@@ -219,8 +219,34 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .gm-amt,.gm-dif{white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;}
 .gm-dif{min-width:4.6em;font-weight:600;}
 body.ocultar .gm-amt,body.ocultar .gm-dif{visibility:hidden;}
-.ev-fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
-.ev-fin-grid .bcard{min-width:0;}
+.ev-sep{height:7px;border-radius:99px;margin:22px 0 14px;background:linear-gradient(90deg,#ef4444,#fb923c,#38bdf8);}
+.ev-gas-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.ev-gas-hd h2{margin:0;font-size:1rem;}
+.avd-neto{text-align:center;margin-bottom:12px;}
+.avd-lbl{font-size:.75rem;color:var(--muted);}
+.avd-netov{font-size:1.7rem;font-weight:800;line-height:1.2;overflow-wrap:anywhere;}
+.avd-fila{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:.85rem;margin-top:8px;min-width:0;}
+.avd-nom{font-weight:600;}
+.avd-mon{font-weight:700;overflow-wrap:anywhere;text-align:right;}
+.avd-barra{height:12px;border-radius:99px;background:var(--border);overflow:hidden;margin-top:3px;}
+.avd-barra i{display:block;height:100%;border-radius:99px;}
+.avd-gauge{position:relative;max-width:240px;margin:14px auto 0;}
+.avd-gauge svg{display:block;width:100%;height:auto;}
+.avd-gtxt{position:absolute;left:0;right:0;bottom:2px;text-align:center;line-height:1.15;}
+.avd-gtxt b{display:block;font-size:1.25rem;}
+.avd-gtxt span{font-size:.7rem;color:var(--muted);}
+.avd-leyenda{text-align:center;font-size:.8rem;color:var(--muted);margin:6px 0 0;}
+.avd-dona{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.avd-dwrap{position:relative;width:170px;max-width:100%;margin:0 auto;}
+.avd-donut{display:block;width:100%;height:auto;}
+.avd-dctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24%;}
+.avd-dctr span{font-size:.62rem;color:var(--muted);}
+.avd-dctr b,.avd-dctr b .amt{font-size:.9rem;overflow-wrap:anywhere;color:var(--danger);}
+.avd-dleg{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:12px;}
+.avd-di{display:grid;grid-template-columns:10px minmax(0,1fr);column-gap:6px;font-size:.72rem;min-width:0;align-items:center;}
+.avd-di i{width:10px;height:10px;border-radius:50%;grid-row:1/3;}
+.avd-dn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);}
+.avd-dm{font-weight:700;overflow-wrap:anywhere;}
 /* Variation table (Evolución) */
 .vt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
 .vt-tabla{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed;}
@@ -1035,8 +1061,9 @@ body.ocultar .tk-val{display:none!important;}
       <div class="cw h200"><canvas id="cP"></canvas></div>
     </details>
     <details class="ev-card" id="det-ev-cB" open>
-      <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cB" style="font-size:.7rem">Mostrar todo</button></summary>
-      <div class="cw h160"><canvas id="cB"></canvas></div>
+      <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Situación de hoy · ARS</p></div><span class="det-arrow">▶</span></summary>
+      <div id="avdTop"></div>
+      <div id="avdDona" class="avd-dona" hidden></div>
     </details>
     <details class="ev-card" id="det-ev-cD" open>
       <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cD" style="font-size:.7rem">Mostrar todo</button><button type="button" id="btnValsD" class="mini" style="font-size:.7rem">Valores</button><button type="button" id="btnCfgD" class="mini" style="font-size:.75rem" title="Configurar series">⚙</button></summary>
@@ -1048,16 +1075,23 @@ body.ocultar .tk-val{display:none!important;}
         <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer"><input type="checkbox" data-series="Créditos MP" checked> Créditos MP</label>
       </div>
     </details>
-    <details class="ev-card" id="det-ev-cF" open>
-      <summary class="ev-hd"><div><h2>Gastos financieros fijos</h2><p class="sub">Costos mensuales conocidos · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeF">—</span></summary>
-      <div class="cw h170"><canvas id="cF"></canvas></div>
-      <div class="ev-fin-grid" id="evFinGrid"></div>
-    </details>
     <details class="ev-card" id="det-ev-cRend" open>
       <summary class="ev-hd"><div><h2>📈 Rendimientos</h2><p class="sub">Por cuenta · histórico y % mensual</p></div><span class="det-arrow">▶</span></summary>
       <div id="rendTablaWrap"></div>
       <div class="cw h160" id="rendChartWrap" style="margin-top:14px"><canvas id="cRend"></canvas></div>
     </details>
+    <details class="ev-card" id="det-ev-cF" open>
+      <summary class="ev-hd"><div><h2>Gastos financieros fijos</h2><p class="sub">Compromisos fijos activos · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeF">—</span></summary>
+      <div class="cw" id="evFinWrap" style="height:170px"><canvas id="cF"></canvas></div>
+      <p class="gc-vacio" id="evFinVacio" hidden>Sin gastos fijos activos en ARS.</p>
+      <p class="gc-nota" id="evFinNota" hidden></p>
+    </details>
+    <div class="ev-sep" role="separator" aria-hidden="true"></div>
+    <div class="ev-gas-hd">
+      <h2>📊 Gráficos de gastos</h2>
+      <button type="button" class="mini btn-pleg-all" id="btnPlegEvolGas" style="flex-shrink:0">Plegar todo</button>
+    </div>
+    <div id="evGastosCopias"></div>
     <p class="ev-nota">Los gráficos usan snapshots guardados automáticamente al abrir la app. Clic en las leyendas para mostrar/ocultar series.</p>
   </div>
 
@@ -3933,24 +3967,52 @@ function rChartP(){
   mkChart('cP',{type:'line',data:{labels:data.map(s=>s.d.slice(5).split('-').reverse().join('/')),datasets:[{label:'Patrimonio neto',data:data.map(s=>s.n),borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.10)',fill:true,tension:.4,borderWidth:2,pointBackgroundColor:'#60a5fa',pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=12?4:2,pointHoverRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{label:c=>' '+fmtM(c.parsed.y),afterLabel:c=>{if(!c.dataIndex)return'';const d=c.parsed.y-c.dataset.data[c.dataIndex-1];return' Δ '+(d>=0?'+':'−')+'$'+Math.abs(d).toLocaleString('es-AR');}}}},scales:axO(v=>fmtM(v))}});
 }
 
-function rChartB(){
-  const raw=cargarSnaps();const t=totales();const hoyStr=hoy();
-  const full=!raw.length?[{d:hoyStr,a:t.activos,dv:t.deudas,n:t.neto,dd:{}}]:raw[raw.length-1].d===hoyStr?raw:[...raw,{d:hoyStr,a:t.activos,dv:t.deudas,n:t.neto,dd:{}}];
-  const data=snapPorMes(full);
-  const barLabPlg={id:'barLabelsCB',afterDatasetsDraw(chart){
-    if(document.body.classList.contains('ocultar'))return;
-    const{ctx}=chart;ctx.save();
-    ctx.textAlign='center';ctx.textBaseline='bottom';
-    ctx.font='bold 10px system-ui,-apple-system,sans-serif';
-    ctx.fillStyle=CV('--text');
-    chart.data.datasets.forEach((ds,dsIdx)=>{
-      const meta=chart.getDatasetMeta(dsIdx);if(meta.hidden)return;
-      meta.data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;
-        ctx.fillText('$'+fmtM(v).replace('.',','),bar.x,bar.y-2);});
-    });
-    ctx.restore();
-  }};
-  mkChart('cB',{type:'bar',data:{labels:data.map(s=>mesNom(s.mes)),datasets:[{label:'Activos',data:data.map(s=>s.a),backgroundColor:'rgba(74,222,128,.75)',borderRadius:3,barPercentage:.75},{label:'Deudas',data:data.map(s=>s.dv),backgroundColor:'rgba(248,113,113,.75)',borderRadius:3,barPercentage:.75}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cB'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))},plugins:[barLabPlg]}); applyChartVis('cB');
+// ── Activos vs Deudas: tarjeta HTML/SVG (sin Chart.js) ──
+const AVD_COLORES=['#f87171','#fb923c','#fbbf24','#c084fc','#38bdf8','#4ade80'],AVD_COLOR_OTRAS='#94a3b8';
+function avdNombreGrupo(n){
+  if(/^cr[eé]ditos?\s+santander/i.test(n))return 'Créditos Santander';
+  if(/^cr[eé]ditos?\s+mp/i.test(n))return 'Créditos MP';
+  if(/fondo/i.test(n))return 'Fondo MP';
+  return n;
+}
+// Composición de la deuda: saldos negativos de los medios + ítems que no son activo. Suma = totales().deudas.
+function avdGruposDeuda(){
+  const g=new Map(),add=(n,v)=>{if(v>0)g.set(n,(g.get(n)||0)+v);};
+  for(const m of MEDIOS){const sd=saldoDe(m);if(sd<0)add(m,-sd);}
+  for(const it of estado.items)if(it.tipo!=='activo')add(avdNombreGrupo(it.nombre||'Sin nombre'),it.monto);
+  const ord=[...g.entries()].map(([nombre,v])=>({nombre,v})).sort((a,b)=>b.v-a.v);
+  if(ord.length<=6)return ord;
+  return [...ord.slice(0,6),{nombre:'Otras',v:ord.slice(6).reduce((x,r)=>x+r.v,0),otras:true}];
+}
+function rActivosDeudas(){
+  const top=$('avdTop'),dn=$('avdDona');if(!top||!dn)return;
+  const t=totales(),a=t.activos,d=t.deudas;
+  const money=n=>'<span class="amt">'+(n<0?'−':'')+'$'+Math.abs(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2})+'</span>';
+  const pctF=p=>p.toFixed(1).replace('.',',')+'%';
+  const cob=d>0?a/d*100:null;
+  const wA=d>0?Math.min(100,a/d*100):100;
+  const colCob=cob===null||cob>=100?'var(--ok)':cob>=50?'var(--warn)':'var(--danger)';
+  const arco=cob===null?100:Math.min(100,cob);
+  top.innerHTML=
+    '<div class="avd-neto"><div class="avd-lbl">Patrimonio neto</div><div class="avd-netov '+(t.neto<0?'neg':'pos')+'" id="avdNeto">'+money(t.neto)+'</div></div>'+
+    '<div class="avd-fila"><span class="avd-nom">🟢 Activos</span><span class="avd-mon pos" id="avdActivos">'+money(a)+'</span></div>'+
+    '<div class="avd-barra"><i style="width:'+wA+'%;background:var(--ok)"></i></div>'+
+    '<div class="avd-fila"><span class="avd-nom">🔴 Deudas</span><span class="avd-mon neg" id="avdDeudas">'+money(d)+'</span></div>'+
+    '<div class="avd-barra"><i style="width:'+(d>0?100:0)+'%;background:var(--danger)"></i></div>'+
+    '<div class="avd-gauge"><svg viewBox="0 0 200 108" aria-hidden="true"><path d="M20 100A80 80 0 0 1 180 100" pathLength="100" fill="none" stroke="var(--border)" stroke-width="14" stroke-linecap="round"/>'+
+      (arco>0?'<path d="M20 100A80 80 0 0 1 180 100" pathLength="100" fill="none" stroke="'+colCob+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+arco+' 100"/>':'')+'</svg>'+
+      '<div class="avd-gtxt" id="avdCob">'+(cob===null?'<b>Sin deudas</b>':'<b class="amt" data-cob="'+cob.toFixed(1)+'">'+pctF(cob)+'</b><span>de cobertura</span>')+'</div></div>'+
+    '<p class="avd-leyenda" id="avdLey">'+(cob===null?'No tenés deudas registradas.':'Tus activos cubren el <span class="amt">'+pctF(cob)+'</span> de tus deudas')+'</p>';
+  const gr=d>0?avdGruposDeuda():[];
+  if(!gr.length){dn.innerHTML='';dn.hidden=true;return;}
+  dn.hidden=false;
+  const R=42,C=2*Math.PI*R;let off=0;
+  const col=(r,i)=>r.otras?AVD_COLOR_OTRAS:AVD_COLORES[i%AVD_COLORES.length];
+  const arcs=gr.map((r,i)=>{const len=r.v/d*C;const el='<circle cx="60" cy="60" r="'+R+'" fill="none" stroke="'+col(r,i)+'" stroke-width="18" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-off)+'" data-v="'+Math.round(r.v*100)/100+'"/>';off+=len;return el;}).join('');
+  dn.innerHTML=
+    '<div class="avd-dwrap"><svg viewBox="0 0 120 120" class="avd-donut" aria-hidden="true"><g transform="rotate(-90 60 60)"><circle cx="60" cy="60" r="'+R+'" fill="none" stroke="var(--border)" stroke-width="18"/>'+arcs+'</g></svg>'+
+    '<div class="avd-dctr"><span>Deuda total</span><b class="neg" id="avdDTot">'+money(d)+'</b></div></div>'+
+    '<div class="avd-dleg">'+gr.map((r,i)=>'<div class="avd-di" data-v="'+Math.round(r.v*100)/100+'"><i style="background:'+col(r,i)+'"></i><span class="avd-dn" title="'+esc(r.nombre)+'">'+esc(r.nombre)+'</span><span class="avd-dm">'+money(r.v)+'</span></div>').join('')+'</div>';
 }
 
 // Filtro único de "qué gasto cuenta" para análisis (incluye soloHistorial). Lo comparten
@@ -3972,8 +4034,8 @@ function gastosPorCat(mes){
   const c={};for(const g of gastosParaAnalisis(mes)){const k=g.categoria||'Otros/Varios';c[k]=(c[k]||0)+g.monto;}
   return c;
 }
-function selGastoMes(mes){_gMesSel=mes;rChartG();if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();}
-function rChartG(){
+function selGastoMes(mes){_gMesSel=mes;rChartG();if(copiaGastosAbierta('det-ev-cG_e'))rChartG('_e');if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();}
+function rChartG(s=''){
   const meses=gastosMesesVentana();
   if(!_gMesSel||!meses.includes(_gMesSel))_gMesSel=meses[5];
   const sel=_gMesSel;
@@ -3987,7 +4049,7 @@ function rChartG(){
     chart.getDatasetMeta(0).data.forEach((bar,i)=>{if(totales[i])ctx.fillText(fmtCompacto(totales[i]),bar.x,bar.y-3);});
     ctx.restore();
   }};
-  mkChart('cG',{type:'bar',data:{labels:meses.map(mesNom),datasets:[{label:'Gastos',data:totales,backgroundColor:meses.map(m=>`rgba(${col},${m===sel?.95:.3})`),borderRadius:4,barPercentage:.7,categoryPercentage:.9}]},
+  mkChart('cG'+s,{type:'bar',data:{labels:meses.map(mesNom),datasets:[{label:'Gastos',data:totales,backgroundColor:meses.map(m=>`rgba(${col},${m===sel?.95:.3})`),borderRadius:4,barPercentage:.7,categoryPercentage:.9}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
       onClick:(e,els,chart)=>{const h=chart.getElementsAtEventForMode(e,'index',{intersect:false},false);if(h.length)selGastoMes(meses[h[0].index]);},
       plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{title:its=>meses[its[0].dataIndex],label:c=>' '+(oc()?'••••••':'$'+fmtM(c.parsed.y))}}},
@@ -3996,8 +4058,8 @@ function rChartG(){
   const cats=porMes[meses.indexOf(sel)],prev=gastosPorCat(meses[meses.indexOf(sel)-1]||(()=>{const[y,m]=sel.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');})());
   const tot=totales[meses.indexOf(sel)];
   const[sy,sm]=sel.split('-');
-  $('gMesTit').innerHTML=`${esc(mesNom(sel))} ${sy} · <span class="gm-amt" title="${esc(fmt(tot))}">${fmtCompacto(tot)}</span>`;
-  const rk=$('gMesRank');
+  $('gMesTit'+s).innerHTML=`${esc(mesNom(sel))} ${sy} · <span class="gm-amt" title="${esc(fmt(tot))}">${fmtCompacto(tot)}</span>`;
+  const rk=$('gMesRank'+s);
   const ord=Object.entries(cats).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   if(!ord.length){rk.innerHTML='<p class="gc-vacio">Sin gastos en este mes</p>';return;}
   const rows=ord.slice(0,8).map(([cat,v],i)=>({cat,v,p:prev[cat]||0,i}));
@@ -4011,7 +4073,7 @@ function rChartG(){
   }).join('');
 }
 
-function rChartIC(){
+function rChartIC(s=''){
   const mesActual=hoy().slice(0,7);
   // Ingresos cobrados del mes (incluye soloHistorial)
   const ingresosMes=estado.gastos.filter(g=>g.tipo==='ingreso'&&g.fecha&&g.fecha.slice(0,7)===mesActual&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
@@ -4028,9 +4090,9 @@ function rChartIC(){
   const recursosTot=ingresosMes+porCobrar+dispon;
   const difTotal=recursosTot-totalCmp;
   const difMin=recursosTot-cmpSinVisa-totalFijosActual-(visaC?visaC.pagoMinimo||visaC.monto:0);
-  const b=$('evBadgeIC');b.textContent=difTotal>=0?'▲ Cubre':'▼ Déficit';b.className='ev-badge '+(difTotal>=0?'up':'dn');
+  const b=$('evBadgeIC'+s);b.textContent=difTotal>=0?'▲ Cubre':'▼ Déficit';b.className='ev-badge '+(difTotal>=0?'up':'dn');
   const visaMin=visaC?visaC.pagoMinimo||visaC.monto:0;
-  $('evBrow').innerHTML=
+  $('evBrow'+s).innerHTML=
     `<div class="bcard"><div class="bl">💚 Cobrado en el mes</div><div class="bv pos">+${fmtV(ingresosMes)}</div></div>`+
     `<div class="bcard"><div class="bl">🔜 Por cobrar</div><div class="bv pos">+${fmtV(porCobrar)}</div></div>`+
     `<div class="bcard"><div class="bl">🏦 Disponible hoy</div><div class="bv pos">+${fmtV(dispon)}</div></div>`+
@@ -4049,7 +4111,7 @@ function rChartIC(){
     ...entsMes.map((e,i)=>({label:e,data:[0,cmpsMes.filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)],backgroundColor:entColor(e,i),stack:'c'})),
     ...(totalFijosActual>0?[{label:'Fijos',data:[0,totalFijosActual],backgroundColor:'rgba(251,191,36,.82)',stack:'c'}]:[])
   ];
-  mkChart('cIngD',{type:'bar',data:{labels:['Recursos','Compromisos'],datasets:dsIC},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cIngD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cIngD');
+  mkChart('cIngD'+s,{type:'bar',data:{labels:['Recursos','Compromisos'],datasets:dsIC},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cIngD'+s),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cIngD'+s);
   // Proyección 6 meses
   const meses6=[];
   const [cy,cm]=hoy().split('-').map(Number);
@@ -4064,8 +4126,8 @@ function rChartIC(){
     ...(hasFijosProj?[{label:'Fijos',data:fijosProj,backgroundColor:'rgba(251,191,36,.82)',stack:'s'}]:[]),
     ...(hasFijosCtProj?[{label:'Fijos con tarjeta',data:fijosCtProj,backgroundColor:'rgba(251,191,36,.42)',stack:'s'}]:[])
   ];
-  mkChart('cCmpD',{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cCmpD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cCmpD');
-  rChartGC(); // la comparativa se refresca siempre junto con Ingresos vs compromisos
+  mkChart('cCmpD'+s,{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cCmpD'+s),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cCmpD'+s);
+  if(!s)rChartGC(); // la comparativa se refresca siempre junto con Ingresos vs compromisos (la copia tiene su propia tarjeta)
 }
 
 // ── Comparativa de gastos: mes anterior vs actual vs próximos ──
@@ -4107,8 +4169,8 @@ function comprometidoMes(mes){
   const ents=new Set((estado.compromisos||[]).filter(c=>c.tipo!=='fijo').map(c=>c.entidad).filter(Boolean));
   return compromisosMes(mes).filter(c=>ents.has(c.entidad)).reduce((s,c)=>s+c.monto,0)+fijosMontoPendiente(mes)+fijosConTarjetaProyeccion(mes);
 }
-function rChartGC(){
-  const cont=$('gcBrow');if(!cont)return;
+function rChartGC(s=''){
+  const cont=$('gcBrow'+s);if(!cont)return;
   const D=datosCompGastos(),modo=gcGetModo();
   const oc=()=>document.body.classList.contains('ocultar');
   document.querySelectorAll('[data-gcmodo]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.gcmodo===modo?'true':'false'));
@@ -4118,11 +4180,11 @@ function rChartGC(){
   const flecha=v.dif>0?'▲':v.dif<0?'▼':'=';
   const cls=v.dif>0?'gc-neg':v.dif<0?'gc-pos':'';
   // Rótulos
-  $('gcSub').textContent=modo==='dia'?`${nAnt} 1–${D.diaCorte} vs ${nAct} 1–${D.dHoy}`:`${nAnt} completo vs ${nAct} en curso`;
-  $('gcNota').textContent=!D.hayAnt?'Aún no hay datos del mes anterior'
+  $('gcSub'+s).textContent=modo==='dia'?`${nAnt} 1–${D.diaCorte} vs ${nAct} 1–${D.dHoy}`:`${nAnt} completo vs ${nAct} en curso`;
+  $('gcNota'+s).textContent=!D.hayAnt?'Aún no hay datos del mes anterior'
     :modo==='dia'?(D.diaCorte<D.dHoy?`${nAnt} tiene ${D.diasAnt} días: se compara hasta el ${D.diaCorte}.`:'Mismo tramo de días en ambos meses.')
     :`${nAnt} entero vs ${nAct} en curso (hasta hoy, día ${D.dHoy}).`;
-  const bad=$('evBadgeGC');
+  const bad=$('evBadgeGC'+s);
   if(D.hayAnt&&v.pct!==null){bad.textContent=`${flecha} ${gcFmtPct(v.pct)}`;bad.className='ev-badge '+(v.dif>0?'dn':'up');}
   else{bad.textContent='—';bad.className='ev-badge';}
   // Bloques resumen
@@ -4141,14 +4203,14 @@ function rChartGC(){
   const rows=rows0.slice(0,8);
   if(rows0.length>8)rows.push({cat:'Otras',ant:rows0.slice(8).reduce((s,r)=>s+r.ant,0),act:rows0.slice(8).reduce((s,r)=>s+r.act,0)});
   const fmtAmt=n=>`<span class="amt" title="${fmt(n)}">$${fmtM(n)}</span>`;
-  const tabla=$('gcTabla');
+  const tabla=$('gcTabla'+s);
   if(!rows0.length){
     tabla.innerHTML='<p class="gc-vacio">Sin gastos para comparar.</p>';
-    if(_ci['cGC']){_ci['cGC'].destroy();delete _ci['cGC'];}
-    $('gcCatWrap').style.display='none';
+    if(_ci['cGC'+s]){_ci['cGC'+s].destroy();delete _ci['cGC'+s];}
+    $('gcCatWrap'+s).style.display='none';
   }else{
-    $('gcCatWrap').style.display='';
-    $('gcCatWrap').style.height=Math.max(140,rows.length*(D.hayAnt?36:22)+36)+'px';
+    $('gcCatWrap'+s).style.display='';
+    $('gcCatWrap'+s).style.height=Math.max(140,rows.length*(D.hayAnt?36:22)+36)+'px';
     tabla.innerHTML=`<table class="gc-tabla"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup><thead><tr><th>Categoría</th><th>Anterior</th><th>Actual</th><th>Δ</th></tr></thead><tbody>`+
       rows0.slice().sort((a,b)=>Math.abs(b.act-b.ant)-Math.abs(a.act-a.ant)).map(r=>{
         const dif=r.act-r.ant,f=dif>0?'▲':dif<0?'▼':'=',k=dif>0?'gc-neg':dif<0?'gc-pos':'';
@@ -4166,20 +4228,20 @@ function rChartGC(){
       chart.data.datasets.forEach((d,di)=>{chart.getDatasetMeta(di).data.forEach((bar,i)=>{const val=d.data[i];if(!val)return;ctx.fillText('$'+fmtM(val),bar.x+3,bar.y);});});
       ctx.restore();
     }};
-    mkChart('cGC',{type:'bar',data:{labels:rows.map(r=>abrev(r.cat)),datasets:ds},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:38}},
+    mkChart('cGC'+s,{type:'bar',data:{labels:rows.map(r=>abrev(r.cat)),datasets:ds},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:38}},
       plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{title:its=>rows[its[0].dataIndex].cat,label:c=>' '+c.dataset.label+': '+(oc()?'••••••':'$'+fmtM(c.parsed.x))}}},
       scales:{x:{beginAtZero:true,ticks:{color:CV('--muted'),callback:val=>'$'+fmtM(val),maxTicksLimit:4},grid:{color:CV('--grid-color'),lineWidth:.5},border:{display:false}},
               y:{ticks:{color:CV('--muted'),font:{size:10},keepOjo:true},grid:{display:false},border:{display:false}}}},plugins:[labPlg]});
   }
   // Próximos 3 meses (comprometido)
-  $('gcProx').innerHTML=[1,2,3].map(k=>{const mes=addMeses(D.mesAct+'-01',k).slice(0,7);return`<div class="bcard"><div class="bl">${mesNom(mes)} ${mes.slice(2,4)}</div><div class="bv">${gcFmt0(comprometidoMes(mes))}</div></div>`;}).join('');
+  $('gcProx'+s).innerHTML=[1,2,3].map(k=>{const mes=addMeses(D.mesAct+'-01',k).slice(0,7);return`<div class="bcard"><div class="bl">${mesNom(mes)} ${mes.slice(2,4)}</div><div class="bv">${gcFmt0(comprometidoMes(mes))}</div></div>`;}).join('');
   // Curva acumulada
   const N=Math.max(D.diasAnt,D.diasAct),labels=Array.from({length:N},(_,i)=>i+1);
   const acum=(arr,hasta)=>{let s=0;return labels.map(d=>d<=hasta?(s+=arr[d]):null);};
   const dsC=[];
   if(D.hayAnt)dsC.push({label:nAnt,data:acum(D.totAnt,D.diasAnt),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2});
   dsC.push({label:nAct,data:acum(D.totAct,D.dHoy),borderColor:'#fb923c',backgroundColor:'#fb923c',borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.2});
-  mkChart('cGCurva',{type:'line',data:{labels,datasets:dsC},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+  mkChart('cGCurva'+s,{type:'line',data:{labels,datasets:dsC},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:legO('bottom'),tooltip:{...ttO(),callbacks:{title:its=>'Día '+its[0].label,label:c=>c.parsed.y==null?'':' '+c.dataset.label+': '+(oc()?'••••••':'$'+fmtM(c.parsed.y))}}},
     scales:{x:{ticks:{color:CV('--muted'),maxTicksLimit:8,keepOjo:true},grid:{display:false},border:{display:false}},y:{beginAtZero:true,ticks:{color:CV('--muted'),callback:val=>'$'+fmtM(val)},grid:{color:CV('--grid-color'),lineWidth:.5},border:{display:false}}}}});
 }
@@ -4225,18 +4287,33 @@ function rChartD(){
   if(btnV){btnV.textContent=getChartVals()?'Valores ✓':'Valores';if(!btnV._inited){btnV._inited=true;btnV.onclick=()=>{setChartVals(!getChartVals());rChartD();};}}
 }
 
+// Gastos financieros fijos: salen de estado.compromisos (tipo 'fijo', activos). Solo ARS.
 function rChartF(){
-  const fi=n=>estado.items.find(it=>it.nombre===n)?.monto||0;
-  const items=[
-    {label:'ARCA monotributo',value:fi('ARCA monotributo'),color:'#c084fc'},
-    {label:'ARCA ingresos brutos',value:fi('ARCA ingresos brutos'),color:'#60a5fa'},
-    {label:'Contadora',value:fi('Contadora'),color:'#94a3b8'},
-    {label:'Cochera',value:fi('Cochera'),color:'#38bdf8'},
-  ].filter(d=>d.value>0);
+  const fijos=(estado.compromisos||[]).filter(c=>c.tipo==='fijo'&&c.activo!==false&&(c.monto||0)>0);
+  const esArs=c=>!c.moneda||String(c.moneda).toUpperCase()==='ARS';
+  const items=fijos.filter(esArs).map(c=>({label:c.nombre||'Fijo',value:c.monto})).sort((a,b)=>b.value-a.value);
+  const otra=fijos.length-items.length;
   const total=items.reduce((s,d)=>s+d.value,0);
   $('evBadgeF').textContent='$'+fmtM(total)+'/mes';
-  $('evFinGrid').innerHTML=items.map(d=>`<div class="bcard"><div class="bl">${esc(d.label)}</div><div class="bv neg">$${fmtM(d.value)}</div></div>`).join('');
-  mkChart('cF',{type:'bar',data:{labels:items.map(d=>d.label),datasets:[{label:'Gasto mensual',data:items.map(d=>d.value),backgroundColor:items.map(d=>d.color),borderRadius:4,barPercentage:.6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{label:c=>' $'+fmtM(c.parsed.x)+'/mes'}}},scales:{x:{ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}},y:{ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}}}}});
+  const nota=$('evFinNota');
+  nota.textContent=otra?otra+(otra===1?' fijo en otra moneda no incluido':' fijos en otra moneda no incluidos'):'';
+  nota.hidden=!otra;
+  const wrap=$('evFinWrap');
+  if(!items.length){
+    if(_ci['cF']){_ci['cF'].destroy();delete _ci['cF'];}
+    wrap.hidden=true;$('evFinVacio').hidden=false;return;
+  }
+  wrap.hidden=false;$('evFinVacio').hidden=true;
+  wrap.style.height=Math.max(80,items.length*30+24)+'px';
+  const oc=()=>document.body.classList.contains('ocultar');
+  const abrev=l=>l.length>16?l.slice(0,15)+'…':l;
+  const labPlg={id:'barLabelsF',afterDatasetsDraw(chart){
+    if(oc())return;
+    const{ctx}=chart;ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='10px system-ui,-apple-system,sans-serif';ctx.fillStyle=CV('--text');
+    chart.getDatasetMeta(0).data.forEach((bar,i)=>{ctx.fillText('$'+Math.round(items[i].value).toLocaleString('es-AR'),bar.x+4,bar.y);});
+    ctx.restore();
+  }};
+  mkChart('cF',{type:'bar',data:{labels:items.map(d=>abrev(d.label)),datasets:[{label:'Gasto mensual',data:items.map(d=>d.value),backgroundColor:items.map((_,i)=>S7[i%S7.length]),borderRadius:4,barPercentage:.7,categoryPercentage:.9}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:78}},plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{title:its=>items[its[0].dataIndex].label,label:c=>' '+(oc()?'••••••':'$'+Math.round(c.parsed.x).toLocaleString('es-AR')+'/mes')}}},scales:{x:{beginAtZero:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v),maxTicksLimit:4},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}},y:{ticks:{color:CV('--muted'),font:{size:10},keepOjo:true},grid:{display:false},border:{display:false}}}},plugins:[labPlg]});
 }
 
 // ── Saldo promedio mensual por medio ──────────────────
@@ -4332,17 +4409,25 @@ function rChartRend() {
 }
 
 let _gastosReady=false,_gastosDetInited=false;
+// Copias de las tarjetas de Gastos dentro de Evolución (ids con sufijo _e). Se dibujan solo si están abiertas y la solapa es visible.
+const COPIAS_GASTOS=[['det-ev-cG_e',['cG_e'],()=>rChartG('_e')],['det-ev-cIC_e',['cIngD_e','cCmpD_e'],()=>rChartIC('_e')],['det-ev-cGC_e',['cGC_e','cGCurva_e'],()=>rChartGC('_e')]];
+function copiaGastosAbierta(id){const el=document.getElementById(id);return !!(el&&el.open&&!$('vista-evolucion').hidden);}
+function rCopiasGastos(soloId){
+  withChartJs(()=>{
+    for(const[id,cids,fn]of COPIAS_GASTOS){
+      if(soloId&&soloId!==id)continue;
+      if(!copiaGastosAbierta(id))continue;
+      fn();cids.forEach(c=>_ci[c]?.resize());
+    }
+    if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
+  });
+}
 function iniciarGastos(){
   withChartJs(()=>{
     rChartG();rChartIC();_gastosReady=true;
     if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
     if(!_gastosDetInited){
       _gastosDetInited=true;
-      document.querySelectorAll('[data-gcmodo]').forEach(b=>b.addEventListener('click',()=>{
-        try{localStorage.setItem(SK_GC_MODO,b.dataset.gcmodo);}catch{}
-        rChartGC();
-        if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
-      }));
       const gasDets=[['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cGC',['cGC','cGCurva']]];
       for(const[id,cids]of gasDets){
         const el=$(id); if(!el) continue;
@@ -4351,26 +4436,39 @@ function iniciarGastos(){
     }
   });
 }
+// Modo "Al mismo día / Mes completo": un solo handler delegado para ambas copias
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-gcmodo]');if(!b)return;
+  try{localStorage.setItem(SK_GC_MODO,b.dataset.gcmodo);}catch{}
+  if(typeof Chart==='undefined')return;
+  rChartGC();rCopiasGastos('det-ev-cGC_e');
+  if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
+});
 
 let _evolReady=false,_evolDetInited=false;
 function iniciarEvolucion(){
   renderTickerEvol();
   renderVarTable();
+  rActivosDeudas();
   withChartJs(()=>{
-    rChartP();rChartB();rChartD();rChartF();rChartRend();_evolReady=true;
+    rChartP();rChartD();rChartF();rChartRend();_evolReady=true;
+    rCopiasGastos();
     if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
     if(!_evolDetInited){
       _evolDetInited=true;
-      const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cD',['cD']],['det-ev-cF',['cF']],['det-ev-cRend',['cRend']]];
+      const evDets=[['det-ev-cP',['cP']],['det-ev-cD',['cD']],['det-ev-cF',['cF']],['det-ev-cRend',['cRend']]];
       for(const[id,cids]of evDets){
         const el=$(id); if(!el) continue;
         el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
+      }
+      for(const[id]of COPIAS_GASTOS){
+        const el=$(id); if(!el) continue;
+        el.addEventListener('toggle',()=>{ if(el.open) rCopiasGastos(id); });
       }
     }
   });
 }
 
-// ═══════════════════════════════════════════════════════
 // TRANSFERENCIAS ENTRE CUENTAS
 // ═══════════════════════════════════════════════════════
 const MEDIOS_TARJETA=['Visa Santander','Mastercard MP','American Express'];
@@ -5942,18 +6040,32 @@ function initDetDyn(el,sfx,defOpen){
   initDet('det-pat-form',true);
   // ev-cards son HTML estático → inicializar estado aquí, no depender de Chart.js
   ['det-ev-cP','det-ev-cB','det-ev-cG','det-ev-cIC','det-ev-cD','det-ev-cF','det-ev-cRend'].forEach(id=>initDet(id,true));
+  // Copias de las 3 tarjetas de Gastos dentro de Evolución: se clonan del HTML estático (aún sin render)
+  // y todos los ids/data-chart reciben el sufijo _e para no duplicar ids. Plegadas por defecto.
+  (function(){
+    const cont=document.getElementById('evGastosCopias');if(!cont)return;
+    ['det-ev-cGC','det-ev-cIC','det-ev-cG'].forEach(id=>{
+      const orig=document.getElementById(id);if(!orig)return;
+      const n=orig.cloneNode(true);n.removeAttribute('open');
+      n.querySelectorAll('[id]').forEach(e=>{e.id+='_e';});
+      n.querySelectorAll('[data-chart]').forEach(e=>{e.dataset.chart+='_e';});
+      n.id=id+'_e';cont.appendChild(n);
+      initDet(n.id,false);
+    });
+  })();
 
   // ── Botones "Plegar todo / Desplegar todo" ──────────────────
-  function mkPlegBtn(btnId, getScopeEl){
+  function mkPlegBtn(btnId, getScopeEl, filtro){
     const btn=document.getElementById(btnId); if(!btn) return;
+    const lista=()=>[...getScopeEl().querySelectorAll('details')].filter(d=>!filtro||filtro(d));
     function update(){
-      const dets=[...getScopeEl().querySelectorAll('details')];
+      const dets=lista();
       const anyOpen=dets.some(d=>d.open);
       const t=anyOpen?'Plegar todo':'Desplegar todo';
       if(btn.textContent!==t) btn.textContent=t;  // guard: prevents infinite loop
     }
     btn.onclick=()=>{
-      const dets=[...getScopeEl().querySelectorAll('details')];
+      const dets=lista();
       const anyOpen=dets.some(d=>d.open);
       dets.forEach(d=>{ d.open=!anyOpen; });
       update();
@@ -5965,7 +6077,8 @@ function initDetDyn(el,sfx,defOpen){
   mkPlegBtn('btnPlegVinc',  ()=>document.getElementById('vinculos'));
   mkPlegBtn('btnPlegPat',   ()=>document.getElementById('vista-patrimonio'));
   mkPlegBtn('btnPlegComp',  ()=>document.getElementById('compromisosList'));
-  mkPlegBtn('btnPlegEvol',  ()=>document.getElementById('vista-evolucion'));
+  mkPlegBtn('btnPlegEvol',  ()=>document.getElementById('vista-evolucion'), d=>!d.closest('#evGastosCopias'));
+  mkPlegBtn('btnPlegEvolGas', ()=>document.getElementById('evGastosCopias'));
   mkPlegBtn('btnPlegGas',   ()=>document.getElementById('vista-analisis'));
 })();
 
@@ -5995,7 +6108,7 @@ function initDetDyn(el,sfx,defOpen){
   }
   window._aplicarOjoGraficos=aplicarOjoGraficos;
   const btnO=document.getElementById('btnOjo');
-  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();if(typeof _evolReady!=='undefined'&&_evolReady){rChartD();rChartB();}aplicarOjoGraficos();renderVarTable();};
+  if(btnO) btnO.onclick=()=>{oculto=!oculto;try{localStorage.setItem(SK_OJO,JSON.stringify(oculto));}catch{}aplicarOjo();if(typeof _evolReady!=='undefined'&&_evolReady){rChartD();rChartF();}aplicarOjoGraficos();renderVarTable();};
   aplicarOjo();
 })();
 

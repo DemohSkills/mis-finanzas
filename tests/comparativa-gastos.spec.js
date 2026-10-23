@@ -82,7 +82,7 @@ test.describe('Comparativa de gastos', () => {
     expect(D.antMes).toBe(3400);
     expect(D.act).toBe(1500);
     await expect(page.locator('#gcBrow')).toContainText('+50,0%');
-    await page.locator('[data-gcmodo="mes"]').click();
+    await page.locator('#det-ev-cGC [data-gcmodo="mes"]').click();
     await expect(page.locator('#gcBrow')).toContainText('−55,9%');
     await expect(page.locator('#gcNota')).toContainText('en curso');
     expect(await page.evaluate(k => localStorage.getItem(k), MODO_KEY)).toBe('mes');
@@ -91,8 +91,8 @@ test.describe('Comparativa de gastos', () => {
   test('el modo elegido se recuerda al recargar', async ({ page }) => {
     await abrir(page, buildEstado(), { hoy: '2026-10-15T12:00:00', modo: 'mes' });
     await irAGastos(page);
-    await expect(page.locator('[data-gcmodo="mes"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('[data-gcmodo="dia"]')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#det-ev-cGC [data-gcmodo="mes"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#det-ev-cGC [data-gcmodo="dia"]')).toHaveAttribute('aria-pressed', 'false');
   });
 
   test('flecha y signo (no solo color): gastar de más ▲ +, gastar de menos ▼ −', async ({ page }) => {
@@ -102,7 +102,7 @@ test.describe('Comparativa de gastos', () => {
     await expect(up).toContainText('▲');
     await expect(up).toContainText('+');
     await expect(up).toHaveClass(/gc-neg/);
-    await page.locator('[data-gcmodo="mes"]').click();
+    await page.locator('#det-ev-cGC [data-gcmodo="mes"]').click();
     await expect(page.locator('#gcBrow .gc-var')).toContainText('▼');
     await expect(page.locator('#gcBrow .gc-var')).toHaveClass(/gc-pos/);
   });
