@@ -89,9 +89,9 @@ test.describe('ticker-evol: cinta de indicadores en Evolución', () => {
     expect(unique.some(l => /ingreso/i.test(l))).toBe(true);
   });
 
-  test('(c) el botón de modo #tkModeBtn existe dentro del ticker', async ({ page }) => {
+  test('(c) el botón de modo .tk-btn existe dentro del ticker', async ({ page }) => {
     await seedAndUnlock(page);
-    await expect(page.locator('#tickerEvol #tkModeBtn')).toBeVisible();
+    await expect(page.locator('#tickerEvol .tk-btn')).toBeVisible();
   });
 
   test('(d) al cargar sin preferencia guardada la cinta arranca en modo desplazándose', async ({ page }) => {
@@ -102,7 +102,7 @@ test.describe('ticker-evol: cinta de indicadores en Evolución', () => {
 
   test('(e) el botón alterna de modo desplazándose a fijo', async ({ page }) => {
     await seedAndUnlock(page, { tickerMode: 'scroll' });
-    await page.locator('#tickerEvol #tkModeBtn').click();
+    await page.locator('#tickerEvol .tk-btn').click();
     await page.waitForTimeout(200);
     const hasFixed = await page.evaluate(() => !!document.querySelector('#tickerEvol .tk-fixed'));
     expect(hasFixed).toBe(true);
@@ -110,7 +110,7 @@ test.describe('ticker-evol: cinta de indicadores en Evolución', () => {
 
   test('(f) el botón alterna de modo fijo a desplazándose', async ({ page }) => {
     await seedAndUnlock(page, { tickerMode: 'fixed' });
-    await page.locator('#tickerEvol #tkModeBtn').click();
+    await page.locator('#tickerEvol .tk-btn').click();
     await page.waitForTimeout(200);
     const hasSc = await page.evaluate(() => !!document.querySelector('#tickerEvol .tk-scroll'));
     expect(hasSc).toBe(true);

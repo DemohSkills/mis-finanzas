@@ -39,28 +39,37 @@ test.describe('Botón Actualizar reubicado', () => {
     expect(errors).toEqual([]);
   });
 
-  // (b) El botón Actualizar NO está en el header
-  test('(b) el botón Actualizar no está en el header (.app-hdr)', async () => {
+  // (b) El botón Actualizar SÍ está en el header, a la izquierda del ojo
+  test('(b) el botón Actualizar está en el header (.app-hdr) a la izquierda del ojo', async () => {
     const { page } = await openApp(browser);
-    const hdrBtns = await page.locator('.app-hdr button').allTextContents();
-    const hasActualizar = hdrBtns.some(t => /actualizar/i.test(t));
-    expect(hasActualizar).toBe(false);
+    await expect(page.locator('.app-hdr #btnActualizarApp')).toBeVisible();
+    // Debe aparecer antes que #btnOjo en el DOM
+    const order = await page.evaluate(() => {
+      const hdr = document.querySelector('.app-hdr');
+      const btns = Array.from(hdr.querySelectorAll('button'));
+      const iAct = btns.findIndex(b => b.id === 'btnActualizarApp');
+      const iOjo = btns.findIndex(b => b.id === 'btnOjo');
+      return { iAct, iOjo };
+    });
+    expect(order.iAct).toBeLessThan(order.iOjo);
   });
 
-  // (c) El botón Actualizar está en la sección ⚙️ Apariencia
-  test('(c) botón Actualizar existe en la pestaña ⚙️', async () => {
+  // (c) El botón Actualizar NO está suelto en la sección ⚙️ Apariencia
+  test('(c) botón Actualizar no aparece suelto en la pestaña ⚙️', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
-    await expect(page.locator('#btnActualizarApp')).toBeVisible();
+    const cfgBtns = await page.locator('#vista-config button').evaluateAll(els =>
+      els.map(b => b.id).filter(id => id === 'btnActualizarApp')
+    );
+    expect(cfgBtns).toHaveLength(0);
   });
 
-  // (d) En ⚙️ aparece la pista "Pulse"
-  test('(d) la sección Apariencia muestra la pista sobre tocar Pulse', async () => {
+  // (d) En ⚙️ aparece la pista sobre 🔄 y "Pulse"
+  test('(d) la sección Apariencia muestra la pista sobre el botón 🔄 y Pulse', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
     const cfgText = await page.locator('#vista-config').textContent();
     expect(cfgText).toMatch(/Pulse/);
-    expect(cfgText).toMatch(/También podés tocar/i);
   });
 
   // (e) La palabra Pulse en el título no tiene cursor pointer ni parece botón

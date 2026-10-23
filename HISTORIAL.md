@@ -14,6 +14,12 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 22/10/2026 (11): rediseño compacto de la pestaña Inicio. 18 tests nuevos en `tests/inicio-compacto.spec.js`. Suite completa: **485/485 pasan**.
+  - **Cabecera:** botón 🔄 (`#btnActualizarApp`) movido a la cabecera, a la izquierda del ojo (`#btnOjo`), con misma clase `eye-btn`. Eliminado de la sección ⚙️ Apariencia. Se actualizaron los tests de `actualizar-btn.spec.js`.
+  - **Cinta en Inicio:** `renderTickerEvol()` ahora renderiza en `#tickerInicio` (vista Inicio, entre solapas y "Mis cuentas") y en `#tickerEvol` (vista Evolución). Los ids `tkTrack` y `tkModeBtn` se eliminaron del HTML generado; los event handlers usan `querySelector` por contenedor. El modo (animar/fijo) es compartido via `localStorage`. Tests de `ticker-evol.spec.js` actualizados para usar `.tk-btn` en lugar de `#tkModeBtn`.
+  - **Tarjeta Efectivo full-width:** la tarjeta Efectivo se separa del grid de Activos y se renderiza a todo el ancho con clase `.saldo-full` (nombre izquierda, importe centrado, botón derecha, media altura). Mercado Pago y Santander quedan en el grid 2×1.
+  - **Compactación CSS:** `.saldos-top` (padding 10px), `.saldo-grupo-titulo` (margin reducido), `.stat` (padding 8px 10px), `.div-resumen` (margin 8px), `.resumen` (gap 8px, margin-bottom 8px), `.saldos-top h2` (1rem). Fuentes de importes sin cambio.
+  - **Botón flotante:** `main` con `padding-bottom:90px` para que el FAB de voz no tape contenido al final del scroll.
 - 22/10/2026 (10): overflow horizontal en tarjetas "Mis cuentas" a 360 px. 11 tests nuevos en `tests/saldos-responsive.spec.js`. Suite completa: **467/467 pasan**.
   - **Bug:** las tarjetas `.saldo` usaban `min-width:auto` (valor por defecto en grid items), lo que impedía que la cuadrícula las comprimiera por debajo de su contenido mínimo. Saldos de 8 dígitos con `font-size:1.2rem` desbordaban la tarjeta y el `.saldos-grid` excedía el ancho del viewport (scrollWidth 373 > clientWidth 360).
   - **Fix en CSS:** `min-width:0` en `.saldo` permite que el item de grid se comprima; `font-size:clamp(.75rem,3.5vw,1.2rem)` en `.saldo .monto` reduce la fuente escalonadamente en pantallas estrechas sin afectar el botón "Ajustar saldo". A 390 px y 412 px el tamaño sigue siendo el mismo de antes (≥1.2rem).

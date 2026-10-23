@@ -35,7 +35,7 @@ html[data-theme="negro"]{
 }
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
-main{max-width:760px;margin:0 auto;padding:16px;}
+main{max-width:760px;margin:0 auto;padding:16px 16px 90px;}
 h1{font-size:1.4rem;margin:0;}
 h2{font-size:1.05rem;margin:0 0 12px;}
 h3{font-size:.8rem;margin:14px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
@@ -57,8 +57,8 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 @media(min-width:540px){.tabs{flex-wrap:wrap;overflow-x:visible;}}
 .vista[hidden]{display:none;}
 /* KPI */
-.resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
-.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;}
+.resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 10px;}
 .stat .lbl{font-size:.75rem;color:var(--muted);}
 .stat .val{font-size:clamp(.75rem,3.5vw,1.05rem);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
 @media(max-width:600px){.resumen{grid-template-columns:1fr 1fr;}}
@@ -69,11 +69,19 @@ section{background:var(--card);border:1px solid var(--border);border-radius:12px
 .saldo .monto{font-size:clamp(.75rem,3.5vw,1.2rem);font-weight:600;font-variant-numeric:tabular-nums;}
 .saldo button{margin-top:6px;font-size:.78rem;padding:2px 8px;}
 #saldos{display:block;}
-.div-resumen{border:0;border-top:1px solid var(--border);margin:14px 0;}
+.div-resumen{border:0;border-top:1px solid var(--border);margin:8px 0;}
 
-.saldos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:10px;}
+.saldos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:8px;}
 @media(max-width:480px){.saldos-grid{grid-template-columns:1fr 1fr;}}
-.saldo-grupo-titulo{font-size:.78rem;margin:12px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+/* Efectivo: tarjeta full-width de una sola línea */
+.saldo-full{display:flex;align-items:center;gap:8px;padding:6px 10px;margin-bottom:8px;}
+.saldo-full .nombre{font-size:.82rem;color:var(--muted);flex-shrink:0;}
+.saldo-full .monto{flex:1;text-align:center;font-size:clamp(.75rem,3.5vw,1.2rem);font-weight:600;font-variant-numeric:tabular-nums;}
+.saldo-full button{margin-top:0!important;flex-shrink:0;font-size:.78rem;padding:2px 8px;}
+/* Compactar saldos-top */
+.saldos-top{padding:10px 12px 8px;margin-bottom:8px;}
+.saldos-top h2{font-size:1rem;margin:0 0 6px;}
+.saldo-grupo-titulo{font-size:.78rem;margin:5px 0 3px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
 .saldo-activo{border-left:4px solid var(--ok);}
 .saldo-activo .monto{color:var(--ok);}
 .saldo-deuda{border-left:4px solid var(--danger);}
@@ -91,7 +99,7 @@ details.section-collapse[open]>summary .det-arrow{transform:rotate(90deg);}
 details.section-collapse>summary h2{margin:0;flex:1;}
 details.section-collapse[open]>summary{margin-bottom:12px;}
 /* Eye — ocultar montos */
-.eye-btn{font-size:1.1rem;padding:5px 8px;line-height:1;}
+.eye-btn{font-size:1.1rem;padding:5px 6px;line-height:1;min-width:36px;text-align:center;}
 body.ocultar .amt{font-size:0!important;letter-spacing:0!important;vertical-align:middle;}
 body.ocultar .amt::after{content:"••••••";font-size:14px;letter-spacing:1px;color:var(--muted);}
 /* Forms */
@@ -379,7 +387,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   body{background:#fff;color:#000;}
 }
 /* ── TICKER EVOLUCIÓN ── */
-#tickerEvol{margin-bottom:10px;}
+#tickerEvol,#tickerInicio{margin-bottom:10px;}
 .tk-wrap{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:100%;}
 .tk-inner{flex:1;min-width:0;}
 .tk-scroll .tk-inner{overflow:hidden;}
@@ -779,7 +787,10 @@ body.ocultar .tk-val{display:none!important;}
 <main id="app" hidden>
   <div class="app-hdr">
     <h1>Di.<span class="accent">Mi</span>.Trip <span class="pulse">Pulse</span> Finance</h1>
-    <button class="eye-btn" id="btnOjo" type="button" title="Ocultar montos" aria-label="Ocultar montos">👁</button>
+    <div style="display:flex;gap:4px;flex-shrink:0;">
+      <button class="eye-btn" id="btnActualizarApp" type="button" title="Actualizar app" aria-label="Actualizar app">🔄</button>
+      <button class="eye-btn" id="btnOjo" type="button" title="Ocultar montos" aria-label="Ocultar montos">👁</button>
+    </div>
   </div>
   <div class="toast-actualizar" id="toastActualizar">Actualizando…</div>
 
@@ -795,6 +806,7 @@ body.ocultar .tk-val{display:none!important;}
 
   <!-- ── INICIO ── -->
   <div class="vista" id="vista-inicio">
+    <div id="tickerInicio"></div>
     <section class="saldos-top">
       <h2>Mis cuentas</h2>
       <div class="saldos" id="saldos"></div>
@@ -1004,8 +1016,7 @@ body.ocultar .tk-val{display:none!important;}
         <button type="button" class="mini tema-btn" data-tema="negro">Negro</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
-        <button type="button" class="mini" id="btnActualizarApp">🔄 Actualizar</button>
-        <span class="meta" style="margin:0;">También podés tocar la palabra <b>Pulse</b> del título.</span>
+        <span class="meta" style="margin:0;">Para actualizar: botón 🔄 en la cabecera o tocá la palabra <b>Pulse</b> del título.</span>
       </div>
     </div>
 
@@ -2288,6 +2299,7 @@ function mostrarVista(v) {
   document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-'+v);
   try { localStorage.setItem(SK+'-vista', v); } catch{}
   if (v==='evolucion') iniciarEvolucion();
+  if (v==='inicio') renderTickerEvol();
   if (v==='config') renderConfig();
   if (v==='compromisos') renderCompromisos();
 }
@@ -2301,6 +2313,7 @@ function render() {
   renderSaldos(); renderHistorial();
   renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
   renderVinculos();
+  renderTickerEvol();
 }
 
 function renderResumen() {
@@ -2359,6 +2372,23 @@ function renderSaldos() {
       for (const m of medios) grid.appendChild(crearCaja(m, tipo));
       details.appendChild(grid);
       cont.appendChild(details);
+    } else if (tipo === 'activo') {
+      // Mercado Pago y Banco Santander lado a lado; Efectivo full-width al final
+      const h = document.createElement('div');
+      h.className = 'saldo-grupo-titulo';
+      h.textContent = label;
+      cont.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'saldos-grid';
+      for (const m of medios.filter(m => m !== 'Efectivo')) grid.appendChild(crearCaja(m, tipo));
+      cont.appendChild(grid);
+      // Efectivo: tarjeta full-width de una sola línea
+      const s = saldoDe('Efectivo');
+      const ef = document.createElement('div');
+      ef.className = 'saldo saldo-activo saldo-full';
+      ef.innerHTML = `<div class="nombre">Efectivo</div><div class="monto pos amt">${fmtV(s)}</div><button type="button">Ajustar saldo</button>`;
+      ef.querySelector('button').onclick = () => ajustarSaldo('Efectivo');
+      cont.appendChild(ef);
     } else {
       const h = document.createElement('div');
       h.className = 'saldo-grupo-titulo';
@@ -3618,12 +3648,11 @@ function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;r
 // ── TICKER EVOLUCIÓN ──
 const SK_TICKER='finanzas-v1-ticker-mode';
 function renderTickerEvol(){
-  const el=document.getElementById('tickerEvol');if(!el)return;
+  // Compute data once, render into both containers (Inicio + Evolución)
   const t=totales();
   const snaps=cargarSnaps().slice().sort((a,b)=>a.d.localeCompare(b.d));
   const hoyStr=hoy();
   const mesActual=hoyStr.slice(0,7);
-  // Snap de referencia: 7 días atrás, o el más antiguo disponible si hay menos historia
   function snapRef(){
     const ref=new Date();ref.setDate(ref.getDate()-7);
     const refStr=ref.toLocaleDateString('sv');
@@ -3656,31 +3685,35 @@ function renderTickerEvol(){
   let prefRed=false;try{prefRed=window.matchMedia('(prefers-reduced-motion:reduce)').matches;}catch{}
   const stored=localStorage.getItem(SK_TICKER);
   const mode=stored||(prefRed?'fixed':'scroll');
-  el.innerHTML=
-    `<div class="tk-wrap tk-${mode}">`+
-      `<div class="tk-inner"><div class="tk-track" id="tkTrack">${mode==='scroll'?items+items:items}</div></div>`+
-      `<button class="tk-btn" id="tkModeBtn" type="button" title="${mode==='scroll'?'Fijar cinta':'Animar cinta'}" aria-label="${mode==='scroll'?'Fijar cinta':'Animar cinta'}">${mode==='scroll'?'❙❙':'▶'}</button>`+
-    `</div>`;
-  const track=document.getElementById('tkTrack');
-  const inner=el.querySelector('.tk-inner');
-  // Pausar animación al tocar
-  if(mode==='scroll'&&track&&inner){
-    const pause=()=>track.classList.add('tk-paused');
-    const resume=()=>track.classList.remove('tk-paused');
-    inner.addEventListener('touchstart',pause,{passive:true});
-    inner.addEventListener('touchend',resume,{passive:true});
-    inner.addEventListener('touchcancel',resume,{passive:true});
-    inner.addEventListener('pointerdown',pause);
-    inner.addEventListener('pointerup',resume);
-    inner.addEventListener('pointerleave',resume);
+  // Renderizar en cada contenedor (sin ids duplicados — usar querySelector por contenedor)
+  const containers=[document.getElementById('tickerEvol'),document.getElementById('tickerInicio')].filter(Boolean);
+  for(const el of containers){
+    el.innerHTML=
+      `<div class="tk-wrap tk-${mode}">`+
+        `<div class="tk-inner"><div class="tk-track">${mode==='scroll'?items+items:items}</div></div>`+
+        `<button class="tk-btn" type="button" title="${mode==='scroll'?'Fijar cinta':'Animar cinta'}" aria-label="${mode==='scroll'?'Fijar cinta':'Animar cinta'}">${mode==='scroll'?'❙❙':'▶'}</button>`+
+      `</div>`;
+    const track=el.querySelector('.tk-track');
+    const inner=el.querySelector('.tk-inner');
+    // Pausar animación al tocar
+    if(mode==='scroll'&&track&&inner){
+      const pause=()=>track.classList.add('tk-paused');
+      const resume=()=>track.classList.remove('tk-paused');
+      inner.addEventListener('touchstart',pause,{passive:true});
+      inner.addEventListener('touchend',resume,{passive:true});
+      inner.addEventListener('touchcancel',resume,{passive:true});
+      inner.addEventListener('pointerdown',pause);
+      inner.addEventListener('pointerup',resume);
+      inner.addEventListener('pointerleave',resume);
+    }
+    // Alternar modo (compartido por ambas instancias)
+    const btn=el.querySelector('.tk-btn');
+    if(btn) btn.onclick=()=>{
+      const newMode=el.querySelector('.tk-wrap').classList.contains('tk-scroll')?'fixed':'scroll';
+      try{localStorage.setItem(SK_TICKER,newMode);}catch{}
+      renderTickerEvol();
+    };
   }
-  // Alternar modo
-  const btn=document.getElementById('tkModeBtn');
-  if(btn) btn.onclick=()=>{
-    const newMode=el.querySelector('.tk-wrap').classList.contains('tk-scroll')?'fixed':'scroll';
-    try{localStorage.setItem(SK_TICKER,newMode);}catch{}
-    renderTickerEvol();
-  };
 }
 // ── /TICKER EVOLUCIÓN ──
 
