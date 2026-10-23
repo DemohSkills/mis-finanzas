@@ -157,16 +157,18 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .persona .nombre{font-weight:600;}
 .persona .estado{font-weight:700;}
 .persona ul{list-style:none;margin:8px 0 0;padding:0;}
-.persona li{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);padding:2px 0;}
+.persona li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);padding:4px 0;}
+.persona li>.vinc-hist{flex:1 1 100%;width:100%;}
+.persona li .vinc-nom{flex:1;min-width:0;overflow-wrap:break-word;}
 .persona .sub-label{font-size:.82rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
 details.persona>summary .nombre{flex:1;min-width:0;overflow-wrap:anywhere;}
 details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .vinc-hist{font-size:.8rem;}
 .vinc-hist ul{list-style:none;margin:4px 0 0;padding:0;}
 .vinc-hist li{display:flex;align-items:baseline;gap:4px;padding:2px 0;color:var(--muted);}
-.vinc-hist li .vinc-hist-txt{flex:1;min-width:0;overflow-wrap:anywhere;}
+.vinc-hist li .vinc-hist-txt{flex:1;min-width:0;overflow-wrap:break-word;}
 .vinc-hist li .vinc-hist-num{flex-shrink:0;white-space:nowrap;}
-.vinc-hist .vinc-hist-undo{display:block;margin-top:4px;word-break:break-word;}
+.vinc-hist .vinc-hist-undo{display:block;margin-top:4px;}
 /* Evolución */
 .ev-notice{background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--muted);margin-bottom:14px;display:flex;gap:7px;}
 .ev-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
@@ -2837,7 +2839,7 @@ function renderVinculos(){
     const ul=document.createElement('ul');
     for(const it of p.items){
       const li=document.createElement('li');
-      li.innerHTML=`<span>${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span><button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>`;
+      li.innerHTML=`<span class="vinc-nom">${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span><button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>`;
       li.querySelector('button').onclick=()=>abrirAjusteModal(it.id);
       if(it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);

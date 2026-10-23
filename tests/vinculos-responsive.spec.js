@@ -31,7 +31,7 @@ function buildEstadoVinculos() {
           { id: 'h2', fecha: '2026-10-10', accion: 'devolvio', monto: 12345678, medio: 'Mercado Pago' },
           { id: 'h3', fecha: '2026-10-15', accion: 'preste', monto: 9999999, medio: 'Efectivo' },
           { id: 'h4', fecha: '2026-10-18', accion: 'devolvio', monto: 1111111, medio: 'Mercado Pago transferencia directa cuenta' },
-          { id: 'h5', fecha: '2026-10-20', accion: 'preste', monto: 99999999, medio: 'Banco Santander con descripción muy larga para probar wrap' },
+          { id: 'h5', fecha: '2026-10-20', accion: 'preste', monto: 99999999, medio: 'Banco Santander transferencia ahorro' },
         ],
       },
       {
@@ -376,6 +376,232 @@ test.describe('vinculos-responsive: sin overflow horizontal en Vínculos a 360/4
         document.documentElement.scrollWidth <= document.documentElement.clientWidth
       );
       expect(ok).toBe(true);
+    } finally { await ctx.close(); }
+  });
+
+  // ── Legibilidad con historial desplegado ──────────────────────
+
+  test('(t) 360 px — details.vinc-hist ocupa >= 80 % del ancho de su <li>', async () => {
+    const { page, ctx } = await openVinculos(360);
+    try {
+      await abrirTarjetas(page);
+      await abrirHistorial(page);
+      const results = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .persona li').forEach(li => {
+          const hist = li.querySelector(':scope > details.vinc-hist');
+          if (!hist || !hist.open) return;
+          const liW = li.getBoundingClientRect().width;
+          const histW = hist.getBoundingClientRect().width;
+          if (liW > 0) rows.push({ liW, histW, ratio: histW / liW });
+        });
+        return rows;
+      });
+      expect(results.length, 'No se encontraron .persona li con vinc-hist abierto').toBeGreaterThan(0);
+      for (const r of results) {
+        expect(r.ratio, `vinc-hist (${r.histW}px) < 80 % del li (${r.liW}px)`).toBeGreaterThanOrEqual(0.8);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  test('(u) 360 px — cada .vinc-hist-txt tiene altura <= 3 líneas', async () => {
+    const { page, ctx } = await openVinculos(360);
+    try {
+      await abrirTarjetas(page);
+      await abrirHistorial(page);
+      const results = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('#vista-vinculos .vinc-hist-txt')).map(el => {
+          const style = getComputedStyle(el);
+          const lhRaw = style.lineHeight;
+          const lh = lhRaw === 'normal' ? parseFloat(style.fontSize) * 1.4 : parseFloat(lhRaw);
+          const h = el.getBoundingClientRect().height;
+          return { h, lh, lines: lh > 0 ? h / lh : 0, text: (el.textContent || '').slice(0, 40) };
+        });
+      });
+      expect(results.length).toBeGreaterThan(0);
+      for (const r of results) {
+        expect(r.lines, `"${r.text}" ocupa ${r.lines.toFixed(2)} líneas (max 3)`).toBeLessThanOrEqual(3.5);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  test('(v) 360 px — texto de fecha "20/10/2026" no se parte (una sola línea)', async () => {
+    const { page, ctx } = await openVinculos(360);
+    try {
+      await abrirTarjetas(page);
+      await abrirHistorial(page);
+      const results = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .vinc-hist-txt').forEach(el => {
+          const text = el.textContent || '';
+          const m = text.match(/\d{2}\/\d{2}\/\d{4}/);
+          if (!m) return;
+          let textNode = null;
+          for (const n of el.childNodes) {
+            if (n.nodeType === 3 && n.textContent.includes(m[0])) { textNode = n; break; }
+          }
+          if (!textNode) return;
+          const idx = textNode.textContent.indexOf(m[0]);
+          const range = document.createRange();
+          range.setStart(textNode, idx);
+          range.setEnd(textNode, idx + m[0].length);
+          const rects = range.getClientRects();
+          rows.push({ date: m[0], lineCount: rects.length });
+        });
+        return rows;
+      });
+      expect(results.length, 'No se encontraron fechas en vinc-hist-txt').toBeGreaterThan(0);
+      for (const r of results) {
+        expect(r.lineCount, `fecha "${r.date}" se parte en ${r.lineCount} líneas`).toBeLessThanOrEqual(1);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  test('(w) 360 px — botón "Deshacer último" ancho >= 100 px y dentro del viewport', async () => {
+    const { page, ctx } = await openVinculos(360);
+    try {
+      await abrirTarjetas(page);
+      await abrirHistorial(page);
+      const results = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        return Array.from(document.querySelectorAll('#vista-vinculos .vinc-hist-undo')).map(el => {
+          const r = el.getBoundingClientRect();
+          return { width: r.width, right: r.right, vw };
+        });
+      });
+      expect(results.length).toBeGreaterThan(0);
+      for (const r of results) {
+        expect(r.width, `botón Deshacer tiene ${r.width}px (mín 100px)`).toBeGreaterThanOrEqual(100);
+        expect(r.right, `botón Deshacer (right=${r.right}) sale del viewport (${r.vw}px)`).toBeLessThanOrEqual(r.vw + 2);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  test('(x) 360 px — nombre e importe del ítem no se superponen (gap >= 4 px)', async () => {
+    const { page, ctx } = await openVinculos(360);
+    try {
+      await abrirTarjetas(page);
+      const results = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .persona li').forEach(li => {
+          const nom = li.querySelector('.vinc-nom');
+          const num = li.querySelector('.num');
+          if (!nom || !num) return;
+          const nR = nom.getBoundingClientRect();
+          const numR = num.getBoundingClientRect();
+          if (Math.abs(nR.top - numR.top) < nR.height) {
+            rows.push({ gap: numR.left - nR.right, nomRight: nR.right, numLeft: numR.left });
+          }
+        });
+        return rows;
+      });
+      expect(results.length).toBeGreaterThan(0);
+      for (const r of results) {
+        expect(r.gap, `nombre e importe se superponen o están a menos de 4px (gap=${r.gap}px)`).toBeGreaterThanOrEqual(4);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  test('(y) 412 px — legibilidad completa con historial desplegado', async () => {
+    const { page, ctx } = await openVinculos(412);
+    try {
+      await abrirTarjetas(page);
+      await abrirHistorial(page);
+      // vinc-hist >= 80% del li
+      const histResults = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .persona li').forEach(li => {
+          const hist = li.querySelector(':scope > details.vinc-hist');
+          if (!hist || !hist.open) return;
+          const liW = li.getBoundingClientRect().width;
+          const histW = hist.getBoundingClientRect().width;
+          if (liW > 0) rows.push({ liW, histW, ratio: histW / liW });
+        });
+        return rows;
+      });
+      for (const r of histResults) {
+        expect(r.ratio, `vinc-hist (${r.histW}px) < 80 % del li (${r.liW}px) a 412px`).toBeGreaterThanOrEqual(0.8);
+      }
+      // botón Deshacer >= 100px y dentro del viewport
+      const undoResults = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        return Array.from(document.querySelectorAll('#vista-vinculos .vinc-hist-undo')).map(el => {
+          const r = el.getBoundingClientRect();
+          return { width: r.width, right: r.right, vw };
+        });
+      });
+      for (const r of undoResults) {
+        expect(r.width).toBeGreaterThanOrEqual(100);
+        expect(r.right).toBeLessThanOrEqual(r.vw + 2);
+      }
+      // nombre e importe sin superposición
+      const nomResults = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .persona li').forEach(li => {
+          const nom = li.querySelector('.vinc-nom');
+          const num = li.querySelector('.num');
+          if (!nom || !num) return;
+          const nR = nom.getBoundingClientRect();
+          const numR = num.getBoundingClientRect();
+          if (Math.abs(nR.top - numR.top) < nR.height) {
+            rows.push({ gap: numR.left - nR.right });
+          }
+        });
+        return rows;
+      });
+      for (const r of nomResults) {
+        expect(r.gap).toBeGreaterThanOrEqual(4);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  test('(z) 450 px — legibilidad completa con historial desplegado', async () => {
+    const { page, ctx } = await openVinculos(450);
+    try {
+      await abrirTarjetas(page);
+      await abrirHistorial(page);
+      const histResults = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .persona li').forEach(li => {
+          const hist = li.querySelector(':scope > details.vinc-hist');
+          if (!hist || !hist.open) return;
+          const liW = li.getBoundingClientRect().width;
+          const histW = hist.getBoundingClientRect().width;
+          if (liW > 0) rows.push({ liW, histW, ratio: histW / liW });
+        });
+        return rows;
+      });
+      for (const r of histResults) {
+        expect(r.ratio, `vinc-hist (${r.histW}px) < 80 % del li (${r.liW}px) a 450px`).toBeGreaterThanOrEqual(0.8);
+      }
+      const undoResults = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        return Array.from(document.querySelectorAll('#vista-vinculos .vinc-hist-undo')).map(el => {
+          const r = el.getBoundingClientRect();
+          return { width: r.width, right: r.right, vw };
+        });
+      });
+      for (const r of undoResults) {
+        expect(r.width).toBeGreaterThanOrEqual(100);
+        expect(r.right).toBeLessThanOrEqual(r.vw + 2);
+      }
+      const nomResults = await page.evaluate(() => {
+        const rows = [];
+        document.querySelectorAll('#vista-vinculos .persona li').forEach(li => {
+          const nom = li.querySelector('.vinc-nom');
+          const num = li.querySelector('.num');
+          if (!nom || !num) return;
+          const nR = nom.getBoundingClientRect();
+          const numR = num.getBoundingClientRect();
+          if (Math.abs(nR.top - numR.top) < nR.height) {
+            rows.push({ gap: numR.left - nR.right });
+          }
+        });
+        return rows;
+      });
+      for (const r of nomResults) {
+        expect(r.gap).toBeGreaterThanOrEqual(4);
+      }
     } finally { await ctx.close(); }
   });
 });
