@@ -174,12 +174,12 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .cw.h200{height:200px;}.cw.h170{height:170px;}.cw.h160{height:160px;}.cw.h150{height:150px;}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:560px){.g2{grid-template-columns:1fr;}}
-.brow{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-.bcard{flex:1;min-width:0;overflow:hidden;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;}
+.brow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.bcard{min-width:0;overflow:hidden;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;}
 .bcard .bl{font-size:.7rem;color:var(--muted);margin-bottom:3px;}
-.bcard .bv{font-size:clamp(.75rem,3.4vw,1.05rem);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bcard .bv{font-size:clamp(.72rem,3.2vw,1.05rem);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ev-sub{font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:8px;}
-.ev-fin-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.ev-fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
 .ev-fin-grid .bcard{min-width:0;}
 /* Variation table (Evolución) */
 .vt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
@@ -1448,6 +1448,23 @@ function fijosMontoPendiente(mesStr){
     !_fijoEnResumen(c)&&
     !(c.pagos&&c.pagos[mesStr])
   ).reduce((s,c)=>s+(c.monto||0),0);
+}
+// Fijos cuyo medioPago tiene un resumen cargado, proyectados en meses POSTERIORES
+// al vencimiento de ese resumen. Razón: el resumen solo cubre su propio ciclo; en
+// ciclos siguientes esos fijos saldrán en resúmenes que aún no existen, por lo que
+// deben aparecer en la proyección aunque hoy estén excluidos del mes actual.
+function fijosConTarjetaProyeccion(mesStr){
+  return (estado.compromisos||[]).filter(c=>{
+    if(c.tipo!=='fijo'||!c.activo) return false;
+    if(!_fijoMesCorresponde(c,mesStr)) return false;
+    if(c.pagos&&c.pagos[mesStr]) return false;
+    if(!c.medioPago) return false;
+    const res=(estado.compromisos||[]).find(r=>r.tipo==='resumen'&&r.entidad===c.medioPago);
+    if(!res) return false;
+    const pvm=(res.proxVenc||'').slice(0,7);
+    // Solo contar si el mes proyectado es estrictamente posterior al mes del resumen
+    return pvm&&mesStr>pvm;
+  }).reduce((s,c)=>s+(c.monto||0),0);
 }
 const MEDIOS_NO_TARJETA=['Banco Santander','Mercado Pago','Astropay','Efectivo'];
 function disponibleHoy(){return MEDIOS_NO_TARJETA.reduce((s,m)=>{const sd=saldoDe(m);return s+(sd>0?sd:0);},0);}
@@ -3863,8 +3880,8 @@ function rChartIC(){
     `<div class="bcard"><div class="bl">🔜 Por cobrar</div><div class="bv pos">+${fmtV(porCobrar)}</div></div>`+
     `<div class="bcard"><div class="bl">🏦 Disponible hoy</div><div class="bv pos">+${fmtV(dispon)}</div></div>`+
     `<div class="bcard"><div class="bl">📤 Compromisos</div><div class="bv neg">−${fmtV(totalCmp)}</div></div>`+
-    `<div class="bcard" style="flex-basis:100%"><div class="bl">⚖️ Con total Visa ${visaC?fmtV(visaC.monto):''}</div><div class="bv ${difTotal>=0?'pos':'neg'}">${difTotal>=0?'✓ Cubre':'Faltan '+fmtV(Math.abs(difTotal))}</div></div>`+
-    (visaC?`<div class="bcard" style="flex-basis:100%"><div class="bl">⚖️ Con mínimo Visa ${fmtV(visaMin)}</div><div class="bv ${difMin>=0?'pos':'neg'}">${difMin>=0?'✓ Cubre':'Faltan '+fmtV(Math.abs(difMin))}</div></div>`:'');
+    `<div class="bcard" style="grid-column:1/-1"><div class="bl">⚖️ Con total Visa ${visaC?fmtV(visaC.monto):''}</div><div class="bv ${difTotal>=0?'pos':'neg'}">${difTotal>=0?'✓ Cubre':'Faltan '+fmtV(Math.abs(difTotal))}</div></div>`+
+    (visaC?`<div class="bcard" style="grid-column:1/-1"><div class="bl">⚖️ Con mínimo Visa ${fmtV(visaMin)}</div><div class="bv ${difMin>=0?'pos':'neg'}">${difMin>=0?'✓ Cubre':'Faltan '+fmtV(Math.abs(difMin))}</div></div>`:'');
   // Colores por entidad
   const entPalette={'Santander':'#60a5fa','Mercado Pago':'#4ade80','Mastercard MP':'#fbbf24','Visa Santander':'#f87171','Boris':'#c084fc'};
   const entColor=(e,i)=>entPalette[e]||S7[i%S7.length];
@@ -3884,10 +3901,13 @@ function rChartIC(){
   for(let i=0;i<6;i++){let y=cy,m=cm+i;if(m>12){y++;m-=12;}meses6.push(`${y}-${String(m).padStart(2,'0')}`);}
   const entsProj=[...new Set((estado.compromisos||[]).filter(c=>c.tipo!=='fijo').map(c=>c.entidad).filter(Boolean))];
   const fijosProj=meses6.map(mes=>fijosMontoPendiente(mes));
+  const fijosCtProj=meses6.map(mes=>fijosConTarjetaProyeccion(mes));
   const hasFijosProj=fijosProj.some(v=>v>0);
+  const hasFijosCtProj=fijosCtProj.some(v=>v>0);
   const dsProj=[
     ...entsProj.map((e,i)=>({label:e,data:meses6.map(mes=>compromisosMes(mes).filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)),backgroundColor:entColor(e,i),stack:'s'})),
-    ...(hasFijosProj?[{label:'Fijos',data:fijosProj,backgroundColor:'rgba(251,191,36,.82)',stack:'s'}]:[])
+    ...(hasFijosProj?[{label:'Fijos',data:fijosProj,backgroundColor:'rgba(251,191,36,.82)',stack:'s'}]:[]),
+    ...(hasFijosCtProj?[{label:'Fijos con tarjeta',data:fijosCtProj,backgroundColor:'rgba(251,191,36,.42)',stack:'s'}]:[])
   ];
   mkChart('cCmpD',{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cCmpD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cCmpD');
 }
@@ -5389,6 +5409,7 @@ window._fijoEstadoMes = _fijoEstadoMes;
 window._fijoMesCorresponde = _fijoMesCorresponde;
 window._fijoEnResumen = _fijoEnResumen;
 window.fijosMontoPendiente = fijosMontoPendiente;
+window.fijosConTarjetaProyeccion = fijosConTarjetaProyeccion;
 window.pagarUsd = pagarUsd;
 window.deshacerUsd = deshacerUsd;
 window.abrirFijoModal = abrirFijoModal;

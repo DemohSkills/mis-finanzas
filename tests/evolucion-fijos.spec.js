@@ -329,3 +329,139 @@ test('(u) fijosMontoPendiente suma correctamente fijos pendientes del mes', asyn
   const total = await page.evaluate(m => window.fijosMontoPendiente(m), mes);
   expect(total).toBe(300000); // f1(100000) + f2(200000), f3 excluded (pagado)
 });
+
+// ─── H. Grid 2 columnas en #evBrow ────────────────────────────────────────────
+
+async function check2ColGrid(page, width) {
+  await page.setViewportSize({ width, height: 800 });
+  const fijo = mkFijo({ monto: 50000 });
+  await seedAndUnlock(page, buildEstado([fijo]));
+  await goToEvolucion(page);
+  // Verify CSS grid with 2 columns
+  const cols = await page.evaluate(() => {
+    const el = document.getElementById('evBrow');
+    return getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length;
+  });
+  expect(cols).toBe(2);
+  // Verify first 4 cards are in 2 rows (cards 0,1 same top; cards 2,3 same top; row1 < row2)
+  const tops = await page.evaluate(() => {
+    const cards = Array.from(document.querySelectorAll('#evBrow .bcard'));
+    return cards.slice(0, 4).map(c => Math.round(c.getBoundingClientRect().top));
+  });
+  expect(tops.length).toBe(4);
+  expect(tops[0]).toBe(tops[1]);
+  expect(tops[2]).toBe(tops[3]);
+  expect(tops[0]).toBeLessThan(tops[2]);
+}
+
+test('(v) cuatro bcards en 2 columnas a 360 px', async ({ page }) => {
+  await check2ColGrid(page, 360);
+});
+
+test('(w) cuatro bcards en 2 columnas a 412 px', async ({ page }) => {
+  await check2ColGrid(page, 412);
+});
+
+test('(x) cuatro bcards en 2 columnas a 450 px', async ({ page }) => {
+  await check2ColGrid(page, 450);
+});
+
+// ─── I. Importe $99.999.999,99 sin overflow en .bv ────────────────────────────
+
+async function checkBvNoOverflow(page, width) {
+  await page.setViewportSize({ width, height: 800 });
+  const mes = mesActual();
+  // Importe máximo de prueba
+  const gasto = { id: 'g-max', creado: Date.now(), monto: 99999999.99, fecha: mes + '-01', categoria: 'Cobros/Ventas', medio: 'Banco Santander', descripcion: 'Ingreso ficticio máximo', tipo: 'ingreso', soloHistorial: false };
+  const fijo = mkFijo({ id: 'fijo-max', monto: 99999999 });
+  await seedAndUnlock(page, buildEstado([fijo], [gasto]));
+  await goToEvolucion(page);
+  const overflows = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('#evBrow .bv'))
+      .map(el => ({ text: el.textContent.slice(0, 30), over: el.scrollWidth > el.clientWidth }));
+  });
+  return overflows;
+}
+
+test('(y) importe 99.999.999,99 sin overflow en .bv a 360 px', async ({ page }) => {
+  const overflows = await checkBvNoOverflow(page, 360);
+  expect(overflows.length).toBeGreaterThan(0);
+  overflows.forEach(({ text, over }) => {
+    expect(over, `overflow en "${text}" a 360px`).toBe(false);
+  });
+});
+
+test('(y2) importe 99.999.999,99 sin overflow en .bv a 412 px', async ({ page }) => {
+  const overflows = await checkBvNoOverflow(page, 412);
+  overflows.forEach(({ text, over }) => {
+    expect(over, `overflow en "${text}" a 412px`).toBe(false);
+  });
+});
+
+test('(y3) importe 99.999.999,99 sin overflow en .bv a 450 px', async ({ page }) => {
+  const overflows = await checkBvNoOverflow(page, 450);
+  overflows.forEach(({ text, over }) => {
+    expect(over, `overflow en "${text}" a 450px`).toBe(false);
+  });
+});
+
+// ─── J. Proyección: fijos con tarjeta en meses futuros ────────────────────────
+
+function mkResumenVisa(proxVenc) {
+  return {
+    id: 'res-visa-test', tipo: 'resumen', entidad: 'Visa Santander',
+    nombre: 'Visa Santander', monto: 5000, pendientes: 0,
+    proxVenc, pagoMinimo: 1000, cierre: proxVenc.slice(0, 7) + '-10',
+  };
+}
+
+test('(z) fijo con tarjeta: mes M excluido, M+1 y M+2 incluidos en proyección', async ({ page }) => {
+  const mesM = mesActual();
+  const resumen = mkResumenVisa(mesM + '-15');
+  const fijo = mkFijo({ id: 'fijo-visa-z', monto: 10000, medioPago: 'Visa Santander' });
+  await seedAndUnlock(page, buildEstado([resumen, fijo]));
+  await goToEvolucion(page);
+  const [vM, vM1, vM2] = await page.evaluate(([m, m1, m2]) => [
+    window.fijosConTarjetaProyeccion(m),
+    window.fijosConTarjetaProyeccion(m1),
+    window.fijosConTarjetaProyeccion(m2),
+  ], [mesM, mesSig(1), mesSig(2)]);
+  expect(vM).toBe(0);      // mes del resumen: excluido (evita doble cuenta)
+  expect(vM1).toBe(10000); // M+1: incluido en proyección
+  expect(vM2).toBe(10000); // M+2: incluido en proyección
+});
+
+test('(aa) fijo bimestral con tarjeta respeta cadaMeses en proyección', async ({ page }) => {
+  const mesM = mesActual();
+  const resumen = mkResumenVisa(mesM + '-15');
+  // cadaMeses:2, mesBase = mesSig(1) → aplica en M+1, M+3, M+5...
+  const fijo = mkFijo({ id: 'fijo-bim-visa', monto: 10000, medioPago: 'Visa Santander', cadaMeses: 2, mesBase: mesSig(1) });
+  await seedAndUnlock(page, buildEstado([resumen, fijo]));
+  await goToEvolucion(page);
+  const [vM1, vM2, vM3] = await page.evaluate(([m1, m2, m3]) => [
+    window.fijosConTarjetaProyeccion(m1),
+    window.fijosConTarjetaProyeccion(m2),
+    window.fijosConTarjetaProyeccion(m3),
+  ], [mesSig(1), mesSig(2), mesSig(3)]);
+  expect(vM1).toBe(10000); // corresponde (base M+1) y > proxVenc M
+  expect(vM2).toBe(0);     // no corresponde (bimestral desde M+1)
+  expect(vM3).toBe(10000); // corresponde (M+3 = M+1 + 2)
+});
+
+// ─── K. Cubre/Faltan del mes actual sin cambio ────────────────────────────────
+
+test('(ab) Cubre/Faltan del mes actual no cambia con fijo de tarjeta', async ({ page }) => {
+  const mesM = mesActual();
+  const resumen = mkResumenVisa(mesM + '-15');
+  const fijo = mkFijo({ id: 'fijo-ab', monto: 10000, medioPago: 'Visa Santander' });
+  await seedAndUnlock(page, buildEstado([resumen, fijo]));
+  await goToEvolucion(page);
+  // El fijo tiene medioPago de tarjeta con resumen cargado → fijosMontoPendiente = 0 en mes actual
+  const totalFijosActual = await page.evaluate(() =>
+    window.fijosMontoPendiente(new Date().toISOString().slice(0, 7))
+  );
+  expect(totalFijosActual).toBe(0);
+  // El resultado de Cubre/Faltan existe y es coherente
+  const cubreTxt = await page.locator('#evBrow .bcard').filter({ hasText: 'Con total Visa' }).locator('.bv').textContent();
+  expect(cubreTxt).toMatch(/Cubre|Faltan/);
+});
