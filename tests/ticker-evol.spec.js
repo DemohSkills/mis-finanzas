@@ -100,12 +100,12 @@ test.describe('ticker-evol: cinta de indicadores en Evolución', () => {
     expect(hasSc).toBe(true);
   });
 
-  test('(e) el botón alterna de modo desplazándose a fijo', async ({ page }) => {
-    await seedAndUnlock(page, { tickerMode: 'scroll' });
+  test('(e) el botón avanza de 1x a 2x', async ({ page }) => {
+    await seedAndUnlock(page, { tickerMode: '1x' });
     await page.locator('#tickerEvol .tk-btn').click();
     await page.waitForTimeout(200);
-    const hasFixed = await page.evaluate(() => !!document.querySelector('#tickerEvol .tk-fixed'));
-    expect(hasFixed).toBe(true);
+    const hasV2 = await page.evaluate(() => !!document.querySelector('#tickerEvol .tk-wrap.tk-v2'));
+    expect(hasV2).toBe(true);
   });
 
   test('(f) el botón alterna de modo fijo a desplazándose', async ({ page }) => {

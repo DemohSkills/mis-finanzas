@@ -19,6 +19,8 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-rules` | reglas de auto-categorización |
 | `finanzas-v1-apikey` | API key de Claude Haiku (solo en el dispositivo) |
 | `finanzas-v1-backup-date` | fecha ISO del último backup exportado |
+| `finanzas-v1-ticker-mode` | velocidad de la cinta: `'1x'`/`'2x'`/`'3x'`/`'pause'` (migra `'scroll'`→`'1x'`, `'fixed'`→`'pause'`) |
+| `finanzas-v1-vt-plegado` | boolean — cuadro de variaciones plegado (`true`) o desplegado (`false`, default) |
 
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código

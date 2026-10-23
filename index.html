@@ -182,12 +182,17 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .vt-tabla{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed;}
 .vt-tabla thead th:first-child,.vt-tabla tbody th{width:28%;}
 .vt-tabla th,.vt-tabla td{padding:3px 4px;border:1px solid var(--border);}
+.vt-tabla thead th:not(:first-child){text-align:center;}
+.vt-tabla thead th{font-size:.69rem;white-space:normal;line-height:1.2;}
 .vt-lbl{text-align:left;color:var(--muted);font-weight:normal;font-size:.72rem;}
 .vt-cell{text-align:right;vertical-align:top;}
 .vt-monto{font-weight:600;}
 .vt-pct{display:block;font-weight:600;}
 .vt-sub{display:block;font-size:.69rem;color:var(--muted);}
 body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
+.vt-toggle-btn{background:none;border:none;cursor:pointer;padding:0 2px;font-size:.85rem;color:var(--muted);line-height:1;vertical-align:middle;}
+.vt-bar{display:flex;align-items:center;gap:5px;padding:4px 10px;font-size:.72rem;color:var(--muted);cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--card);margin-bottom:8px;user-select:none;}
+.vt-bar-hidden,.vt-wrap-hidden{display:none!important;}
 /* Hint text al pie de Evolución */
 .ev-nota{font-size:.72rem;color:var(--muted);opacity:.7;margin:2px 0 10px;text-align:center;line-height:1.5;}
 /* ── PIN overlay ───────────────────────────────────────────── */
@@ -394,6 +399,8 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 .tk-fixed .tk-inner{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .tk-track{display:flex;align-items:center;}
 .tk-scroll .tk-track{animation:tkScroll 32s linear infinite;will-change:transform;}
+.tk-v2 .tk-track{animation-duration:16s;}
+.tk-v3 .tk-track{animation-duration:10.667s;}
 .tk-scroll .tk-track.tk-paused{animation-play-state:paused;}
 @keyframes tkScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.tk-scroll .tk-track{animation:none!important;}}
@@ -3647,6 +3654,17 @@ function snapPorMes(snaps){const m={};for(const s of snaps)m[s.d.slice(0,7)]=s;r
 
 // ── TICKER EVOLUCIÓN ──
 const SK_TICKER='finanzas-v1-ticker-mode';
+const _TK_MODES=['1x','2x','3x','pause'];
+const _TK_LABELS={'1x':'▶','2x':'▶▶','3x':'▶▶▶','pause':'❙❙'};
+const _TK_TITLES={'1x':'Velocidad 1x, tocar para 2x','2x':'Velocidad 2x, tocar para 3x','3x':'Velocidad 3x, tocar para pausar','pause':'Pausado, tocar para 1x'};
+function _tkGetMode(){
+  let prefRed=false;try{prefRed=window.matchMedia('(prefers-reduced-motion:reduce)').matches;}catch{}
+  let s=localStorage.getItem(SK_TICKER);
+  if(s==='scroll')s='1x';
+  if(s==='fixed')s='pause';
+  if(!_TK_MODES.includes(s))s=null;
+  return s||(prefRed?'pause':'1x');
+}
 function renderTickerEvol(){
   // Compute data once, render into both containers (Inicio + Evolución)
   const t=totales();
@@ -3682,21 +3700,23 @@ function renderTickerEvol(){
     tkItem('Gastos mes',gastosMes,null,false),
     tkItem('Ingresos mes',ingresosMes,null,false),
   ].join('');
-  let prefRed=false;try{prefRed=window.matchMedia('(prefers-reduced-motion:reduce)').matches;}catch{}
-  const stored=localStorage.getItem(SK_TICKER);
-  const mode=stored||(prefRed?'fixed':'scroll');
+  const mode=_tkGetMode();
+  const isAnim=mode!=='pause';
+  // Speed class maps to tk-v1/v2/v3; legacy tk-scroll/tk-fixed kept for backward compat
+  const _tkSpeedMap={'1x':'tk-v1','2x':'tk-v2','3x':'tk-v3','pause':'tk-pause'};
+  const speedCls=isAnim?`${_tkSpeedMap[mode]} tk-scroll`:`tk-pause tk-fixed`;
   // Renderizar en cada contenedor (sin ids duplicados — usar querySelector por contenedor)
   const containers=[document.getElementById('tickerEvol'),document.getElementById('tickerInicio')].filter(Boolean);
   for(const el of containers){
     el.innerHTML=
-      `<div class="tk-wrap tk-${mode}">`+
-        `<div class="tk-inner"><div class="tk-track">${mode==='scroll'?items+items:items}</div></div>`+
-        `<button class="tk-btn" type="button" title="${mode==='scroll'?'Fijar cinta':'Animar cinta'}" aria-label="${mode==='scroll'?'Fijar cinta':'Animar cinta'}">${mode==='scroll'?'❙❙':'▶'}</button>`+
+      `<div class="tk-wrap ${speedCls}">`+
+        `<div class="tk-inner"><div class="tk-track">${isAnim?items+items:items}</div></div>`+
+        `<button class="tk-btn" type="button" title="${_TK_TITLES[mode]}" aria-label="${_TK_TITLES[mode]}">${_TK_LABELS[mode]}</button>`+
       `</div>`;
     const track=el.querySelector('.tk-track');
     const inner=el.querySelector('.tk-inner');
-    // Pausar animación al tocar
-    if(mode==='scroll'&&track&&inner){
+    // Pausar animación al tocar (todos los modos animados)
+    if(isAnim&&track&&inner){
       const pause=()=>track.classList.add('tk-paused');
       const resume=()=>track.classList.remove('tk-paused');
       inner.addEventListener('touchstart',pause,{passive:true});
@@ -3706,17 +3726,19 @@ function renderTickerEvol(){
       inner.addEventListener('pointerup',resume);
       inner.addEventListener('pointerleave',resume);
     }
-    // Alternar modo (compartido por ambas instancias)
+    // Ciclo de velocidad (compartido por ambas instancias)
     const btn=el.querySelector('.tk-btn');
     if(btn) btn.onclick=()=>{
-      const newMode=el.querySelector('.tk-wrap').classList.contains('tk-scroll')?'fixed':'scroll';
-      try{localStorage.setItem(SK_TICKER,newMode);}catch{}
+      const cur=_tkGetMode();
+      const next=_TK_MODES[(_TK_MODES.indexOf(cur)+1)%_TK_MODES.length];
+      try{localStorage.setItem(SK_TICKER,next);}catch{}
       renderTickerEvol();
     };
   }
 }
 // ── /TICKER EVOLUCIÓN ──
 
+const SK_VT_PLEGADO='finanzas-v1-vt-plegado';
 function renderVarTable(){
   const el=document.getElementById('varTable');if(!el)return;
   const t=totales();
@@ -3744,7 +3766,22 @@ function renderVarTable(){
     const sAbbr=(currVal<0?'−':'')+'$'+fmtM(Math.abs(currVal));
     return`<tr><th class="vt-lbl">${label}</th><td class="vt-cell vt-hoy"><span class="amt vt-monto">${sAbbr}</span></td>${cell(currVal,s1,field,isDeuda)}${cell(currVal,s7,field,isDeuda)}${cell(currVal,s30,field,isDeuda)}</tr>`;
   }
-  el.innerHTML=`<div class="vt-wrap"><table class="vt-tabla"><thead><tr><th></th><th>Hoy</th><th>Var. 1 día</th><th>Var. 7 días</th><th>Var. 30 días</th></tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table></div>`;
+  let plegado=false;try{plegado=JSON.parse(localStorage.getItem(SK_VT_PLEGADO)||'false');}catch{}
+  el.innerHTML=
+    `<button class="vt-bar${plegado?'':' vt-bar-hidden'}" type="button" aria-label="Desplegar variaciones">▸ Variaciones</button>`+
+    `<div class="vt-wrap${plegado?' vt-wrap-hidden':''}"><table class="vt-tabla"><thead><tr>`+
+      `<th><button class="vt-toggle-btn" type="button" aria-expanded="${!plegado}" aria-label="${plegado?'Desplegar':'Plegar'} variaciones">${plegado?'▸':'▾'}</button></th>`+
+      `<th>Hoy</th><th>Var.<br>1 día</th><th>Var.<br>7 días</th><th>Var.<br>30 días</th>`+
+    `</tr></thead><tbody>${row('Patrimonio neto',t.neto,'n')}${row('Activos',t.activos,'a')}${row('Deudas',t.deudas,'dv',true)}</tbody></table></div>`;
+  el.querySelector('.vt-toggle-btn')?.addEventListener('click',()=>{
+    let p=false;try{p=JSON.parse(localStorage.getItem(SK_VT_PLEGADO)||'false');}catch{}
+    try{localStorage.setItem(SK_VT_PLEGADO,JSON.stringify(!p));}catch{}
+    renderVarTable();
+  });
+  el.querySelector('.vt-bar')?.addEventListener('click',()=>{
+    try{localStorage.setItem(SK_VT_PLEGADO,JSON.stringify(false));}catch{}
+    renderVarTable();
+  });
 }
 window.renderVarTable=renderVarTable;
 

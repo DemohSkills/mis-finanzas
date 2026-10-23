@@ -5,6 +5,7 @@ const INDEX = 'file:///' + path.resolve(__dirname, '..', 'index.html').replace(/
 const SK = 'finanzas-v1';
 const PIN_KEY = 'finanzas-v1-pin';
 const SNAPS_KEY = 'finanzas-v1-snaps';
+const SK_VT_PLEGADO = 'finanzas-v1-vt-plegado';
 const TEST_PIN = '1234';
 
 function buildEstado() {
@@ -218,5 +219,222 @@ test.describe('Part 3: cuadro de variaciones — layout responsive', () => {
     } finally {
       await ctx.close();
     }
+  });
+});
+
+// ── Part 4: cuadro plegable ──
+test.describe('Part 4: cuadro de variaciones plegable', () => {
+  async function seedUnlockEvol(page, vtPlegado = null) {
+    await page.addInitScript(({ sk, pk, pin, data, snk, sndata, vtKey, vtVal }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      localStorage.setItem(snk, JSON.stringify(sndata));
+      if (vtVal !== null) localStorage.setItem(vtKey, JSON.stringify(vtVal));
+      else localStorage.removeItem(vtKey);
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: buildEstado(), snk: SNAPS_KEY, sndata: buildSnaps(), vtKey: SK_VT_PLEGADO, vtVal: vtPlegado });
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+  }
+
+  test('(m) por defecto la tabla está desplegada y el botón ▾ es visible', async ({ page }) => {
+    await seedUnlockEvol(page);
+    const wrap = page.locator('#varTable .vt-wrap');
+    await expect(wrap).not.toHaveClass(/vt-wrap-hidden/);
+    const btn = page.locator('#varTable .vt-toggle-btn');
+    await expect(btn).toBeVisible();
+    const text = await btn.textContent();
+    expect(text).toBe('▾');
+  });
+
+  test('(n) al tocar ▾ la tabla se oculta y aparece la barrita ▸ Variaciones', async ({ page }) => {
+    await seedUnlockEvol(page);
+    await page.locator('#varTable .vt-toggle-btn').click();
+    await page.waitForTimeout(200);
+    // Tabla oculta
+    const wrap = page.locator('#varTable .vt-wrap');
+    await expect(wrap).toHaveClass(/vt-wrap-hidden/);
+    // Barrita visible
+    const bar = page.locator('#varTable .vt-bar');
+    await expect(bar).toBeVisible();
+    const barText = await bar.textContent();
+    expect(barText).toContain('Variaciones');
+  });
+
+  test('(o) al tocar la barrita la tabla vuelve a desplegarse', async ({ page }) => {
+    await seedUnlockEvol(page, true);
+    const bar = page.locator('#varTable .vt-bar');
+    await expect(bar).toBeVisible();
+    await bar.click();
+    await page.waitForTimeout(200);
+    const wrap = page.locator('#varTable .vt-wrap');
+    await expect(wrap).not.toHaveClass(/vt-wrap-hidden/);
+    await expect(bar).toHaveClass(/vt-bar-hidden/);
+  });
+
+  test('(p) estado plegado persiste tras recargar', async ({ page }) => {
+    await seedUnlockEvol(page, true);
+    const wrap = page.locator('#varTable .vt-wrap');
+    await expect(wrap).toHaveClass(/vt-wrap-hidden/);
+    // Verify localStorage
+    const stored = await page.evaluate(k => localStorage.getItem(k), SK_VT_PLEGADO);
+    expect(JSON.parse(stored)).toBe(true);
+  });
+
+  test('(q) estado desplegado persiste tras recargar', async ({ page }) => {
+    await seedUnlockEvol(page, false);
+    const wrap = page.locator('#varTable .vt-wrap');
+    await expect(wrap).not.toHaveClass(/vt-wrap-hidden/);
+  });
+
+  test('(r) estado se aplica correctamente tras re-render (renderVarTable)', async ({ page }) => {
+    await seedUnlockEvol(page, true);
+    // Trigger a re-render by toggling ojo
+    await page.locator('#btnOjo').click();
+    await page.waitForTimeout(200);
+    await page.locator('#btnOjo').click();
+    await page.waitForTimeout(200);
+    // Still collapsed after re-render
+    const wrap = page.locator('#varTable .vt-wrap');
+    await expect(wrap).toHaveClass(/vt-wrap-hidden/);
+  });
+
+  test('(s) ▾ visible cuando desplegado, ▸ visible en el botón de tabla cuando plegado', async ({ page }) => {
+    await seedUnlockEvol(page);
+    // Expanded: ▾ in toggle button
+    expect(await page.locator('#varTable .vt-toggle-btn').textContent()).toBe('▾');
+    // Collapse
+    await page.locator('#varTable .vt-toggle-btn').click();
+    await page.waitForTimeout(200);
+    // Bar has ▸
+    expect(await page.locator('#varTable .vt-bar').textContent()).toContain('▸');
+  });
+
+  test('(t) modo ojo oculta valores en estado desplegado', async ({ page }) => {
+    await seedUnlockEvol(page, false);
+    await page.locator('#btnOjo').click();
+    await page.waitForTimeout(200);
+    const hasOcultar = await page.evaluate(() => document.body.classList.contains('ocultar'));
+    expect(hasOcultar).toBe(true);
+    const amtCount = await page.locator('#varTable span.amt').count();
+    expect(amtCount).toBeGreaterThan(0);
+  });
+
+  test('(u) modo ojo no rompe en estado plegado', async ({ page }) => {
+    await seedUnlockEvol(page, true);
+    // Click ojo while collapsed
+    await page.locator('#btnOjo').click();
+    await page.waitForTimeout(200);
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    // Expand now — table should show hidden values
+    await page.locator('#varTable .vt-bar').click();
+    await page.waitForTimeout(200);
+    const amtCount = await page.locator('#varTable span.amt').count();
+    expect(amtCount).toBeGreaterThan(0);
+    expect(errors).toHaveLength(0);
+  });
+});
+
+// ── Part 5: encabezados centrados ──
+test.describe('Part 5: encabezados del cuadro — alineación', () => {
+  async function seedUnlockEvol(page) {
+    await page.addInitScript(({ sk, pk, pin, data, snk, sndata }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      localStorage.setItem(snk, JSON.stringify(sndata));
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: buildEstado(), snk: SNAPS_KEY, sndata: buildSnaps() });
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+  }
+
+  test('(v) los th de datos (Hoy, Var. 1 día, etc.) están centrados', async ({ page }) => {
+    await seedUnlockEvol(page);
+    const centered = await page.evaluate(() => {
+      const ths = Array.from(document.querySelectorAll('#varTable .vt-tabla thead th'));
+      const dataThs = ths.slice(1); // skip first (toggle button)
+      return dataThs.every(th => getComputedStyle(th).textAlign === 'center');
+    });
+    expect(centered).toBe(true);
+  });
+
+  test('(w) los th de filas (Patrimonio, Activos, Deudas) están alineados a la izquierda', async ({ page }) => {
+    await seedUnlockEvol(page);
+    const leftAligned = await page.evaluate(() => {
+      const ths = Array.from(document.querySelectorAll('#varTable .vt-tabla tbody th'));
+      return ths.every(th => {
+        const align = getComputedStyle(th).textAlign;
+        return align === 'left' || align === 'start';
+      });
+    });
+    expect(leftAligned).toBe(true);
+  });
+
+  test('(x) sin overflow horizontal a 360px con cuadro desplegado', async () => {
+    const ctx = await chromium.launch().then(b => b.newContext({ viewport: { width: 360, height: 844 } }));
+    await ctx.addInitScript(({ sk, pk, pin, data, snk, sndata }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      localStorage.setItem(snk, JSON.stringify(sndata));
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: buildEstado(), snk: SNAPS_KEY, sndata: buildSnaps() });
+    const page = await ctx.newPage();
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+    try {
+      const noHScroll = await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      );
+      expect(noHScroll).toBe(true);
+    } finally { await ctx.close(); }
+  });
+
+  test('(y) sin overflow horizontal a 412px', async () => {
+    const ctx = await chromium.launch().then(b => b.newContext({ viewport: { width: 412, height: 844 } }));
+    await ctx.addInitScript(({ sk, pk, pin, data, snk, sndata }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      localStorage.setItem(snk, JSON.stringify(sndata));
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: buildEstado(), snk: SNAPS_KEY, sndata: buildSnaps() });
+    const page = await ctx.newPage();
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+    try {
+      const noHScroll = await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      );
+      expect(noHScroll).toBe(true);
+    } finally { await ctx.close(); }
+  });
+
+  test('(z) sin overflow horizontal a 450px', async () => {
+    const ctx = await chromium.launch().then(b => b.newContext({ viewport: { width: 450, height: 844 } }));
+    await ctx.addInitScript(({ sk, pk, pin, data, snk, sndata }) => {
+      localStorage.setItem(sk, JSON.stringify(data));
+      localStorage.setItem(pk, JSON.stringify(pin));
+      localStorage.setItem(snk, JSON.stringify(sndata));
+    }, { sk: SK, pk: PIN_KEY, pin: TEST_PIN, data: buildEstado(), snk: SNAPS_KEY, sndata: buildSnaps() });
+    const page = await ctx.newPage();
+    await page.goto(INDEX);
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+    await page.waitForTimeout(600);
+    try {
+      const noHScroll = await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      );
+      expect(noHScroll).toBe(true);
+    } finally { await ctx.close(); }
   });
 });
