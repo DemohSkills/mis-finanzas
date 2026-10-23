@@ -197,6 +197,10 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .gc-leyenda{font-weight:400;font-size:.68rem;margin-left:4px;}
 .gc-sub{font-size:.66rem;color:var(--muted);margin-top:2px;white-space:normal;}
 .bcard .bv.gc-var{font-size:.8rem;white-space:normal;margin-top:2px;}
+#det-ev-cGC .bcard .bv{text-overflow:clip;}
+.gc-var .gc-v1,.gc-var .gc-v2{display:block;white-space:nowrap;}
+.gc-prox .bcard{padding:9px 6px;}
+.gc-prox .bcard .bv{font-size:clamp(.5rem,2.7vw,1rem);overflow:visible;}
 .gc-pos{color:var(--ok);}.gc-neg{color:var(--danger);}
 .gc-tabla-wrap{margin-top:10px;}
 .gc-tabla{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.72rem;}
@@ -4043,6 +4047,8 @@ function datosCompGastos(){
 }
 // Variación % (null si la base es 0) y diferencia en $.
 function gcVariacion(act,ant){return{dif:act-ant,pct:ant>0?(act-ant)/ant*100:null};}
+const gcFmtN=(n,d)=>`<span class="amt">${n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:d,maximumFractionDigits:d})}</span>`;
+const gcFmt2=n=>gcFmtN(n,2),gcFmt0=n=>gcFmtN(n,0);
 const gcFmtPct=p=>p===null?'—':(p>0?'+':p<0?'−':'')+Math.abs(p).toFixed(1).replace('.',',')+'%';
 // Total comprometido de un mes futuro: igual que la proyección de 6 meses (cuotas/resumen + fijos + fijos con tarjeta).
 function comprometidoMes(mes){
@@ -4072,12 +4078,12 @@ function rChartGC(){
   const sg=n=>n>0?'+':n<0?'−':'';
   const varHtml=!D.hayAnt?'<div class="gc-sub">Sin mes anterior para comparar</div>'
     :v.pct===null?'<div class="gc-sub">Variación: —</div>'
-    :`<div class="bv gc-var ${cls}">${flecha} ${gcFmtPct(v.pct)} · ${sg(v.dif)}${fmtV(Math.abs(v.dif))}</div>`;
+    :`<div class="bv gc-var ${cls}"><span class="gc-v1">${flecha} ${gcFmtPct(v.pct)}</span><span class="gc-v2">${sg(v.dif)}${gcFmt2(Math.abs(v.dif))}</span></div>`;
   cont.innerHTML=
-    (D.hayAnt?`<div class="bcard"><div class="bl">Mes anterior (${nAnt}${modo==='dia'?` al ${D.diaCorte}`:' completo'})</div><div class="bv">${fmtV(ant)}</div></div>`
+    (D.hayAnt?`<div class="bcard"><div class="bl">Mes anterior (${nAnt}${modo==='dia'?` al ${D.diaCorte}`:' completo'})</div><div class="bv">${gcFmt2(ant)}</div></div>`
       :`<div class="bcard"><div class="bl">Mes anterior (${nAnt})</div><div class="bv">—</div></div>`)+
-    `<div class="bcard"><div class="bl">Mes actual (${nAct}${modo==='dia'?` al ${D.dHoy}`:' en curso'})</div><div class="bv">${fmtV(D.act)}</div>${varHtml}</div>`+
-    `<div class="bcard" style="grid-column:1/-1"><div class="bl">Proyección mínima fin de mes</div><div class="bv">${fmtV(proj)}</div><div class="gc-sub">mínimo estimado: no incluye gastos variables que aún no hiciste</div></div>`;
+    `<div class="bcard"><div class="bl">Mes actual (${nAct}${modo==='dia'?` al ${D.dHoy}`:' en curso'})</div><div class="bv">${gcFmt2(D.act)}</div>${varHtml}</div>`+
+    `<div class="bcard" style="grid-column:1/-1"><div class="bl">Proyección mínima fin de mes</div><div class="bv">${gcFmt2(proj)}</div><div class="gc-sub">mínimo estimado: no incluye gastos variables que aún no hiciste</div></div>`;
   // Categorías: top 8 + Otras
   const rows0=D.cats.map(c=>({cat:c.cat,ant:modo==='dia'?c.antDia:c.antMes,act:c.act})).filter(r=>r.ant||r.act).sort((a,b)=>(b.ant+b.act)-(a.ant+a.act));
   const rows=rows0.slice(0,8);
@@ -4114,7 +4120,7 @@ function rChartGC(){
               y:{ticks:{color:CV('--muted'),font:{size:10},keepOjo:true},grid:{display:false},border:{display:false}}}},plugins:[labPlg]});
   }
   // Próximos 3 meses (comprometido)
-  $('gcProx').innerHTML=[1,2,3].map(k=>{const mes=addMeses(D.mesAct+'-01',k).slice(0,7);return`<div class="bcard"><div class="bl">${mesNom(mes)} ${mes.slice(2,4)}</div><div class="bv">${fmtV(comprometidoMes(mes))}</div></div>`;}).join('');
+  $('gcProx').innerHTML=[1,2,3].map(k=>{const mes=addMeses(D.mesAct+'-01',k).slice(0,7);return`<div class="bcard"><div class="bl">${mesNom(mes)} ${mes.slice(2,4)}</div><div class="bv">${gcFmt0(comprometidoMes(mes))}</div></div>`;}).join('');
   // Curva acumulada
   const N=Math.max(D.diasAnt,D.diasAct),labels=Array.from({length:N},(_,i)=>i+1);
   const acum=(arr,hasta)=>{let s=0;return labels.map(d=>d<=hasta?(s+=arr[d]):null);};

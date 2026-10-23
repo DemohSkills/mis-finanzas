@@ -217,4 +217,45 @@ test.describe('Comparativa de gastos', () => {
       expect(errors).toHaveLength(0);
     });
   }
+
+  for (const width of [360, 412, 450]) {
+    test(`importes grandes a ${width}px: sin recorte, 2 decimales y variación en dos líneas`, async ({ page }) => {
+      const est = buildEstado();
+      est.gastos = [
+        g('b1', '2026-09-10', 99999999.99, 'Comida'),
+        g('b2', '2026-10-05', 62345678.4, 'Comida'),
+      ];
+      est.compromisos = [
+        { id: 'cb', nombre: 'Cuota B', entidad: 'Banco', monto: 99999999.99, pendientes: 6, proxVenc: '2026-10-31', tipo: 'cuota' },
+      ];
+      await abrir(page, est, { hoy: '2026-10-31T12:00:00', width });
+      await irAGastos(page);
+      const r = await page.evaluate(() => {
+        const card = document.getElementById('det-ev-cGC');
+        const out = { recortados: [], ellipsis: [], importes: [], prox: [], var1: null, var2: null };
+        for (const el of card.querySelectorAll('.bcard, .bcard *')) {
+          if (el.scrollWidth > el.clientWidth + 0.5 && el.clientWidth > 0) out.recortados.push(el.className + ':' + el.textContent.slice(0, 30));
+          if (getComputedStyle(el).textOverflow === 'ellipsis') out.ellipsis.push(el.className);
+        }
+        document.querySelectorAll('#gcBrow .amt').forEach(e => out.importes.push(e.textContent));
+        document.querySelectorAll('#gcProx .amt').forEach(e => out.prox.push(e.textContent));
+        const v1 = card.querySelector('.gc-v1'), v2 = card.querySelector('.gc-v2');
+        out.var1 = v1 && v1.textContent; out.var2 = v2 && v2.textContent;
+        out.ws = [v1, v2].map(e => e && getComputedStyle(e).whiteSpace);
+        out.h = [v1, v2].map(e => e && e.getBoundingClientRect().height);
+        return out;
+      });
+      expect(r.recortados).toEqual([]);
+      expect(r.ellipsis).toEqual([]);
+      expect(r.importes.length).toBeGreaterThan(0);
+      for (const t of r.importes) expect(t).toMatch(/,\d{2}$/);
+      expect(r.prox).toHaveLength(3);
+      for (const t of r.prox) expect(t).not.toContain(',');
+      expect(r.var1).toMatch(/^[▲▼] [+−]?\d+,\d%$/);
+      expect(r.var2).toMatch(/^[+−]\$\s?[\d.]+,\d{2}$/);
+      expect(r.ws).toEqual(['nowrap', 'nowrap']);
+      expect(r.h[0]).toBeLessThan(25);
+      expect(r.h[1]).toBeLessThan(25);
+    });
+  }
 });
