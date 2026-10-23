@@ -1,6 +1,6 @@
 // Service Worker — Mis Finanzas
 // Estrategia: cache-first para archivos de la app, red para el resto.
-const CACHE = 'finanzas-v1';
+const CACHE = 'finanzas-v2';
 const ARCHIVOS = ['./'];
 
 self.addEventListener('install', e =>
