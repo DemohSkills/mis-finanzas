@@ -175,12 +175,12 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:560px){.g2{grid-template-columns:1fr;}}
 .brow{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-.bcard{flex:1;min-width:100px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;}
+.bcard{flex:1;min-width:0;overflow:hidden;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;}
 .bcard .bl{font-size:.7rem;color:var(--muted);margin-bottom:3px;}
-.bcard .bv{font-size:.95rem;font-weight:700;font-variant-numeric:tabular-nums;}
+.bcard .bv{font-size:clamp(.75rem,3.4vw,1.05rem);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ev-sub{font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:8px;}
 .ev-fin-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-.ev-fin-grid .bcard{min-width:90px;}
+.ev-fin-grid .bcard{min-width:0;}
 /* Variation table (Evolución) */
 .vt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
 .vt-tabla{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed;}
@@ -1438,6 +1438,16 @@ function compromisosMes(mesStr){
     else{for(let k=0;k<c.pendientes;k++){if(addMeses(c.proxVenc,k).slice(0,7)===mesStr){r.push({...c});break;}}}
   }
   return r;
+}
+// Suma de fijos pendientes (no pagados) para un mes dado.
+// Excluye: pausados, en resumen de tarjeta, ya pagados en ese mes.
+function fijosMontoPendiente(mesStr){
+  return (estado.compromisos||[]).filter(c=>
+    c.tipo==='fijo'&&c.activo!==false&&
+    _fijoMesCorresponde(c,mesStr)&&
+    !_fijoEnResumen(c)&&
+    !(c.pagos&&c.pagos[mesStr])
+  ).reduce((s,c)=>s+(c.monto||0),0);
 }
 const MEDIOS_NO_TARJETA=['Banco Santander','Mercado Pago','Astropay','Efectivo'];
 function disponibleHoy(){return MEDIOS_NO_TARJETA.reduce((s,m)=>{const sd=saldoDe(m);return s+(sd>0?sd:0);},0);}
@@ -3837,13 +3847,15 @@ function rChartIC(){
   const porCobrar=estado.items.filter(it=>it.tipo==='activo'&&it.grupo==='Cobros pendientes').reduce((s,it)=>s+it.monto,0);
   // Compromisos del mes
   const cmpsMes=compromisosMes(mesActual);
-  const totalCmp=cmpsMes.reduce((s,c)=>s+c.monto,0);
+  const totalCmpBase=cmpsMes.reduce((s,c)=>s+c.monto,0);
+  const totalFijosActual=fijosMontoPendiente(mesActual);
+  const totalCmp=totalCmpBase+totalFijosActual;
   const dispon=disponibleHoy();
   const visaC=cmpsMes.find(c=>c.tipo==='resumen'&&c.entidad==='Visa Santander');
   const cmpSinVisa=cmpsMes.filter(c=>!(c.tipo==='resumen'&&c.entidad==='Visa Santander')).reduce((s,c)=>s+c.monto,0);
   const recursosTot=ingresosMes+porCobrar+dispon;
   const difTotal=recursosTot-totalCmp;
-  const difMin=recursosTot-cmpSinVisa-(visaC?visaC.pagoMinimo||visaC.monto:0);
+  const difMin=recursosTot-cmpSinVisa-totalFijosActual-(visaC?visaC.pagoMinimo||visaC.monto:0);
   const b=$('evBadgeIC');b.textContent=difTotal>=0?'▲ Cubre':'▼ Déficit';b.className='ev-badge '+(difTotal>=0?'up':'dn');
   const visaMin=visaC?visaC.pagoMinimo||visaC.monto:0;
   $('evBrow').innerHTML=
@@ -3857,20 +3869,26 @@ function rChartIC(){
   const entPalette={'Santander':'#60a5fa','Mercado Pago':'#4ade80','Mastercard MP':'#fbbf24','Visa Santander':'#f87171','Boris':'#c084fc'};
   const entColor=(e,i)=>entPalette[e]||S7[i%S7.length];
   // Gráfico: Recursos vs Compromisos del mes
-  const entsMes=[...new Set(cmpsMes.map(c=>c.entidad))];
+  const entsMes=[...new Set(cmpsMes.map(c=>c.entidad).filter(Boolean))];
   const dsIC=[
     {label:'Cobrado mes',data:[ingresosMes,0],backgroundColor:'rgba(74,222,128,.82)',stack:'r'},
     {label:'Por cobrar',data:[porCobrar,0],backgroundColor:'rgba(74,222,128,.40)',stack:'r'},
     {label:'Disponible',data:[dispon,0],backgroundColor:'rgba(96,165,250,.65)',stack:'r'},
-    ...entsMes.map((e,i)=>({label:e,data:[0,cmpsMes.filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)],backgroundColor:entColor(e,i),stack:'c'}))
+    ...entsMes.map((e,i)=>({label:e,data:[0,cmpsMes.filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)],backgroundColor:entColor(e,i),stack:'c'})),
+    ...(totalFijosActual>0?[{label:'Fijos',data:[0,totalFijosActual],backgroundColor:'rgba(251,191,36,.82)',stack:'c'}]:[])
   ];
   mkChart('cIngD',{type:'bar',data:{labels:['Recursos','Compromisos'],datasets:dsIC},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('right','cIngD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cIngD');
   // Proyección 6 meses
   const meses6=[];
   const [cy,cm]=hoy().split('-').map(Number);
   for(let i=0;i<6;i++){let y=cy,m=cm+i;if(m>12){y++;m-=12;}meses6.push(`${y}-${String(m).padStart(2,'0')}`);}
-  const entsProj=[...new Set((estado.compromisos||[]).map(c=>c.entidad))];
-  const dsProj=entsProj.map((e,i)=>({label:e,data:meses6.map(mes=>compromisosMes(mes).filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)),backgroundColor:entColor(e,i),stack:'s'}));
+  const entsProj=[...new Set((estado.compromisos||[]).filter(c=>c.tipo!=='fijo').map(c=>c.entidad).filter(Boolean))];
+  const fijosProj=meses6.map(mes=>fijosMontoPendiente(mes));
+  const hasFijosProj=fijosProj.some(v=>v>0);
+  const dsProj=[
+    ...entsProj.map((e,i)=>({label:e,data:meses6.map(mes=>compromisosMes(mes).filter(c=>c.entidad===e).reduce((s,c)=>s+c.monto,0)),backgroundColor:entColor(e,i),stack:'s'})),
+    ...(hasFijosProj?[{label:'Fijos',data:fijosProj,backgroundColor:'rgba(251,191,36,.82)',stack:'s'}]:[])
+  ];
   mkChart('cCmpD',{type:'bar',data:{labels:meses6.map(m=>mesNom(m)),datasets:dsProj},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:legO('bottom','cCmpD'),tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y),footer:its=>'  Total: $'+fmtM(its.reduce((s,i)=>s+i.parsed.y,0))}}},scales:{x:{stacked:true,ticks:{color:CV('--muted')},grid:{display:false},border:{display:false}},y:{stacked:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v)},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}}}}}); applyChartVis('cCmpD');
 }
 
@@ -5370,6 +5388,7 @@ window.fijoFechaEnMes = fijoFechaEnMes;
 window._fijoEstadoMes = _fijoEstadoMes;
 window._fijoMesCorresponde = _fijoMesCorresponde;
 window._fijoEnResumen = _fijoEnResumen;
+window.fijosMontoPendiente = fijosMontoPendiente;
 window.pagarUsd = pagarUsd;
 window.deshacerUsd = deshacerUsd;
 window.abrirFijoModal = abrirFijoModal;
