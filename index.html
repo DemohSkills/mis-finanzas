@@ -239,9 +239,9 @@ body.ocultar .gm-amt,body.ocultar .gm-dif{visibility:hidden;}
 .avd-dona{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
 .avd-dwrap{position:relative;width:170px;max-width:100%;margin:0 auto;}
 .avd-donut{display:block;width:100%;height:auto;}
-.avd-dctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24%;}
+.avd-dctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 12%;}
 .avd-dctr span{font-size:.62rem;color:var(--muted);}
-.avd-dctr b,.avd-dctr b .amt{font-size:.9rem;overflow-wrap:anywhere;color:var(--danger);}
+.avd-dctr b,.avd-dctr b .amt{font-size:.74rem;white-space:nowrap;color:var(--danger);}
 .avd-dleg{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:12px;}
 .avd-di{display:grid;grid-template-columns:10px minmax(0,1fr);column-gap:6px;font-size:.72rem;min-width:0;align-items:center;}
 .avd-di i{width:10px;height:10px;border-radius:50%;grid-row:1/3;}
@@ -4011,7 +4011,7 @@ function rActivosDeudas(){
   const arcs=gr.map((r,i)=>{const len=r.v/d*C;const el='<circle cx="60" cy="60" r="'+R+'" fill="none" stroke="'+col(r,i)+'" stroke-width="18" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-off)+'" data-v="'+Math.round(r.v*100)/100+'"/>';off+=len;return el;}).join('');
   dn.innerHTML=
     '<div class="avd-dwrap"><svg viewBox="0 0 120 120" class="avd-donut" aria-hidden="true"><g transform="rotate(-90 60 60)"><circle cx="60" cy="60" r="'+R+'" fill="none" stroke="var(--border)" stroke-width="18"/>'+arcs+'</g></svg>'+
-    '<div class="avd-dctr"><span>Deuda total</span><b class="neg" id="avdDTot">'+money(d)+'</b></div></div>'+
+    '<div class="avd-dctr"><span>Deuda total</span><b class="neg" id="avdDTot">'+money(Math.round(d))+'</b></div></div>'+
     '<div class="avd-dleg">'+gr.map((r,i)=>'<div class="avd-di" data-v="'+Math.round(r.v*100)/100+'"><i style="background:'+col(r,i)+'"></i><span class="avd-dn" title="'+esc(r.nombre)+'">'+esc(r.nombre)+'</span><span class="avd-dm">'+money(r.v)+'</span></div>').join('')+'</div>';
 }
 

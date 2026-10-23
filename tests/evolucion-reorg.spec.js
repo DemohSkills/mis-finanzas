@@ -235,3 +235,26 @@ for (const w of [360, 412, 450]) {
     expect(err).toEqual([]);
   });
 }
+
+for (const w of [360, 412, 450]) {
+  for (const tema of ['claro', 'oscuro', 'negro', 'auto']) {
+    test(`monto de "Deuda total" en una línea sin decimales a ${w}px, tema ${tema}`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 900 });
+      const est = estadoBase();
+      est.items.push({ id: 'dg', nombre: 'Deuda grande ficticia', grupo: 'Deudas', tipo: 'deuda', monto: 23041214.84 });
+      const err = await abrir(page, est, tema);
+      const r = await page.evaluate(() => {
+        const b = document.getElementById('avdDTot'), wrap = document.querySelector('.avd-dwrap');
+        const lh = parseFloat(getComputedStyle(b).lineHeight) || parseFloat(getComputedStyle(b).fontSize) * 1.3;
+        return { txt: b.textContent, h: b.getBoundingClientRect().height, lh, bw: b.scrollWidth, ww: wrap.getBoundingClientRect().width };
+      });
+      expect(r.txt).toMatch(/^\$\d{1,3}(\.\d{3})+$/);
+      expect(r.h).toBeLessThan(r.lh * 1.6);
+      expect(r.bw).toBeLessThanOrEqual(r.ww * 0.62);
+      await page.locator('#btnOjo').click();
+      const oc = await page.evaluate(() => getComputedStyle(document.querySelector('#avdDTot .amt')).fontSize);
+      expect(oc).toBe('0px');
+      expect(err).toEqual([]);
+    });
+  }
+}
