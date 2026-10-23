@@ -305,6 +305,81 @@ test.describe('inicio-compacto: botón voz no tapa contenido al final del scroll
   });
 });
 
+test.describe('inicio-compacto: SVG en botón Actualizar y tamaños iguales', () => {
+  let browser;
+  test.beforeAll(async () => { browser = await chromium.launch(); });
+  test.afterAll(async () => { await browser.close(); });
+
+  test('(q) #btnActualizarApp contiene un <svg> y no contiene el emoji 🔄', async () => {
+    const { page, ctx } = await openAt(browser, 450, 907);
+    try {
+      const result = await page.evaluate(() => {
+        const btn = document.getElementById('btnActualizarApp');
+        if (!btn) return { hasSvg: false, hasEmoji: false };
+        return {
+          hasSvg: btn.querySelector('svg') !== null,
+          hasEmoji: btn.textContent.includes('🔄'),
+        };
+      });
+      expect(result.hasSvg).toBe(true);
+      expect(result.hasEmoji).toBe(false);
+    } finally { await ctx.close(); }
+  });
+
+  test('(r) el <svg> dentro de #btnActualizarApp usa stroke="currentColor"', async () => {
+    const { page, ctx } = await openAt(browser, 450, 907);
+    try {
+      const usesCurrentColor = await page.evaluate(() => {
+        const svg = document.querySelector('#btnActualizarApp svg');
+        if (!svg) return false;
+        return svg.getAttribute('stroke') === 'currentColor';
+      });
+      expect(usesCurrentColor).toBe(true);
+    } finally { await ctx.close(); }
+  });
+
+  test('(s) #btnActualizarApp y #btnOjo tienen igual ancho y alto (tolerancia 1px)', async () => {
+    const { page, ctx } = await openAt(browser, 450, 907);
+    try {
+      const sizes = await page.evaluate(() => {
+        const act = document.getElementById('btnActualizarApp');
+        const ojo = document.getElementById('btnOjo');
+        if (!act || !ojo) return null;
+        const ra = act.getBoundingClientRect();
+        const ro = ojo.getBoundingClientRect();
+        return { wAct: Math.round(ra.width), hAct: Math.round(ra.height), wOjo: Math.round(ro.width), hOjo: Math.round(ro.height) };
+      });
+      expect(sizes).not.toBeNull();
+      expect(Math.abs(sizes.wAct - sizes.wOjo)).toBeLessThanOrEqual(1);
+      expect(Math.abs(sizes.hAct - sizes.hOjo)).toBeLessThanOrEqual(1);
+    } finally { await ctx.close(); }
+  });
+});
+
+test.describe('inicio-compacto: font-size nombre Efectivo igual a otras tarjetas', () => {
+  let browser;
+  test.beforeAll(async () => { browser = await chromium.launch(); });
+  test.afterAll(async () => { await browser.close(); });
+
+  test('(t) font-size del .nombre de Efectivo igual al de otras tarjetas .saldo', async () => {
+    const { page, ctx } = await openAt(browser, 450, 907);
+    try {
+      const result = await page.evaluate(() => {
+        const efectivoCaja = Array.from(document.querySelectorAll('.saldo'))
+          .find(el => el.querySelector('.nombre')?.textContent.trim() === 'Efectivo');
+        const otraCaja = Array.from(document.querySelectorAll('.saldo'))
+          .find(el => !el.classList.contains('saldo-full') && el.querySelector('.nombre'));
+        if (!efectivoCaja || !otraCaja) return null;
+        const fsEf = parseFloat(getComputedStyle(efectivoCaja.querySelector('.nombre')).fontSize);
+        const fsOtra = parseFloat(getComputedStyle(otraCaja.querySelector('.nombre')).fontSize);
+        return { fsEf, fsOtra };
+      });
+      expect(result).not.toBeNull();
+      expect(Math.abs(result.fsEf - result.fsOtra)).toBeLessThan(2);
+    } finally { await ctx.close(); }
+  });
+});
+
 test.describe('inicio-compacto: modo ojo oculta importes en Inicio', () => {
   let browser;
   test.beforeAll(async () => { browser = await chromium.launch(); });

@@ -14,6 +14,9 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Open Finance no está operativo en Argentina: los resúmenes se importan por CSV.
 
 ## Cronología
+- 22/10/2026 (12): dos retoques visuales en Inicio. Suite completa: **526/526 pasan**.
+  - **Botón Actualizar (cabecera):** reemplazado el emoji 🔄 por un SVG inline de flechas circulares (`stroke="currentColor"`, sin relleno). La clase `.eye-btn` ahora tiene `width`/`height` fijos (36px) y `display:inline-flex` para que ambos botones de cabecera queden con exactamente el mismo tamaño de caja. 4 tests nuevos en `tests/inicio-compacto.spec.js` (q–t).
+  - **Tarjeta Efectivo — nombre:** tamaño de fuente `.nombre` subido a `1rem` (igual al de las demás tarjetas `.saldo`). Botón del card achica padding a 5px en pantallas ≤ 380 px para evitar overflow.
 - 22/10/2026 (11): rediseño compacto de la pestaña Inicio. 18 tests nuevos en `tests/inicio-compacto.spec.js`. Suite completa: **485/485 pasan**.
   - **Cabecera:** botón 🔄 (`#btnActualizarApp`) movido a la cabecera, a la izquierda del ojo (`#btnOjo`), con misma clase `eye-btn`. Eliminado de la sección ⚙️ Apariencia. Se actualizaron los tests de `actualizar-btn.spec.js`.
   - **Cinta en Inicio:** `renderTickerEvol()` ahora renderiza en `#tickerInicio` (vista Inicio, entre solapas y "Mis cuentas") y en `#tickerEvol` (vista Evolución). Los ids `tkTrack` y `tkModeBtn` se eliminaron del HTML generado; los event handlers usan `querySelector` por contenedor. El modo (animar/fijo) es compartido via `localStorage`. Tests de `ticker-evol.spec.js` actualizados para usar `.tk-btn` en lugar de `#tkModeBtn`.
