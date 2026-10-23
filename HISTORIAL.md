@@ -314,3 +314,4 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - Retoques visuales: botón de actualizar más chico, gráficos en pantalla completa.
 - Actualizar este archivo al cerrar cada tarea.
 - 2026-10-23 — Tarjeta comparativa de Gastos: importes siempre con 2 decimales (próximos meses sin decimales y fuente fluida, sin recorte con "…"); la variación del mes actual va en dos líneas fijas (% arriba, importe abajo, nowrap). Test a 360/412/450 px con importes de hasta $99.999.999,99 (660 tests).
+- 2026-10-23 — Tarjeta comparativa de Gastos: "Proyección mínima fin de mes" renombrada a "Salida mínima de plata este mes" con leyenda "gastado hasta hoy + compromisos pendientes; no incluye gastos variables que aún no hiciste". Test actualizado.

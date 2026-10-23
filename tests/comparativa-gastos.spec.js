@@ -111,7 +111,7 @@ test.describe('Comparativa de gastos', () => {
     await abrir(page, buildEstado());
     await irAGastos(page);
     const txt = await page.locator('#gcBrow .bcard').nth(2).innerText();
-    expect(txt).toContain('Proyección mínima fin de mes');
+    expect(txt).toContain('Salida mínima de plata este mes');
     expect(txt).toContain('no incluye gastos variables');
     // 2200 gastado + 4000 de la cuota de octubre = 6200
     expect(txt.replace(/\D/g, '')).toContain('6200');

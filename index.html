@@ -4083,7 +4083,7 @@ function rChartGC(){
     (D.hayAnt?`<div class="bcard"><div class="bl">Mes anterior (${nAnt}${modo==='dia'?` al ${D.diaCorte}`:' completo'})</div><div class="bv">${gcFmt2(ant)}</div></div>`
       :`<div class="bcard"><div class="bl">Mes anterior (${nAnt})</div><div class="bv">—</div></div>`)+
     `<div class="bcard"><div class="bl">Mes actual (${nAct}${modo==='dia'?` al ${D.dHoy}`:' en curso'})</div><div class="bv">${gcFmt2(D.act)}</div>${varHtml}</div>`+
-    `<div class="bcard" style="grid-column:1/-1"><div class="bl">Proyección mínima fin de mes</div><div class="bv">${gcFmt2(proj)}</div><div class="gc-sub">mínimo estimado: no incluye gastos variables que aún no hiciste</div></div>`;
+    `<div class="bcard" style="grid-column:1/-1"><div class="bl">Salida mínima de plata este mes</div><div class="bv">${gcFmt2(proj)}</div><div class="gc-sub">gastado hasta hoy + compromisos pendientes; no incluye gastos variables que aún no hiciste</div></div>`;
   // Categorías: top 8 + Otras
   const rows0=D.cats.map(c=>({cat:c.cat,ant:modo==='dia'?c.antDia:c.antMes,act:c.act})).filter(r=>r.ant||r.act).sort((a,b)=>(b.ant+b.act)-(a.ant+a.act));
   const rows=rows0.slice(0,8);
