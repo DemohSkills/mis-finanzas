@@ -242,7 +242,7 @@ test.describe('pestana-gastos: btnPlegGas', () => {
 // ─── 6. Modo ojo en pestaña Gastos ────────────────────────────────────────
 
 test.describe('pestana-gastos: modo ojo', () => {
-  test('(t) activar modo ojo oculta ticks de cG', async ({ page }) => {
+  test('(t) activar modo ojo oculta importes de cG y conserva los meses', async ({ page }) => {
     await seedAndUnlock(page);
     await goToAnalisis(page);
     await page.locator('#btnOjo').click();
@@ -252,7 +252,8 @@ test.describe('pestana-gastos: modo ojo', () => {
       if (!chart) return null;
       const scales = chart.options && chart.options.scales;
       if (!scales) return true;
-      return Object.values(scales).every(s => !s.ticks || s.ticks.display === false);
+      // Gastos por mes: el eje de importes está oculto siempre; los meses (eje x) se conservan
+      return scales.y.display === false && Object.entries(scales).every(([k, s]) => k === 'x' || !s.ticks || s.ticks.display === false);
     });
     expect(ticksHidden).toBe(true);
   });
