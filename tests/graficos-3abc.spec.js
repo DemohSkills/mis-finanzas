@@ -49,12 +49,18 @@ async function goToEvolucion(page) {
   await page.waitForTimeout(300);
 }
 
+async function goToAnalisis(page) {
+  await page.locator('nav.tabs button[data-vista="analisis"]').click();
+  await page.waitForFunction(() => typeof Chart !== 'undefined' && window._ci && window._ci['cIngD'], null, { timeout: 10000 });
+  await page.waitForTimeout(300);
+}
+
 // ─── 3a: toggle en todos los gráficos ────────────────────────
 
 test.describe('3a: clic en leyenda toggle en todos los gráficos', () => {
   test('det-ev-cIC tiene ev-hint "clic leyenda"', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
-    await goToEvolucion(page);
+    await goToAnalisis(page);
     const hint = page.locator('#det-ev-cIC .ev-hint');
     await expect(hint).toBeVisible();
     expect(await hint.textContent()).toMatch(/clic leyenda/i);
@@ -193,7 +199,7 @@ test.describe('3b: persistencia de visibilidad + botón Mostrar todo', () => {
 
   test('botones "Mostrar todo" existen para cIngD y cCmpD', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
-    await goToEvolucion(page);
+    await goToAnalisis(page);
     await expect(page.locator('.btn-show-all[data-chart="cIngD"]')).toBeVisible();
     await expect(page.locator('.btn-show-all[data-chart="cCmpD"]')).toBeVisible();
   });

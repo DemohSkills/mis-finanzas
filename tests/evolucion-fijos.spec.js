@@ -58,7 +58,7 @@ async function seedAndUnlock(page, estado) {
 }
 
 async function goToEvolucion(page) {
-  await page.locator('nav.tabs button[data-vista="evolucion"]').click();
+  await page.locator('nav.tabs button[data-vista="analisis"]').click();
   await page.waitForFunction(
     () => typeof Chart !== 'undefined' && window._ci && window._ci['cIngD'],
     null, { timeout: 10000 }

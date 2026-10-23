@@ -212,11 +212,12 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 /* Rendimientos */
 .rend-wrap{margin-bottom:14px;}
 .rend-tabla{width:100%;border-collapse:collapse;font-size:.72rem;table-layout:fixed;}
-.rend-tabla col.c-cuenta{width:24%;}
-.rend-tabla col.c-rmes,.rend-tabla col.c-acum{width:13%;}
+.rend-tabla col.c-cuenta{width:20%;}
+.rend-tabla col.c-rmes{width:13%;}
+.rend-tabla col.c-acum{width:11%;}
 .rend-tabla col.c-sp{width:15%;}
-.rend-tabla col.c-pmes{width:13%;}
-.rend-tabla col.c-panual{width:22%;}
+.rend-tabla col.c-pmes{width:17%;}
+.rend-tabla col.c-panual{width:24%;}
 .rend-tabla th,.rend-tabla td{padding:2px 3px;border:1px solid var(--border);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rend-tabla th:first-child,.rend-tabla td:first-child{text-align:left;}
 .rend-tabla thead th{font-size:.66rem;color:var(--muted);font-weight:600;background:var(--card);white-space:normal;line-height:1.25;vertical-align:bottom;}
@@ -832,6 +833,7 @@ body.ocultar .tk-val{display:none!important;}
     <button type="button" role="tab" data-vista="inicio">Inicio</button>
     <button type="button" role="tab" data-vista="gastos">Movimientos</button>
     <button type="button" role="tab" data-vista="compromisos">💳 A pagar</button>
+    <button type="button" role="tab" data-vista="analisis">Gastos</button>
     <button type="button" role="tab" data-vista="patrimonio">Patrimonio</button>
     <button type="button" role="tab" data-vista="vinculos">Vínculos</button>
     <button type="button" role="tab" data-vista="evolucion">Evolución</button>
@@ -1002,23 +1004,9 @@ body.ocultar .tk-val{display:none!important;}
       <summary class="ev-hd"><div><h2>Patrimonio neto</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge neu" id="evBadgeP">—</span></summary>
       <div class="cw h200"><canvas id="cP"></canvas></div>
     </details>
-    <div class="g2" style="margin-bottom:14px">
-      <details class="ev-card" id="det-ev-cB" style="margin-bottom:0" open>
-        <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cB" style="font-size:.7rem">Mostrar todo</button></summary>
-        <div class="cw h160"><canvas id="cB"></canvas></div>
-      </details>
-      <details class="ev-card" id="det-ev-cG" style="margin-bottom:0" open>
-        <summary class="ev-hd"><div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cG" style="font-size:.7rem">Mostrar todo</button></summary>
-        <div class="cw h160"><canvas id="cG"></canvas></div>
-      </details>
-    </div>
-    <details class="ev-card" id="det-ev-cIC" open>
-      <summary class="ev-hd"><div><h2>Ingresos vs compromisos del mes</h2><p class="sub">Mes actual · comparado vs proyección 6 meses</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeIC">—</span><span class="ev-hint">clic leyenda</span></summary>
-      <div class="brow" id="evBrow"></div>
-      <div class="g2">
-        <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Ingresos vs compromisos<button type="button" class="mini btn-show-all" data-chart="cIngD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cIngD"></canvas></div></div>
-        <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Proyección 6 meses<button type="button" class="mini btn-show-all" data-chart="cCmpD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cCmpD"></canvas></div></div>
-      </div>
+    <details class="ev-card" id="det-ev-cB" open>
+      <summary class="ev-hd"><div><h2>Activos vs Deudas</h2><p class="sub">Mensual · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cB" style="font-size:.7rem">Mostrar todo</button></summary>
+      <div class="cw h160"><canvas id="cB"></canvas></div>
     </details>
     <details class="ev-card" id="det-ev-cD" open>
       <summary class="ev-hd"><div><h2>Deudas principales</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cD" style="font-size:.7rem">Mostrar todo</button><button type="button" id="btnValsD" class="mini" style="font-size:.7rem">Valores</button><button type="button" id="btnCfgD" class="mini" style="font-size:.75rem" title="Configurar series">⚙</button></summary>
@@ -1041,6 +1029,25 @@ body.ocultar .tk-val{display:none!important;}
       <div class="cw h160" id="rendChartWrap" style="margin-top:14px"><canvas id="cRend"></canvas></div>
     </details>
     <p class="ev-nota">Los gráficos usan snapshots guardados automáticamente al abrir la app. Clic en las leyendas para mostrar/ocultar series.</p>
+  </div>
+
+  <!-- ── GASTOS (ANÁLISIS) ── -->
+  <div class="vista" id="vista-analisis" hidden>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+      <button type="button" class="mini btn-pleg-all" id="btnPlegGas" style="flex-shrink:0">Plegar todo</button>
+    </div>
+    <details class="ev-card" id="det-ev-cG" open>
+      <summary class="ev-hd"><div><h2>Gastos por mes</h2><p class="sub">Por categoría · ARS</p></div><span class="det-arrow">▶</span><span class="ev-hint">clic leyenda</span><button type="button" class="mini btn-show-all" data-chart="cG" style="font-size:.7rem">Mostrar todo</button></summary>
+      <div class="cw h160"><canvas id="cG"></canvas></div>
+    </details>
+    <details class="ev-card" id="det-ev-cIC" open>
+      <summary class="ev-hd"><div><h2>Ingresos vs compromisos del mes</h2><p class="sub">Mes actual · comparado vs proyección 6 meses</p></div><span class="det-arrow">▶</span><span class="ev-badge dn" id="evBadgeIC">—</span><span class="ev-hint">clic leyenda</span></summary>
+      <div class="brow" id="evBrow"></div>
+      <div class="g2">
+        <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Ingresos vs compromisos<button type="button" class="mini btn-show-all" data-chart="cIngD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cIngD"></canvas></div></div>
+        <div><div class="ev-sub" style="display:flex;align-items:center;gap:6px">Proyección 6 meses<button type="button" class="mini btn-show-all" data-chart="cCmpD" style="font-size:.7rem">Mostrar todo</button></div><div class="cw h200"><canvas id="cCmpD"></canvas></div></div>
+      </div>
+    </details>
   </div>
 
   <!-- ── CONFIG ── -->
@@ -1798,7 +1805,7 @@ $('compForm').onsubmit=function(e){
   }
   cerrarCompModal();
   guardar(); renderCompromisos();
-  if(_evolReady) rChartIC();
+  if(_gastosReady) rChartIC();
 };
 
 function editarCompromiso(id){
@@ -1819,11 +1826,11 @@ function pagarCompromiso(id){
     if(c.pendientes===0){
       estado.compromisos=estado.compromisos.filter(x=>x.id!==id);
       guardar(); renderCompromisos();
-      if(_evolReady) rChartIC();
+      if(_gastosReady) rChartIC();
       return;
     }
     guardar(); renderCompromisos();
-    if(_evolReady) rChartIC();
+    if(_gastosReady) rChartIC();
   }
 }
 
@@ -1831,7 +1838,7 @@ function borrarCompromiso(id){
   if(!confirm('¿Eliminar este compromiso?')) return;
   estado.compromisos=estado.compromisos.filter(x=>x.id!==id);
   guardar(); renderCompromisos();
-  if(_evolReady) rChartIC();
+  if(_gastosReady) rChartIC();
 }
 
 function pagarUsd(id){
@@ -1918,7 +1925,7 @@ $('btnConfirmarPago').onclick=function(){
 
   cerrarPagoModal();
   guardar(); render(); renderCompromisos();
-  if(_evolReady){rChartIC();rChartD();}
+  if(_gastosReady) rChartIC(); if(_evolReady) rChartD();
 };
 
 function deshacerPago(id){
@@ -1933,7 +1940,7 @@ function deshacerPago(id){
   c.proxVenc=u.proxVencAnterior;
   delete c.ultimoPago;
   guardar(); render(); renderCompromisos();
-  if(_evolReady){rChartIC();rChartD();}
+  if(_gastosReady) rChartIC(); if(_evolReady) rChartD();
 }
 // ── GASTOS FIJOS ─────────────────────────────────────────
 let _fijoModalId=null,_fijoPagoId=null,_fijoPagoMes=null;
@@ -2054,13 +2061,13 @@ $('fijoForm').onsubmit=function(e){
     else{delete f.cadaMeses;delete f.mesBase;}
   }
   cerrarFijoModal();guardar();renderCompromisos();
-  if(_evolReady) rChartIC();
+  if(_gastosReady) rChartIC();
 };
 
 function borrarFijo(id){
   if(!confirm('¿Eliminar este gasto fijo?')) return;
   estado.compromisos=(estado.compromisos||[]).filter(x=>x.id!==id);
-  guardar();renderCompromisos();if(_evolReady) rChartIC();
+  guardar();renderCompromisos();if(_gastosReady) rChartIC();
 }
 function pausarFijo(id){
   const f=(estado.compromisos||[]).find(x=>x.id===id&&x.tipo==='fijo');
@@ -2098,7 +2105,7 @@ $('btnConfirmarFijoPago').onclick=function(){
   f.pagos=f.pagos||{};f.pagos[mesStr]={fecha,monto,gastoId:gasto.id};
   if(actualizarEstim){f.monto=monto;f.estimado=false;}
   cerrarFijoPagoModal();guardar();render();renderCompromisos();
-  if(_evolReady){rChartIC();rChartD();}
+  if(_gastosReady) rChartIC(); if(_evolReady) rChartD();
 };
 
 $('btnFijoPagoSinMov').onclick=function(){
@@ -2112,7 +2119,7 @@ $('btnFijoPagoSinMov').onclick=function(){
   f.pagos=f.pagos||{};f.pagos[mesStr]={fecha,monto,gastoId:null};
   if(actualizarEstim){f.monto=monto;f.estimado=false;}
   cerrarFijoPagoModal();guardar();renderCompromisos();
-  if(_evolReady) rChartIC();
+  if(_gastosReady) rChartIC();
 };
 
 function deshacerFijoPago(id,mesStr){
@@ -2122,7 +2129,7 @@ function deshacerFijoPago(id,mesStr){
   if(pago.gastoId) estado.gastos=estado.gastos.filter(g=>g.id!==pago.gastoId);
   delete f.pagos[mesStr];
   guardar();render();renderCompromisos();
-  if(_evolReady){rChartIC();rChartD();}
+  if(_gastosReady) rChartIC(); if(_evolReady) rChartD();
 }
 // ── AJUSTE PRÉSTAMOS ─────────────────────────────────────
 let _ajusteItemId = null;
@@ -2376,6 +2383,7 @@ function mostrarVista(v) {
   document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-'+v);
   try { localStorage.setItem(SK+'-vista', v); } catch{}
   if (v==='evolucion') iniciarEvolucion();
+  if (v==='analisis') iniciarGastos();
   if (v==='inicio') renderTickerEvol();
   if (v==='config') renderConfig();
   if (v==='compromisos') renderCompromisos();
@@ -2906,6 +2914,7 @@ function aplicarTema(t){
     } else meta.content=_THEME_META[t]||'#0f172a';
   }
   if(typeof _evolReady!=='undefined'&&_evolReady) iniciarEvolucion();
+  if(typeof _gastosReady!=='undefined'&&_gastosReady) iniciarGastos();
   document.querySelectorAll('.tema-btn').forEach(b=>{
     b.classList.toggle('primary',b.dataset.tema===(t||'auto'));
   });
@@ -3269,6 +3278,7 @@ function restaurarBackup(file){
       if(data.reglas) ls.set(RULES_KEY,data.reglas);
       estado=cargar(); guardar(); render();
       if(document.getElementById('vista-evolucion')&&!document.getElementById('vista-evolucion').hidden) iniciarEvolucion();
+      if(document.getElementById('vista-analisis')&&!document.getElementById('vista-analisis').hidden) iniciarGastos();
       fillCatSelect('categoria'); fillCatSelect('reglaCat');
       renderConfig();
       alert('Backup restaurado correctamente.');
@@ -3637,6 +3647,7 @@ function renderFotosConfig(){
       ls.set(SNAP_KEY,cargarSnaps().filter(x=>x.d!==s.d));
       renderFotosConfig();
       if(_evolReady) iniciarEvolucion();
+      if(_gastosReady) iniciarGastos();
     };
     row.appendChild(info);row.appendChild(btn);
     cont.appendChild(row);
@@ -4043,7 +4054,7 @@ function rChartRend() {
   if (chartWrap) chartWrap.hidden = false;
   const medios = [...new Set(rends.map(g => g.medio))].sort();
   const diasPeriodo = parseInt(hoyStr.split('-')[2]);
-  const fmtPct = v => (isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(2) + '%';
+  const fmtPct = v => (isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(2).replace('.', ',') + '%';
   const fmtAmt = (n, full) => `<span class="amt" title="${full}">${n < 0 ? '−' : ''}$${fmtM(Math.abs(n))}</span>`;
   const rows = medios.map(medio => {
     const rendMes = rends.filter(g => g.medio === medio && g.fecha.slice(0, 7) === mesActual).reduce((s, g) => s + g.monto, 0);
@@ -4092,16 +4103,32 @@ function rChartRend() {
   applyChartVis('cRend');
 }
 
+let _gastosReady=false,_gastosDetInited=false;
+function iniciarGastos(){
+  withChartJs(()=>{
+    rChartG();rChartIC();_gastosReady=true;
+    if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
+    if(!_gastosDetInited){
+      _gastosDetInited=true;
+      const gasDets=[['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']]];
+      for(const[id,cids]of gasDets){
+        const el=$(id); if(!el) continue;
+        el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
+      }
+    }
+  });
+}
+
 let _evolReady=false,_evolDetInited=false;
 function iniciarEvolucion(){
   renderTickerEvol();
   renderVarTable();
   withChartJs(()=>{
-    rChartP();rChartB();rChartG();rChartIC();rChartD();rChartF();rChartRend();_evolReady=true;
+    rChartP();rChartB();rChartD();rChartF();rChartRend();_evolReady=true;
     if(window._aplicarOjoGraficos)window._aplicarOjoGraficos();
     if(!_evolDetInited){
       _evolDetInited=true;
-      const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cG',['cG']],['det-ev-cIC',['cIngD','cCmpD']],['det-ev-cD',['cD']],['det-ev-cF',['cF']],['det-ev-cRend',['cRend']]];
+      const evDets=[['det-ev-cP',['cP']],['det-ev-cB',['cB']],['det-ev-cD',['cD']],['det-ev-cF',['cF']],['det-ev-cRend',['cRend']]];
       for(const[id,cids]of evDets){
         const el=$(id); if(!el) continue;
         el.addEventListener('toggle',()=>{ if(el.open) cids.forEach(cid=>{ _ci[cid]?.resize(); }); });
@@ -4174,7 +4201,7 @@ function _ejecutarTransf(origen,destino,monto,fecha,nota,mode){
   estado.gastos.push({id:nuevoId(),creado:now+1,monto,fecha,categoria,medio:destino,descripcion:desc,tipo:'ingreso',soloHistorial:false,transferencia:true,transferId});
   guardar(); guardarSnap();
   render(); renderCompromisos();
-  if(_evolReady){rChartIC();rChartG();rChartD();}
+  if(_gastosReady){rChartIC();rChartG();} if(_evolReady) rChartD();
   return true;
 }
 
@@ -4194,7 +4221,7 @@ function borrarTransferencia(transferId){
   estado.gastos=estado.gastos.filter(g=>g.transferId!==transferId);
   guardar(); guardarSnap();
   render(); renderCompromisos();
-  if(_evolReady){rChartIC();rChartG();rChartD();}
+  if(_gastosReady){rChartIC();rChartG();} if(_evolReady) rChartD();
 }
 
 $('btnGuardarTrans').onclick=guardarTransferencia;
@@ -5003,7 +5030,7 @@ function _confirmarImpBanco(conAjuste) {
   estado.importaciones ||= {};
   estado.importaciones[_impMedio] = { hasta: fechaFinal, lote: loteId, fecha: hoy() };
   guardar(); guardarSnap(); render();
-  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
   alert(`${cnt} movimientos importados correctamente (lote ${loteId.slice(0,8)}…).`);
@@ -5034,7 +5061,7 @@ function _deshacerUltimaImp(medio) {
   }
   delete estado.importaciones[medio];
   guardar(); guardarSnap(); render();
-  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
   alert('Importación deshecha correctamente.');
@@ -5321,7 +5348,7 @@ function _confirmarImpVisa() {
     _prevCompromiso: prevCompromiso, _prevImportacion: prevImportacion,
   };
   guardar(); guardarSnap(); render();
-  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
   alert(`${cnt} movimientos importados correctamente (lote ${loteId.slice(0,8)}…).`);
@@ -5361,7 +5388,7 @@ function _deshacerUltimaImpVisa() {
     delete estado.importaciones['Visa Santander'];
   }
   guardar(); guardarSnap(); render();
-  if (_evolReady) { rChartIC(); rChartG(); rChartD(); }
+  if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
   alert('Importación de Visa deshecha correctamente.');
@@ -5706,6 +5733,7 @@ function initDetDyn(el,sfx,defOpen){
   mkPlegBtn('btnPlegPat',   ()=>document.getElementById('vista-patrimonio'));
   mkPlegBtn('btnPlegComp',  ()=>document.getElementById('compromisosList'));
   mkPlegBtn('btnPlegEvol',  ()=>document.getElementById('vista-evolucion'));
+  mkPlegBtn('btnPlegGas',   ()=>document.getElementById('vista-analisis'));
 })();
 
 // ═══════════════════════════════════════════════════════

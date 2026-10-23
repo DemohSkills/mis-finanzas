@@ -21,7 +21,7 @@ async function seedAndUnlock(page) {
 }
 
 test.describe('Part 4: orden de solapas', () => {
-  test('(a) orden exacto: Inicio, Movimientos, A pagar, Patrimonio, Vínculos, Evolución, ⚙️', async ({ page }) => {
+  test('(a) orden exacto: Inicio, Movimientos, A pagar, Gastos, Patrimonio, Vínculos, Evolución, ⚙️', async ({ page }) => {
     await seedAndUnlock(page);
     const btns = await page.locator('nav.tabs button[role="tab"]').all();
     const texts = await Promise.all(btns.map(b => b.textContent()));
@@ -29,11 +29,12 @@ test.describe('Part 4: orden de solapas', () => {
     expect(trimmed[0]).toBe('Inicio');
     expect(trimmed[1]).toBe('Movimientos');
     expect(trimmed[2]).toContain('A pagar');
-    expect(trimmed[3]).toBe('Patrimonio');
-    expect(trimmed[4]).toBe('Vínculos');
-    expect(trimmed[5]).toBe('Evolución');
-    expect(trimmed[6]).toBe('⚙️');
-    expect(trimmed.length).toBe(7);
+    expect(trimmed[3]).toBe('Gastos');
+    expect(trimmed[4]).toBe('Patrimonio');
+    expect(trimmed[5]).toBe('Vínculos');
+    expect(trimmed[6]).toBe('Evolución');
+    expect(trimmed[7]).toBe('⚙️');
+    expect(trimmed.length).toBe(8);
   });
 
   test('(b) ⚙️ es la última solapa', async ({ page }) => {
@@ -89,7 +90,7 @@ test.describe('Part 4: orden de solapas', () => {
 
   test('(f) todos los data-vista siguen funcionando (ids no cambiaron)', async ({ page }) => {
     await seedAndUnlock(page);
-    const vistas = ['inicio', 'gastos', 'compromisos', 'patrimonio', 'vinculos', 'evolucion', 'config'];
+    const vistas = ['inicio', 'gastos', 'compromisos', 'analisis', 'patrimonio', 'vinculos', 'evolucion', 'config'];
     for (const v of vistas) {
       const btn = page.locator(`nav.tabs button[data-vista="${v}"]`);
       await expect(btn).toBeVisible();
