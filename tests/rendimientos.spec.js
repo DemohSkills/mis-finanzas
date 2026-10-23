@@ -305,73 +305,59 @@ test('(l) modo ojo oculta importes pero porcentajes siguen visibles', async ({ p
   expect(pctVisible).toBe(true);
 });
 
-// ── (m) Sin overflow a 360px ──────────────────────────────────
-test('(m) sin overflow horizontal en la tarjeta Rendimientos a 360px', async ({ page }) => {
-  const state = {
-    ...BASE_STATE,
-    iniciales: { ...BASE_STATE.iniciales, 'Mercado Pago': 99000 },
-    gastos: [
-      { id: 'r1', creado: 1, monto: 1000, fecha: '2026-09-01', categoria: 'Rendimientos',
-        descripcion: 'Rendimientos', medio: 'Mercado Pago', tipo: 'ingreso', soloHistorial: false },
-    ],
-  };
-  await page.setViewportSize({ width: 360, height: 812 });
-  await seedAndLoad(page, state);
+const REND_STATE_RESPONSIVE = {
+  ...BASE_STATE,
+  iniciales: { ...BASE_STATE.iniciales, 'Mercado Pago': 99000 },
+  gastos: [
+    { id: 'r1', creado: 1, monto: 1000, fecha: '2026-09-01', categoria: 'Rendimientos',
+      descripcion: 'Rendimientos', medio: 'Mercado Pago', tipo: 'ingreso', soloHistorial: false },
+  ],
+};
+
+async function checkResponsive(page, width, height) {
+  await page.setViewportSize({ width, height });
+  await seedAndLoad(page, REND_STATE_RESPONSIVE);
   await enterPIN(page);
   await goEvolucion(page);
-
-  const overflow = await page.evaluate(() => {
+  return page.evaluate((vw) => {
     const card = document.getElementById('det-ev-cRend');
-    if (!card) return false;
-    return card.scrollWidth > card.clientWidth + 2;
-  });
-  expect(overflow).toBe(false);
+    if (!card) return { cardOverflow: false, pageOverflow: false, colsVisible: true };
+    const cardOverflow = card.scrollWidth > card.clientWidth + 2;
+    const pageOverflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;
+    const ths = [...card.querySelectorAll('thead th')];
+    const colsVisible = ths.length > 0 && ths.every(th => {
+      const r = th.getBoundingClientRect();
+      return r.right > 0 && r.left < vw && r.width > 0;
+    });
+    return { cardOverflow, pageOverflow, colsVisible, thCount: ths.length };
+  }, width);
+}
+
+// ── (m) Sin overflow a 360px ──────────────────────────────────
+test('(m) sin overflow horizontal en la tarjeta Rendimientos a 360px', async ({ page }) => {
+  const result = await checkResponsive(page, 360, 812);
+  expect(result.cardOverflow).toBe(false);
+  expect(result.pageOverflow).toBe(false);
+  expect(result.thCount).toBe(6);
+  expect(result.colsVisible).toBe(true);
 });
 
 // ── (n) Sin overflow a 412px ──────────────────────────────────
 test('(n) sin overflow horizontal en la tarjeta Rendimientos a 412px', async ({ page }) => {
-  const state = {
-    ...BASE_STATE,
-    iniciales: { ...BASE_STATE.iniciales, 'Mercado Pago': 99000 },
-    gastos: [
-      { id: 'r1', creado: 1, monto: 1000, fecha: '2026-09-01', categoria: 'Rendimientos',
-        descripcion: 'Rendimientos', medio: 'Mercado Pago', tipo: 'ingreso', soloHistorial: false },
-    ],
-  };
-  await page.setViewportSize({ width: 412, height: 915 });
-  await seedAndLoad(page, state);
-  await enterPIN(page);
-  await goEvolucion(page);
-
-  const overflow = await page.evaluate(() => {
-    const card = document.getElementById('det-ev-cRend');
-    if (!card) return false;
-    return card.scrollWidth > card.clientWidth + 2;
-  });
-  expect(overflow).toBe(false);
+  const result = await checkResponsive(page, 412, 915);
+  expect(result.cardOverflow).toBe(false);
+  expect(result.pageOverflow).toBe(false);
+  expect(result.thCount).toBe(6);
+  expect(result.colsVisible).toBe(true);
 });
 
 // ── (o) Sin overflow a 450px ──────────────────────────────────
 test('(o) sin overflow horizontal en la tarjeta Rendimientos a 450px', async ({ page }) => {
-  const state = {
-    ...BASE_STATE,
-    iniciales: { ...BASE_STATE.iniciales, 'Mercado Pago': 99000 },
-    gastos: [
-      { id: 'r1', creado: 1, monto: 1000, fecha: '2026-09-01', categoria: 'Rendimientos',
-        descripcion: 'Rendimientos', medio: 'Mercado Pago', tipo: 'ingreso', soloHistorial: false },
-    ],
-  };
-  await page.setViewportSize({ width: 450, height: 900 });
-  await seedAndLoad(page, state);
-  await enterPIN(page);
-  await goEvolucion(page);
-
-  const overflow = await page.evaluate(() => {
-    const card = document.getElementById('det-ev-cRend');
-    if (!card) return false;
-    return card.scrollWidth > card.clientWidth + 2;
-  });
-  expect(overflow).toBe(false);
+  const result = await checkResponsive(page, 450, 900);
+  expect(result.cardOverflow).toBe(false);
+  expect(result.pageOverflow).toBe(false);
+  expect(result.thCount).toBe(6);
+  expect(result.colsVisible).toBe(true);
 });
 
 // ── (p) Estado vacío amable cuando no hay rendimientos ─────────
@@ -382,4 +368,43 @@ test('(p) estado vacío amable cuando no hay rendimientos', async ({ page }) => 
 
   const text = await page.locator('#rendTablaWrap').textContent();
   expect(text).toMatch(/aún no hay rendimientos importados/i);
+});
+
+// ── (q) % período y % anual simple — mes completo (30 días) ───
+test('(q) pctPeriodo=1.00% y pctAnualSimple≈12.17% para rendimiento 1000 saldo 100000 en 30 días', async ({ page }) => {
+  await seedAndLoad(page);
+  await enterPIN(page);
+
+  const result = await page.evaluate(() => window._calcPctRend(1000, 100000, 30));
+  expect(result.pctPeriodo).toBeCloseTo(1.0, 2);
+  expect(result.pctAnualSimple).toBeCloseTo(12.1667, 2);
+});
+
+// ── (r) % período y % anual simple — mes en curso 15 días ─────
+test('(r) pctPeriodo=0.50% y pctAnualSimple≈12.17% para rendimiento 500 saldo 100000 en 15 días', async ({ page }) => {
+  await seedAndLoad(page);
+  await enterPIN(page);
+
+  const result = await page.evaluate(() => window._calcPctRend(500, 100000, 15));
+  expect(result.pctPeriodo).toBeCloseTo(0.5, 2);
+  expect(result.pctAnualSimple).toBeCloseTo(12.1667, 2);
+});
+
+// ── (s) Saldo 0 → NaN → tabla muestra "—" ─────────────────────
+test('(s) _calcPctRend con saldo 0 devuelve NaN y la tabla muestra "—"', async ({ page }) => {
+  await seedAndLoad(page);
+  await enterPIN(page);
+
+  const result = await page.evaluate(() => window._calcPctRend(500, 0, 30));
+  expect(isNaN(result.pctPeriodo)).toBe(true);
+  expect(isNaN(result.pctAnualSimple)).toBe(true);
+
+  // Verify the formatting helper returns '—' for NaN
+  const fmt = await page.evaluate(() => {
+    const fmtPct = v => (isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(2) + '%';
+    const r = window._calcPctRend(500, 0, 30);
+    return { pctPeriodo: fmtPct(r.pctPeriodo), pctAnualSimple: fmtPct(r.pctAnualSimple) };
+  });
+  expect(fmt.pctPeriodo).toBe('—');
+  expect(fmt.pctAnualSimple).toBe('—');
 });

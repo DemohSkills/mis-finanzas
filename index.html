@@ -210,11 +210,16 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 /* Hint text al pie de Evolución */
 .ev-nota{font-size:.72rem;color:var(--muted);opacity:.7;margin:2px 0 10px;text-align:center;line-height:1.5;}
 /* Rendimientos */
-.rend-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
-.rend-tabla{width:100%;border-collapse:collapse;font-size:.75rem;}
-.rend-tabla th,.rend-tabla td{padding:3px 6px;border:1px solid var(--border);text-align:right;white-space:nowrap;min-width:0;}
+.rend-wrap{margin-bottom:14px;}
+.rend-tabla{width:100%;border-collapse:collapse;font-size:.72rem;table-layout:fixed;}
+.rend-tabla col.c-cuenta{width:24%;}
+.rend-tabla col.c-rmes,.rend-tabla col.c-acum{width:13%;}
+.rend-tabla col.c-sp{width:15%;}
+.rend-tabla col.c-pmes{width:13%;}
+.rend-tabla col.c-panual{width:22%;}
+.rend-tabla th,.rend-tabla td{padding:2px 3px;border:1px solid var(--border);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rend-tabla th:first-child,.rend-tabla td:first-child{text-align:left;}
-.rend-tabla thead th{font-size:.69rem;color:var(--muted);font-weight:600;background:var(--card);}
+.rend-tabla thead th{font-size:.66rem;color:var(--muted);font-weight:600;background:var(--card);white-space:normal;line-height:1.25;vertical-align:bottom;}
 .rend-tabla tfoot td{font-weight:700;border-top:2px solid var(--border);}
 .rend-vacio{color:var(--muted);text-align:center;padding:16px 0;font-size:.82rem;}
 /* ── PIN overlay ───────────────────────────────────────────── */
@@ -4037,25 +4042,32 @@ function rChartRend() {
   }
   if (chartWrap) chartWrap.hidden = false;
   const medios = [...new Set(rends.map(g => g.medio))].sort();
-  const fmtPct = v => (isNaN(v) || !isFinite(v) || v === 0) ? '—' : v.toFixed(2) + '%';
+  const diasPeriodo = parseInt(hoyStr.split('-')[2]);
+  const fmtPct = v => (isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(2) + '%';
+  const fmtAmt = (n, full) => `<span class="amt" title="${full}">${n < 0 ? '−' : ''}$${fmtM(Math.abs(n))}</span>`;
   const rows = medios.map(medio => {
     const rendMes = rends.filter(g => g.medio === medio && g.fecha.slice(0, 7) === mesActual).reduce((s, g) => s + g.monto, 0);
     const rendAcum = rends.filter(g => g.medio === medio).reduce((s, g) => s + g.monto, 0);
     const saldoProm = _saldoPromMes(medio, mesActual);
-    const pctMes = saldoProm > 0 ? (rendMes / saldoProm) * 100 : NaN;
-    const pctAnual = isNaN(pctMes) ? NaN : pctMes * 12;
-    return { medio, rendMes, rendAcum, saldoProm, pctMes, pctAnual };
+    const pctPeriodo = saldoProm > 0 ? (rendMes / saldoProm) * 100 : NaN;
+    const pctAnualSimple = (saldoProm > 0 && diasPeriodo > 0) ? (rendMes / saldoProm) * (365 / diasPeriodo) * 100 : NaN;
+    return { medio, rendMes, rendAcum, saldoProm, pctPeriodo, pctAnualSimple };
   });
   const totRendMes = rows.reduce((s, r) => s + r.rendMes, 0);
   const totRendAcum = rows.reduce((s, r) => s + r.rendAcum, 0);
-  cont.innerHTML = `<div class="rend-wrap"><table class="rend-tabla"><thead><tr>
-    <th>Cuenta</th><th>Rend. mes</th><th>Rend. acumulado</th><th>Saldo prom. mes</th><th>% mes</th><th>% anualizado</th>
+  const thPeriodo = `title="mes en curso: ${diasPeriodo} días"`;
+  const thAnual = 'title="% anual (interés simple) = (rend / saldo prom.) × (365 / días del período) × 100"';
+  cont.innerHTML = `<div class="rend-wrap"><table class="rend-tabla">
+  <colgroup><col class="c-cuenta"><col class="c-rmes"><col class="c-acum"><col class="c-sp"><col class="c-pmes"><col class="c-panual"></colgroup>
+  <thead><tr>
+    <th>Cuenta</th><th>Rend.<br>mes</th><th>Acum.</th><th>Saldo<br>prom.</th><th ${thPeriodo}>% período</th><th ${thAnual}>% anual<br>(simple)</th>
   </tr></thead><tbody>${rows.map(r => `<tr>
-    <td>${esc(r.medio)}</td><td>${fmtV(r.rendMes)}</td><td>${fmtV(r.rendAcum)}</td>
-    <td>${r.saldoProm > 0 ? fmtV(r.saldoProm) : '—'}</td>
-    <td>${fmtPct(r.pctMes)}</td><td>${fmtPct(r.pctAnual)}</td>
+    <td title="${esc(r.medio)}">${esc(r.medio)}</td>
+    <td>${fmtAmt(r.rendMes, fmt(r.rendMes))}</td><td>${fmtAmt(r.rendAcum, fmt(r.rendAcum))}</td>
+    <td>${r.saldoProm > 0 ? fmtAmt(r.saldoProm, fmt(r.saldoProm)) : '—'}</td>
+    <td>${fmtPct(r.pctPeriodo)}</td><td>${fmtPct(r.pctAnualSimple)}</td>
   </tr>`).join('')}</tbody><tfoot><tr>
-    <td>Total</td><td>${fmtV(totRendMes)}</td><td>${fmtV(totRendAcum)}</td><td>—</td><td>—</td><td>—</td>
+    <td>Total</td><td>${fmtAmt(totRendMes, fmt(totRendMes))}</td><td>${fmtAmt(totRendAcum, fmt(totRendAcum))}</td><td>—</td><td>—</td><td>—</td>
   </tr></tfoot></table></div>`;
   const mesConRend = [...new Set(rends.map(g => g.fecha.slice(0, 7)))].sort().slice(-12);
   if (!mesConRend.length) return;
@@ -5553,6 +5565,10 @@ window._deshacerUltimaImpVisa = _deshacerUltimaImpVisa;
 window._deduplicarVisaImp = _deduplicarVisaImp;
 window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = medio; _impSaldoInfo = null; _impFechaFinal = cands.reduce((mx,c)=>c.fecha>mx?c.fecha:mx,''); };
 window._saldoPromMes = _saldoPromMes;
+window._calcPctRend = (rendMes, saldoProm, diasPeriodo) => {
+  if (saldoProm <= 0 || diasPeriodo <= 0) return { pctPeriodo: NaN, pctAnualSimple: NaN };
+  return { pctPeriodo: (rendMes / saldoProm) * 100, pctAnualSimple: (rendMes / saldoProm) * (365 / diasPeriodo) * 100 };
+};
 window.rChartRend = rChartRend;
 window.getCatsIncome = getCatsIncome;
 
