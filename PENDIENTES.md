@@ -5,7 +5,7 @@
 > El repo es PÚBLICO: nada de montos, nombres de personas, claves ni datos bancarios en este archivo.
 
 ## Estado actual (2026-10-23)
-- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `4467b13`.
+- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `c8661f1`.
 - Tests: 695 (Playwright). Todo en verde al publicar.
 
 ## Hecho (publicado)
@@ -13,19 +13,20 @@
 - Pestaña Gastos reordenada: Comparativa → Ingresos vs compromisos del mes → Gastos por mes (con ranking de categorías). (`2de8a5b`)
 - Evolución reorganizada: Activos vs Deudas rediseñado (neto, barras, cobertura, dona de deuda), Gastos financieros fijos leídos de compromisos, Rendimientos y Fijos reubicados, separador de color y copias plegables de los gráficos de gastos. (`3895706`, `a4c9d83`)
 - Icono nuevo (pulso + "Di-Mi-Trip"), PNG any + maskable, nombre corto "Di-Mi-Trip", caché del service worker `finanzas-v2`. (`4467b13`)
+- Limpieza de documentación: borrados `icon-192.svg` e `icon-512.svg` (sin uso) y actualizado `CLAUDE.md` (íconos PNG, tamaño de `index.html`, flujo sin push a main, mapa de secciones).
 
 ## Pendiente (por orden de prioridad sugerido)
-1. **Limpieza de documentación**: borrar `icon-192.svg` e `icon-512.svg` (ya nada los usa) y actualizar `CLAUDE.md` (sección Estructura: íconos PNG; tamaño real de `index.html` ~330 KB; la regla "git push origin main al terminar" contradice el flujo actual de publicación — ver "Flujo de publicación").
-2. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
-3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
-4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
-5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
-6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera.
-7. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
-8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
-9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
-10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
-11. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
+1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
+2. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
+3. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
+4. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
+5. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera.
+6. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
+7. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
+8. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
+9. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
+10. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
+11. **Tabla de claves de localStorage en CLAUDE.md incompleta** (prioridad baja): el código usa ~22 claves y la tabla documenta 11 (faltan tema, pin, ocultar, mi-nombre-banco, backup-meta, backup-snooze, chart-vals, chart-vis, comp-sort, det, var-per).
 12. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
 
 ## Flujo de publicación

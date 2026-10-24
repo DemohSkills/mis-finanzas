@@ -7,7 +7,9 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - `index.html` — toda la lógica (HTML + CSS + JS, sin dependencias externas salvo Chart.js lazy-loaded)
 - `sw.js` — service worker para cache offline
 - `manifest.json` — metadatos de PWA
-- `icon-192.svg`, `icon-512.svg` — íconos
+- `icon-any-192.png`, `icon-any-512.png` (purpose any) e `icon-maskable-192.png`, `icon-maskable-512.png` (purpose maskable)
+- `PENDIENTES.md` — estado, pendientes y reglas (leer al empezar)
+- `tests/` — tests Playwright
 
 ## Claves de localStorage
 | Clave | Contenido |
@@ -29,13 +31,13 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Nunca poner datos reales (saldos, nombres, claves) en el código
 - No tocar la API key ni el PIN salvo que se pida explícitamente
 - No romper datos existentes en localStorage — siempre migrar con valores por defecto
-- Al terminar un cambio: `git add -A && git commit -m "..."` y `git push origin main`
+- Trabajar y commitear SOLO en la rama `trabajo-nocturno`. Agregar archivos por nombre (nunca `git add -A`). NUNCA hacer push ni merge a `main`: publicar lo hace el usuario después de la revisión (ver "Flujo de publicación" en `PENDIENTES.md`).
 - Al cerrar cada tarea: añadir una línea fechada en `HISTORIAL.md` bajo "Cronología" con qué se cambió y por qué. Sin datos personales (el repo es público). Incluir `HISTORIAL.md` en el mismo commit.
 
 ## Ahorro de contexto (leer antes de tocar código)
-- `index.html` pesa ~84 KB (~1550 líneas). NO lo leas completo: cada lectura completa consume decenas de miles de tokens.
-- Para ubicar algo: `grep -n "nombreFuncion" index.html` y leé solo ese tramo con `Read` (offset/limit). Mapa aproximado (las líneas se corren al editar): CSS 10–172, HTML 174–491, JS 492–fin. Secciones del JS: constantes, utilidades, categorías, reglas, estado/storage, wizard, render, config, CSV, backup, PDF, snapshots, voz, evolución, wireEvents. Para regenerar el mapa: `grep -n "^// [A-Z]" index.html`.
+- `index.html` pesa ~340 KB (~6100 líneas). NO lo leas completo: cada lectura completa consume decenas de miles de tokens.
+- Para ubicar algo: `grep -n "nombreFuncion" index.html` y leé solo ese tramo con `Read` (offset/limit). No hay mapa fijo (las líneas cambian). Para ubicar secciones: `grep -n "^// [A-Z]" index.html`; el CSS termina en el primer `</style>` y el JS principal empieza en el segundo `<script>`.
 - Hacé ediciones puntuales (`Edit`), no reescribas el archivo entero.
-- Una tarea por conversación. Para probar lógica, extraé la función y corrala con `node`; evitá el navegador con capturas salvo que se pida.
+- Una tarea por conversación. Para probar lógica, extraé la función y corrala con `node`; evitá el navegador con capturas salvo que se pida. Los tests Playwright (`npx playwright test`) sí se corren antes de cada commit.
 - No leas `HISTORIAL.md` completo: para registrar un cambio solo agregá la entrada nueva al final del archivo, sin releer el resto.
 - Al empezar una tarea, leé `PENDIENTES.md` (estado, pendientes y reglas); al cerrarla, actualizalo con un Edit puntual.
