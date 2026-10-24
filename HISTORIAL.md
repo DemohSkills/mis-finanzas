@@ -321,3 +321,4 @@ PWA de uso personal en un solo archivo (`index.html` + `sw.js` + `manifest.json`
 - 2026-10-23 — Se agrega PENDIENTES.md (estado, pendientes y reglas) al repo y CLAUDE.md indica leerlo al empezar una tarea y actualizarlo al cerrarla.
 - 2026-10-24 — Limpieza de documentación: se borran icon-192.svg e icon-512.svg (sin uso desde el cambio a PNG) y se actualizan CLAUDE.md (estructura, flujo sin push a main, tamaño y mapa de index.html, tests) y PENDIENTES.md.
 - 2026-10-24 — Se agrega a PENDIENTES.md la idea de borradores de gastos para conciliar con los resúmenes (solo documentación, sin cambios de código).
+- 2026-10-24 — Resumen Visa: los USD tienen 3 estados (falta comprar / comprados / pagados). Nuevo dato c.usdCompra {usd, cotizacion, pesos, fecha} y modal "Ya compré los USD" con costo en pesos; importar un resumen nuevo lo borra y el deshacer lo restaura. Botones de compromisos con wrap para no desbordar a 360 px. No toca totales ni gastos.

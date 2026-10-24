@@ -142,6 +142,7 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .chip.chip-usd{background:color-mix(in srgb,var(--accent) 8%,transparent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);color:var(--accent);font-weight:500;}
 .chip.chip-usd.alerta{background:color-mix(in srgb,var(--warn) 8%,transparent);border-color:color-mix(in srgb,var(--warn) 45%,transparent);color:var(--warn);}
 .chip.chip-usd.vencido{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger);}
+.usd-nota{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;}
 .chip.chip-tarjeta{border-color:color-mix(in srgb,var(--muted) 45%,transparent);color:var(--muted);font-style:italic;}
 .comp-pagos{width:100%;font-size:.76rem;color:var(--muted);margin-top:3px;}
 .comp-pagos summary{cursor:pointer;user-select:none;list-style:none;}
@@ -347,7 +348,7 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
 .comp-est{font-size:.68rem;background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn);border-radius:4px;padding:1px 5px;margin-left:4px;}
 .comp-det{flex:1;min-width:100px;font-size:.82rem;display:flex;flex-direction:column;gap:1px;}
 .comp-meta{font-size:.72rem;color:var(--muted);}
-.comp-btns{display:flex;gap:5px;flex-shrink:0;}
+.comp-btns{display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;max-width:100%;}
 button.mini.danger{color:var(--danger);}
 .comp-row--fin{opacity:.45;}
 /* ── Secciones plegables avanzadas ─────────────────────────── */
@@ -676,6 +677,35 @@ body.ocultar .tk-val{display:none!important;}
       <button type="button" class="primary" id="btnConfirmarPago">Confirmar pago</button>
       <button type="button" onclick="cerrarPagoModal()">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- ── MODAL COMPRA DE USD (resumen Visa) ── -->
+<div class="overlay" id="compraUsdModal" hidden>
+  <div class="wiz-box" style="max-width:360px;">
+    <h2 style="margin:0 0 14px;font-size:1rem;">Ya compré los USD</h2>
+    <form id="compraUsdForm" autocomplete="off">
+      <div class="wiz-field">
+        <label>USD comprados</label>
+        <input type="text" class="input-monto" inputmode="decimal" id="compraUsdMonto" placeholder="0">
+      </div>
+      <div class="wiz-field">
+        <label>Cotización MEP a la que compraste (ARS por US$)</label>
+        <input type="text" class="input-monto" inputmode="decimal" id="compraUsdCot" placeholder="Opcional">
+      </div>
+      <div class="wiz-field">
+        <label>Costo en pesos</label>
+        <input type="text" id="compraUsdPesos" readonly placeholder="—">
+      </div>
+      <div class="wiz-field">
+        <label>Fecha de compra</label>
+        <input type="date" id="compraUsdFecha">
+      </div>
+      <div class="wiz-actions" style="margin-top:16px;">
+        <button type="submit" class="primary">Guardar compra</button>
+        <button type="button" onclick="cerrarCompraUsd()">Cancelar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1666,9 +1696,20 @@ function _compRowHtml(c){
   const abon=esResumen?abonResumen:abonCuota;
   const venc=esResumen?false:vencCuota;
   // USD chip for resumen
-  let chipUsd='', btnUsd='';
+  let chipUsd='', btnUsd='', notaUsd='';
   if(esResumen&&!fin&&(c.usd||0)>0){
-    if(!c.usdPagado){
+    const uc=c.usdCompra;
+    const costoTxt=(uc&&uc.pesos!=null)?` · costo ${fmtV(uc.pesos)}`:'';
+    if(c.usdPagado){
+      chipUsd=`<span class="chip abonada">✔ USD pagados${costoTxt}</span>`;
+      btnUsd=`<button type="button" class="mini" onclick="deshacerUsd('${esc(c.id)}')">↩ USD pagados</button>`;
+    } else if(uc){
+      const cotTxt=(uc.cotizacion!=null&&uc.pesos!=null)?` · cot. $ <span class="amt">${fmtInput(uc.cotizacion)}</span> = ${fmtV(uc.pesos)}`:'';
+      chipUsd=`<span class="chip abonada">✔ <span class="amt">${(+uc.usd).toLocaleString('es-AR')}</span> USD comprados${cotTxt}</span>`;
+      notaUsd=`<span class="usd-nota">Alojados en cuenta en dólares · recordá pagarlos junto con los pesos</span>`;
+      btnUsd=`<button type="button" class="mini" onclick="pagarUsd('${esc(c.id)}')">Ya pagué los USD a la Visa</button>
+          <button type="button" class="mini" onclick="deshacerCompraUsd('${esc(c.id)}')">↩ Deshacer compra</button>`;
+    } else {
       let usdCls='chip-usd', vencLabel='';
       if(c.proxVenc){
         const diffD=Math.round((new Date(c.proxVenc)-new Date(hoyStr))/864e5);
@@ -1677,9 +1718,8 @@ function _compRowHtml(c){
         else{vencLabel=` · antes del ${fechaCorta(c.proxVenc)}`;}
       }
       chipUsd=`<span class="chip ${usdCls}">💵 Comprar <span class="amt">${c.usd.toLocaleString('es-AR')}</span> USD (dólar MEP, 11:15–15:15 hs)${vencLabel}</span>`;
-      btnUsd=`<button type="button" class="mini" onclick="pagarUsd('${esc(c.id)}')">Ya pagué los USD</button>`;
-    } else {
-      btnUsd=`<button type="button" class="mini" onclick="deshacerUsd('${esc(c.id)}')">↩ USD pagados</button>`;
+      btnUsd=`<button type="button" class="mini" onclick="abrirCompraUsd('${esc(c.id)}')">Ya compré los USD</button>
+          <button type="button" class="mini" onclick="pagarUsd('${esc(c.id)}')">Ya pagué los USD</button>`;
     }
   }
   return `<div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
@@ -1689,6 +1729,7 @@ function _compRowHtml(c){
         ${fin?'<span class="comp-est">Finalizado ✓</span>':c.estimado?'<span class="comp-est">estimado</span>':''}
         ${esResumen?chipResumen:(venc?`<span class="chip vencido">Vencido hace ${diasVenc} día${diasVenc===1?'':'s'}</span>`:'')}
         ${chipUsd}
+        ${notaUsd}
       </div>
       <div class="comp-det">
         <span class="neg">${fmtV(c.monto)}</span>
@@ -1938,6 +1979,50 @@ function deshacerUsd(id){
   c.usdPagado=false;
   guardar(); renderCompromisos();
 }
+function deshacerCompraUsd(id){
+  const c=(estado.compromisos||[]).find(x=>x.id===id);
+  if(!c) return;
+  delete c.usdCompra;
+  guardar(); renderCompromisos();
+}
+
+// ── COMPRA DE USD (resumen Visa) ─────────────────────────
+let _compraUsdId=null;
+function _compraUsdCalc(){
+  const u=parseMonto($('compraUsdMonto').value), cot=parseMonto($('compraUsdCot').value);
+  $('compraUsdPesos').value=(!isNaN(u)&&u>0&&!isNaN(cot)&&cot>0)?fmtInput(Math.round(u*cot*100)/100):'';
+}
+function abrirCompraUsd(id){
+  const c=(estado.compromisos||[]).find(x=>x.id===id);
+  if(!c) return;
+  _compraUsdId=id;
+  $('compraUsdMonto').value=fmtInput(c.usd||0);
+  $('compraUsdCot').value='';
+  $('compraUsdFecha').value=hoy();
+  _compraUsdCalc();
+  $('compraUsdModal').removeAttribute('hidden');
+  $('compraUsdCot').focus();
+}
+function cerrarCompraUsd(){$('compraUsdModal').setAttribute('hidden','');_compraUsdId=null;}
+$('compraUsdMonto').addEventListener('input',_compraUsdCalc);
+$('compraUsdCot').addEventListener('input',_compraUsdCalc);
+$('compraUsdForm').onsubmit=function(e){
+  e.preventDefault();
+  const c=(estado.compromisos||[]).find(x=>x.id===_compraUsdId);
+  if(!c) return;
+  const u=parseMonto($('compraUsdMonto').value);
+  if(isNaN(u)||u<=0){alert('USD inválidos.');return;}
+  const cotRaw=$('compraUsdCot').value.trim();
+  let cot=null,pesos=null;
+  if(cotRaw){
+    cot=parseMonto(cotRaw);
+    if(isNaN(cot)||cot<=0){alert('Cotización inválida.');return;}
+    pesos=Math.round(u*cot*100)/100;
+  }
+  const fecha=$('compraUsdFecha').value||hoy();
+  c.usdCompra={usd:u,cotizacion:cot,pesos,fecha};
+  cerrarCompraUsd();guardar();renderCompromisos();
+};
 
 function agregarCompromiso(){
   abrirCompModal(null);
@@ -5664,7 +5749,7 @@ function _confirmarImpVisa() {
       compromisoVisa.monto = data.totalPesos;
       compromisoVisa.cierre = cierre;
       compromisoVisa.proxVenc = data.vencimiento;
-      if (data.totalUSD > 0) { compromisoVisa.usd = data.totalUSD; compromisoVisa.usdPagado = false; }
+      if (data.totalUSD > 0) { compromisoVisa.usd = data.totalUSD; compromisoVisa.usdPagado = false; delete compromisoVisa.usdCompra; }
     }
   }
 
@@ -5672,6 +5757,7 @@ function _confirmarImpVisa() {
   if (compromisoVisa && data.totalUSD > 0 && (!compromisoVisa.cierre || cierre >= compromisoVisa.cierre)) {
     compromisoVisa.usd = data.totalUSD;
     compromisoVisa.usdPagado = false;
+    delete compromisoVisa.usdCompra;
   }
 
   estado.importaciones ||= {};
@@ -5713,6 +5799,8 @@ function _deshacerUltimaImpVisa() {
     compromisoVisa.proxVenc  = _prevCompromiso.proxVenc;
     compromisoVisa.usd       = _prevCompromiso.usd;
     compromisoVisa.usdPagado = _prevCompromiso.usdPagado;
+    if (_prevCompromiso.usdCompra) compromisoVisa.usdCompra = _prevCompromiso.usdCompra;
+    else delete compromisoVisa.usdCompra;
   }
   if (_prevImportacion) {
     estado.importaciones['Visa Santander'] = _prevImportacion;
@@ -5904,6 +5992,9 @@ window.fijosMontoPendiente = fijosMontoPendiente;
 window.fijosConTarjetaProyeccion = fijosConTarjetaProyeccion;
 window.pagarUsd = pagarUsd;
 window.deshacerUsd = deshacerUsd;
+window.deshacerCompraUsd = deshacerCompraUsd;
+window.abrirCompraUsd = abrirCompraUsd;
+window.cerrarCompraUsd = cerrarCompraUsd;
 window.abrirFijoModal = abrirFijoModal;
 window.cerrarFijoModal = cerrarFijoModal;
 window.borrarFijo = borrarFijo;

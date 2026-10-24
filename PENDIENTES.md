@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-10-23)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `c8661f1`.
-- Tests: 695 (Playwright). Todo en verde al publicar.
+- Tests: 720 (Playwright). Todo en verde al publicar.
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -14,6 +14,7 @@
 - Evolución reorganizada: Activos vs Deudas rediseñado (neto, barras, cobertura, dona de deuda), Gastos financieros fijos leídos de compromisos, Rendimientos y Fijos reubicados, separador de color y copias plegables de los gráficos de gastos. (`3895706`, `a4c9d83`)
 - Icono nuevo (pulso + "Di-Mi-Trip"), PNG any + maskable, nombre corto "Di-Mi-Trip", caché del service worker `finanzas-v2`. (`4467b13`)
 - Limpieza de documentación: borrados `icon-192.svg` e `icon-512.svg` (sin uso) y actualizado `CLAUDE.md` (íconos PNG, tamaño de `index.html`, flujo sin push a main, mapa de secciones).
+- Estados de los USD del resumen de la Visa: falta comprar / comprados (con cotización MEP y costo en pesos opcionales, modal "Ya compré los USD") / pagados. Sin avisos, sin tocar totales ni gastos.
 
 ## Pendiente (por orden de prioridad sugerido)
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
@@ -28,7 +29,9 @@
 10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
 11. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
 12. **Tabla de claves de localStorage en CLAUDE.md incompleta** (prioridad baja): el código usa ~22 claves y la tabla documenta 11 (faltan tema, pin, ocultar, mi-nombre-banco, backup-meta, backup-snooze, chart-vals, chart-vis, comp-sort, det, var-per).
-13. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
+13. **Aviso en Inicio por compra de USD** (lun–vie, ventana horaria de compra MEP, repetición cada 30 min con la app abierta, días hábiles).
+14. **Dólar de referencia en Configuración** (para estimar el costo de los USD cuando no se cargó cotización).
+15. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
 
 ## Flujo de publicación
 - Code trabaja y commitea en `trabajo-nocturno`, sin push.
