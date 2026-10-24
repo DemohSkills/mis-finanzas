@@ -17,17 +17,18 @@
 
 ## Pendiente (por orden de prioridad sugerido)
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
-2. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
-3. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
-4. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
-5. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera.
-6. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
-7. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
-8. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
-9. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
-10. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
-11. **Tabla de claves de localStorage en CLAUDE.md incompleta** (prioridad baja): el código usa ~22 claves y la tabla documenta 11 (faltan tema, pin, ocultar, mi-nombre-banco, backup-meta, backup-snooze, chart-vals, chart-vis, comp-sort, det, var-per).
-12. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
+2. **Borradores de gastos para conciliar con resúmenes** (prioridad media): anotar al momento un gasto (fecha, importe, cuenta MP/Santander/Visa, categoría, nota opcional) SIN tocar saldos. Al importar el resumen, cada movimiento se cruza con los borradores (misma cuenta, importe exacto, fecha con ventana de unos días) y toma su categoría; el borrador pasa a usado. Evita duplicar el gasto. Falta: lista de borradores sin cruzar para revisar/borrar, un borrador se consume una sola vez, y (segunda etapa) dividir una compra en varias categorías. Antes: revisar el matching actual del importador para encajarlo ahí.
+3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
+4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
+5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
+6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera.
+7. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
+8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
+9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
+10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
+11. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
+12. **Tabla de claves de localStorage en CLAUDE.md incompleta** (prioridad baja): el código usa ~22 claves y la tabla documenta 11 (faltan tema, pin, ocultar, mi-nombre-banco, backup-meta, backup-snooze, chart-vals, chart-vis, comp-sort, det, var-per).
+13. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
 
 ## Flujo de publicación
 - Code trabaja y commitea en `trabajo-nocturno`, sin push.
