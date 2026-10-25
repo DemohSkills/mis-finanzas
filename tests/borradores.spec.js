@@ -317,7 +317,7 @@ test.describe('buscador con lupa', () => {
     await goToMovim(page);
     await expect(page.locator('section:has(#busqMov)')).toContainText('BUSCAR EN MOVIMIENTOS');
     await expect(page.locator('.busq-lupa')).toBeVisible();
-    await expect(page.locator('#busqMov')).toHaveAttribute('placeholder', 'Buscar… ej: pizza 15/10 >100000');
+    await expect(page.locator('#busqMov')).toHaveAttribute('placeholder', 'Buscar… ej: pizza 15/10');
     await page.fill('#busqMov', 'pizza');
     await page.waitForTimeout(350);
     await expect(page.locator('#historial')).toContainText('pizza');
@@ -336,4 +336,125 @@ test.describe('buscador con lupa', () => {
       expect(caja.width).toBeGreaterThan(150);
     });
   }
+});
+
+test.describe('borradores: deshacer importación los devuelve', () => {
+  const B1 = () => bor('b1', { monto: 1500, nota: 'pizza', categoria: 'Comida', fecha: '2026-10-18', creado: 111 });
+  const B2 = () => bor('b2', { monto: 999, fecha: '2026-10-05' });
+  const siempreSi = (page) => page.evaluate(() => { window.alert = () => {}; window.confirm = () => true; });
+
+  async function importarVisa(page) {
+    const aoa = buildVisaAoa({
+      cierre: '01/10/2026', vencimiento: '09/10/2026', totalPesos: 14000, totalUSD: 0,
+      cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: 14000, totalUSD: 0,
+        movs: [{ fecha: '30/09/2026', desc: 'Zzqx comercio ficticio', comp: '001K', pesos: 14000 }] }],
+    });
+    await page.evaluate((aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+    }, aoa);
+    await page.click('#btnConfirmarVisaImp');
+  }
+
+  for (const medio of ['Banco Santander', 'Mercado Pago']) {
+    test(`${medio}: deshacer devuelve el borrador idéntico y no duplica si se repite`, async ({ page }) => {
+      await seedAndUnlock(page, buildEstado({ borradores: [{ ...B1(), medio }, B2()] }));
+      await siempreSi(page);
+      const original = (await estadoDe(page)).borradores.find(b => b.id === 'b1');
+      await prepararImp(page, medio, [{ fecha: '2026-10-18', monto: 1500 }]);
+      await page.click('#btnConfirmarImp');
+      let est = await estadoDe(page);
+      expect(est.borradores.map(b => b.id)).toEqual(['b2']);
+      expect(est.importaciones[medio].borradoresUsados).toEqual([original]);
+      await page.evaluate((m) => window._deshacerUltimaImp(m), medio);
+      est = await estadoDe(page);
+      expect(est.borradores.find(b => b.id === 'b1')).toEqual(original);
+      expect(est.borradores).toHaveLength(2);
+      expect(est.gastos.find(g => g.monto === 1500)).toBeUndefined();
+      await page.evaluate((m) => window._deshacerUltimaImp(m), medio);
+      expect((await estadoDe(page)).borradores).toHaveLength(2);
+    });
+  }
+
+  test('un borrador anotado después de importar no se pisa al deshacer', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado({ borradores: [B1()] }));
+    await siempreSi(page);
+    await prepararImp(page, 'Banco Santander', [{ fecha: '2026-10-18', monto: 1500 }]);
+    await page.click('#btnConfirmarImp');
+    await page.evaluate(() => {
+      window._getEstado().borradores.push({ id: 'b9', creado: 999, fecha: '2026-10-20', monto: 321, medio: 'Efectivo', categoria: 'Otros/Varios', nota: 'nuevo' });
+      window._guardar();
+    });
+    await page.evaluate(() => window._deshacerUltimaImp('Banco Santander'));
+    const est = await estadoDe(page);
+    expect(est.borradores.map(b => b.id).sort()).toEqual(['b1', 'b9']);
+    expect(est.borradores.find(b => b.id === 'b9')).toMatchObject({ monto: 321, nota: 'nuevo' });
+  });
+
+  test('si el id ya existe no se duplica ni se pisa', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado({ borradores: [B1()] }));
+    await siempreSi(page);
+    await prepararImp(page, 'Banco Santander', [{ fecha: '2026-10-18', monto: 1500 }]);
+    await page.click('#btnConfirmarImp');
+    await page.evaluate(() => {
+      window._getEstado().borradores.push({ id: 'b1', creado: 5, fecha: '2026-10-21', monto: 42, medio: 'Efectivo', categoria: 'Otros/Varios', nota: 'otro' });
+      window._guardar();
+    });
+    await page.evaluate(() => window._deshacerUltimaImp('Banco Santander'));
+    const bs = (await estadoDe(page)).borradores;
+    expect(bs).toHaveLength(1);
+    expect(bs[0].monto).toBe(42);
+  });
+
+  test('Visa: deshacer devuelve el borrador idéntico y no duplica si se repite', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado({ borradores: [
+      bor('b1', { medio: 'Visa Santander', fecha: '2026-09-29', monto: 14000, categoria: 'Salud', nota: 'consulta', creado: 222 }),
+      bor('b2', { medio: 'Visa Santander', fecha: '2026-09-29', monto: 555, categoria: 'Comida', nota: 'otro' }),
+    ] }));
+    await siempreSi(page);
+    const original = (await estadoDe(page)).borradores.find(b => b.id === 'b1');
+    await importarVisa(page);
+    let est = await estadoDe(page);
+    expect(est.borradores.map(b => b.id)).toEqual(['b2']);
+    expect(est.importaciones['Visa Santander'].borradoresUsados).toEqual([original]);
+    await page.evaluate(() => window._deshacerUltimaImpVisa());
+    est = await estadoDe(page);
+    expect(est.borradores.find(b => b.id === 'b1')).toEqual(original);
+    expect(est.borradores).toHaveLength(2);
+    await page.evaluate(() => window._deshacerUltimaImpVisa());
+    expect((await estadoDe(page)).borradores).toHaveLength(2);
+  });
+
+  test('el registro del lote sobrevive a backup y restauración', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado({ borradores: [B1()] }));
+    await siempreSi(page);
+    const original = (await estadoDe(page)).borradores[0];
+    await prepararImp(page, 'Banco Santander', [{ fecha: '2026-10-18', monto: 1500 }]);
+    await page.click('#btnConfirmarImp');
+    const json = await page.evaluate(() => window.buildBackupJson());
+    await page.evaluate(() => { const e = window._getEstado(); e.importaciones = {}; e.gastos = []; e.borradores = []; window._guardar(); });
+    page.on('dialog', d => d.accept());
+    await page.locator('#backupFile').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(json) });
+    await page.waitForTimeout(400);
+    await siempreSi(page);
+    await page.evaluate(() => window._deshacerUltimaImp('Banco Santander'));
+    expect((await estadoDe(page)).borradores).toEqual([original]);
+  });
+
+  test('el placeholder del buscador entra completo a 360px', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await seedAndUnlock(page, buildEstado());
+    await goToMovim(page);
+    const ok = await page.evaluate(() => {
+      const el = document.getElementById('busqMov');
+      const cs = getComputedStyle(el);
+      const c = document.createElement('canvas').getContext('2d');
+      c.font = cs.font;
+      const ancho = c.measureText(el.placeholder).width;
+      const util = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      return ancho <= util;
+    });
+    expect(ok).toBe(true);
+  });
 });

@@ -1070,7 +1070,7 @@ try{
     <section class="no-print" style="padding-bottom:0">
       <div class="meta" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:0 2px 4px">BUSCAR EN MOVIMIENTOS</div>
       <div style="display:flex;gap:6px;align-items:center">
-        <div class="busq-wrap"><span class="busq-lupa" aria-hidden="true">🔍</span><input type="search" id="busqMov" placeholder="Buscar… ej: pizza 15/10 >100000" autocomplete="off"></div>
+        <div class="busq-wrap"><span class="busq-lupa" aria-hidden="true">🔍</span><input type="search" id="busqMov" placeholder="Buscar… ej: pizza 15/10" autocomplete="off"></div>
         <button type="button" class="mini" id="busqLimpiar" title="Limpiar búsqueda">✕</button>
       </div>
       <div id="busqSummary" class="meta" style="padding:3px 2px;font-size:.8rem;min-height:1.1em"></div>
@@ -1768,6 +1768,24 @@ function _consumirBorradores(ids) {
   const set = new Set(ids), antes = estado.borradores.length;
   estado.borradores = estado.borradores.filter(b => !set.has(b.id));
   return antes - estado.borradores.length;
+}
+
+// Copia completa de los borradores por id (para guardarla en el lote y poder restaurarla al deshacer).
+function _copiarBorradores(ids) {
+  const set = new Set(ids);
+  return estado.borradores.filter(b => set.has(b.id)).map(b => ({ ...b }));
+}
+
+// Vuelve a agregar a estado.borradores los del lote que no estén ya por id. Devuelve cuántos.
+function _restaurarBorradores(lista) {
+  if (!Array.isArray(lista) || !lista.length) return 0;
+  const ya = new Set(estado.borradores.map(b => b.id));
+  let n = 0;
+  for (const b of lista) {
+    if (!b || ya.has(b.id)) continue;
+    estado.borradores.push({ ...b }); ya.add(b.id); n++;
+  }
+  return n;
 }
 
 // ── COMPROMISOS ─────────────────────────────────────────
@@ -5810,7 +5828,7 @@ function _confirmarImpBanco(conAjuste) {
   }
   // Save import metadata
   estado.importaciones ||= {};
-  estado.importaciones[_impMedio] = { hasta: fechaFinal, lote: loteId, fecha: hoy() };
+  estado.importaciones[_impMedio] = { hasta: fechaFinal, lote: loteId, fecha: hoy(), borradoresUsados: _copiarBorradores(borrUsados) };
   _consumirBorradores(borrUsados);
   guardar(); guardarSnap(); render(); renderBorradores();
   if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
@@ -5842,8 +5860,9 @@ function _deshacerUltimaImp(medio) {
       if(f.pagos[mes]?.lote===lote) delete f.pagos[mes];
     }
   }
+  _restaurarBorradores(imp.borradoresUsados);
   delete estado.importaciones[medio];
-  guardar(); guardarSnap(); render();
+  guardar(); guardarSnap(); render(); renderBorradores();
   if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
@@ -6113,6 +6132,7 @@ function _confirmarImpVisa() {
       }
     }
   }
+  const borrCopia = _copiarBorradores(borrUsados);
   _consumirBorradores(borrUsados);
   // Update compromiso resumen
   if (compromisoVisa) {
@@ -6134,7 +6154,7 @@ function _confirmarImpVisa() {
 
   estado.importaciones ||= {};
   estado.importaciones[medio] = {
-    hasta: cierre, lote: loteId, fecha: hoy(),
+    hasta: cierre, lote: loteId, fecha: hoy(), borradoresUsados: borrCopia,
     _prevCompromiso: prevCompromiso, _prevImportacion: prevImportacion,
   };
   guardar(); guardarSnap(); render(); renderBorradores();
@@ -6174,12 +6194,13 @@ function _deshacerUltimaImpVisa() {
     if (_prevCompromiso.usdCompra) compromisoVisa.usdCompra = _prevCompromiso.usdCompra;
     else delete compromisoVisa.usdCompra;
   }
+  _restaurarBorradores(imp.borradoresUsados);
   if (_prevImportacion) {
     estado.importaciones['Visa Santander'] = _prevImportacion;
   } else {
     delete estado.importaciones['Visa Santander'];
   }
-  guardar(); guardarSnap(); render();
+  guardar(); guardarSnap(); render(); renderBorradores();
   if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;

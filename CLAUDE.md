@@ -44,7 +44,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - `estado.borradores = [{id, creado, fecha, monto, medio, categoria, nota}]` vive dentro de `finanzas-v1` (sin clave nueva de localStorage); viaja en el backup (`estado.borradores`) y `cargar()` lo migra a `[]`.
 - Un borrador NO es un gasto: no entra en `estado.gastos`, saldos, totales, gráficos, historial ni búsqueda.
 - Cruce: `_cruzarBorradores(candidatos, medio)` se llama tras la deduplicación en los importadores (Santander/MP desde `_deduplicarImp`; Visa dentro de `_visaArmarCandidatos`). Un borrador cruza con un candidato gasto no duplicado (ni agrupable) si coincide el medio, el importe (dif < 0,01) y la fecha está a ±5 días; si hay varios, gana la fecha más cercana. Cada borrador se usa una sola vez y cada candidato toma como máximo uno; el candidato toma su categoría (pisa a las reglas) y queda `c.deBorrador = id`.
-- El preview NO consume: es idempotente y se recalcula. Los borradores se eliminan recién al confirmar la importación y solo los de movimientos efectivamente importados. Deshacer una importación no los restaura.
+- El preview NO consume: es idempotente y se recalcula. Los borradores se eliminan recién al confirmar la importación y solo los de movimientos efectivamente importados. Al confirmar, el registro del lote (`estado.importaciones[medio].borradoresUsados`) guarda una copia completa de los borradores consumidos; deshacer la importación (Santander/MP y Visa) los devuelve a `estado.borradores` sin duplicar por id.
 
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código
