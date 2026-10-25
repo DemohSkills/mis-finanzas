@@ -58,6 +58,16 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - El medio que devuelve el modelo se valida con `_medioValido` (exacto, luego coincidencia parcial, si no `MEDIOS[0]`) y se puede cambiar en el select de Cuenta. Monto ≤ 0 o inválido: no se muestra el panel ni se guarda.
 - Al guardar: `estado.borradores.push({id, creado, fecha, monto, medio, categoria, nota})`; no toca `estado.gastos` ni saldos. Con `cuotas>1` se guarda `b.cuotas` (la nota no lleva sufijo) y el panel avisa que cruza con la primera cuota del resumen (ver «Borradores con cuotas»).
 
+## Importador Mastercard MP (PDF)
+- Botón «📥 Importar Mastercard MP (PDF)» en Configuración. Lee el PDF con `_cargarPDFJS` + `_extraerLineasPDF` (los mismos del importador de Santander/MP) y `parseMastercardMP(lineas, hoyStr)` arma `{cierre, vencimiento, minimo, totalPesos, consol, movs, impuestos, omitidasUsd, difSuma, avisoPagos}`. Medio de los gastos: `Mastercard MP`.
+- Formato: el «DETALLE DE MOVIMIENTOS» trae «Composición del saldo del periodo anterior» (se ignora), «Consumos» (filas `d/mmm Descripción [N de M] Operación $ pesos US$ dólares` hasta «Subtotal», sin importar el subtítulo), «Impuestos e intereses» (gasto con categoría `Impuestos e Intereses`) y «Pagos anticipados»/«Ajustes y reembolsos» (se ignoran; si el Consolidado los trae ≠ 0, aviso en el preview). Los totales se leen del bloque «Consolidado» (los del encabezado a veces vienen sin coma).
+- Año: las filas no lo traen. Año del cierre = año actual, salvo que el mes de cierre esté a más de 2 meses en el futuro respecto de hoy (entonces el año anterior); una fecha de fila posterior al cierre resta un año; vencimiento < cierre suma un año.
+- La fecha de cada fila es la de la compra original, también en cuotas 2..N. Fecha del gasto: la de compra si es pago único o cuota 1; la fecha de cierre si cuota n>1 (como Visa). Consumos solo en USD se omiten (se cuentan en el preview).
+- La «Operación» CAMBIA todos los meses para la misma compra: NO vincula cuotas; solo forma parte del `ref` (`fecha|desc|n/m|importe|operación`) que detecta reimportar el mismo PDF. El gasto guarda `cuota {n,m}` y `plan {desc, fecha de compra, m}`.
+- Categoría: reglas existentes (`_categorizarVisa`); si cuota n>1 y sin regla, hereda la de un gasto ya importado del mismo plan (descripción normalizada + fecha original + m) con cuota anterior de importe parecido (≤ max(2,00; 1 %), gana el más cercano) y el preview marca «↺ categoría heredada»; si no, queda para revisar. Dos planes con igual descripción y fecha se distinguen por importe.
+- Verificación: consumos (pesos) + impuestos vs «Total a pagar» del Consolidado; diferencia > $1 → aviso amarillo (igual se puede importar), si no «✓ Suma verificada».
+- Cruce con borradores, deduplicación (`_deduplicarVisaImp`), «conciliado hasta» y deshacer: igual que Visa. Saldos: los gastos entran como gastos normales (`soloHistorial:false`) del medio, como en Visa; el saldo de la deuda se ajusta a mano con «Ajustar saldo». Compromiso `resumen` de `Mastercard MP`: se actualiza (monto, cierre, proxVenc, pagoMinimo) o se crea si no existe; deshacer lo restaura o lo quita.
+
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código
 - No tocar la API key ni el PIN salvo que se pida explícitamente

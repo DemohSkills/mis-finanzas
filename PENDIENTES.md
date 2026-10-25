@@ -29,6 +29,9 @@
      - (1) Verificar con el resumen real del 29/10 la tolerancia de importe (`max(2,00; 1 %)` de total÷N) y el formato de la columna de cuotas.
      - (2) Que las cuotas 2..N hereden la categoría de la cuota 1 (hoy no se cruzan: siguen como siempre).
    - 2c. **Dividir una compra en varias categorías.**
+3b. ~~**Importar Mastercard MP (PDF)**~~ ✅ Hecho (2026-10-25, ver CLAUDE.md «Importador Mastercard MP»). Pendientes:
+   - (1) Verificar con el resumen real del 27/10 (formato de líneas del PDF, fechas de cierre/vencimiento, suma contra el total).
+   - (2) Extender la herencia de categoría de cuotas 2..N al importador de Visa.
 3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
 5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
