@@ -4,9 +4,9 @@
 > con un `Edit` puntual (mover el ítem a "Hecho" o agregar uno nuevo), sin releer `HISTORIAL.md`.
 > El repo es PÚBLICO: nada de montos, nombres de personas, claves ni datos bancarios en este archivo.
 
-## Estado actual (2026-10-23)
-- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `c8661f1`.
-- Tests: 770 (Playwright). Todo en verde al publicar.
+## Estado actual (2026-10-25)
+- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `44b9f4d`.
+- Tests: 772 (Playwright). Todo en verde al publicar.
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -16,9 +16,9 @@
 - Limpieza de documentación: borrados `icon-192.svg` e `icon-512.svg` (sin uso) y actualizado `CLAUDE.md` (íconos PNG, tamaño de `index.html`, flujo sin push a main, mapa de secciones).
 - Estados de los USD del resumen de la Visa: falta comprar / comprados (con cotización MEP y costo en pesos opcionales, modal "Ya compré los USD") / pagados. Sin avisos, sin tocar totales ni gastos.
 
-## Hecho (en `trabajo-nocturno`, sin publicar)
-- Costo de los dólares MEP por el débito real del Santander: categoría nueva "En dólares" (gasto normal) y regla en el importador (débito con "titulos publicos" → "En dólares", sin revisar). Se sacó el botón "Ya pagué los USD" de "falta comprar": hay que pasar por "Ya compré los USD".
-- Avisos en Inicio por los USD MEP de la Visa: banner "falta comprar" (días de mercado, amarillo/rojo/vencido) con emergente a pantalla completa lun–vie 11 a 16 hs repetido cada 30 min, y banner "comprados, falta pagarlos" (sin emergente). Constantes `USD_*` junto a `BACKUP_SNOOZE_K`.
+- Costo de los dólares MEP por el débito real del Santander: categoría nueva "En dólares" (gasto normal) y regla en el importador (débito con "titulos publicos" → "En dólares", sin revisar). Se sacó el botón "Ya pagué los USD" de "falta comprar": hay que pasar por "Ya compré los USD". (`6e88516`)
+- Avisos en Inicio por los USD MEP de la Visa: banner "falta comprar" (días de mercado, amarillo/rojo/vencido) con emergente a pantalla completa lun–vie 11 a 16 hs repetido cada 30 min, y banner "comprados, falta pagarlos" (sin emergente). Constantes `USD_*` junto a `BACKUP_SNOOZE_K`. (`44b9f4d`)
+- Retoques de los avisos de USD (en `trabajo-nocturno`, sin publicar): "Hoy no hay mercado" silencia solo el emergente del día (campo `silenciadoEmergente`; el banner sigue) y el aviso de pagar vencido ya no repite la fecha. Tabla de claves de localStorage de `CLAUDE.md` completa.
 
 ## Pendiente (por orden de prioridad sugerido)
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
@@ -32,10 +32,9 @@
 9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
 10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
 11. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
-12. **Tabla de claves de localStorage en CLAUDE.md incompleta** (prioridad baja): el código usa ~22 claves y la tabla documenta 11 (faltan tema, pin, ocultar, mi-nombre-banco, backup-meta, backup-snooze, chart-vals, chart-vis, comp-sort, det, var-per).
-13. **Dólar de referencia en Configuración** (para estimar el costo de los USD cuando no se cargó cotización).
-14. **Verificar la regla "titulos publicos"** con la próxima compra real de dólares MEP (el texto del débito en pesos no estaba confirmado).
-15. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
+12. **Dólar de referencia en Configuración** (para estimar el costo de los USD cuando no se cargó cotización).
+13. **Verificar la regla "titulos publicos"** con la próxima compra real de dólares MEP (el texto del débito en pesos no estaba confirmado).
+14. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
 
 ## Flujo de publicación
 - Code trabaja y commitea en `trabajo-nocturno`, sin push.

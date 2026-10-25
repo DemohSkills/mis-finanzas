@@ -3523,7 +3523,7 @@ document.addEventListener('visibilitychange',()=>{
 const _DIAS_SEM=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 function _usdLeer(){
   const a=ls.get(USD_AVISO_K)||{};
-  return {silenciadoComprar:a.silenciadoComprar||null,silenciadoPagar:a.silenciadoPagar||null,proxEmergente:a.proxEmergente||null};
+  return {silenciadoComprar:a.silenciadoComprar||null,silenciadoPagar:a.silenciadoPagar||null,silenciadoEmergente:a.silenciadoEmergente||null,proxEmergente:a.proxEmergente||null};
 }
 function _usdGuardar(patch){ try{ ls.set(USD_AVISO_K,Object.assign(_usdLeer(),patch)); }catch{} }
 function _fechaLocal(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
@@ -3559,7 +3559,7 @@ function _usdRecordar(){
   _cerrarEmergenteUsd();
 }
 function _usdHoyNoHayMercado(){
-  _usdGuardar({silenciadoComprar:hoy()});
+  _usdGuardar({silenciadoEmergente:hoy()});
   _cerrarEmergenteUsd(); evaluarAvisosUsd();
 }
 function _cerrarEmergenteUsd(){ const e=document.getElementById('overlayUsdHora'); if(e) e.remove(); }
@@ -3617,7 +3617,7 @@ function evaluarAvisosUsd(){
     for(const c of pagar){
       const usd=`<span class="amt">${(+c.usd).toLocaleString('es-AR')}</span>`, dm=_ddmm(c.proxVenc);
       const n=_diasCorridosUsd(c.proxVenc,ahora);
-      const txt=n<0?`💳 Tenés US$ ${usd} comprados: pagalos a la Visa junto con los pesos antes del ${dm} · venció el ${dm}`
+      const txt=n<0?`💳 Tenés US$ ${usd} comprados: pagalos a la Visa junto con los pesos · venció el ${dm}`
         :`💳 Tenés US$ ${usd} comprados: pagalos a la Visa junto con los pesos antes del ${dm} · quedan ${n} día${n===1?'':'s'}`;
       html+=`<div class="backup-warn${(n<0||n<=USD_DIAS_ROJO)?' danger':''}" id="bannerUsdPagar_${esc(c.id)}"><span style="flex:1">${txt}</span>
         <button type="button" class="mini" onclick="pagarUsd('${esc(c.id)}')">Ya pagué los USD</button>
@@ -3632,8 +3632,8 @@ function evaluarAvisosUsd(){
     }
     // emergente
     const em=document.getElementById('overlayUsdHora');
-    if(em){ if(!comprar.length) em.remove(); return; }
-    if(!comprar.length||finde) return;
+    if(em){ if(!comprar.length||cfg.silenciadoEmergente===hoyS) em.remove(); return; }
+    if(!comprar.length||finde||cfg.silenciadoEmergente===hoyS) return;
     const h=ahora.getHours();
     if(h<USD_VENTANA_INI||h>=USD_VENTANA_FIN) return;
     if(cfg.proxEmergente&&Date.now()<new Date(cfg.proxEmergente).getTime()) return;

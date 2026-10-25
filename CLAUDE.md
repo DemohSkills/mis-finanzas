@@ -26,7 +26,18 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-gc-modo` | `'dia'` (default, "Al mismo día") o `'mes'` ("Mes completo") — modo de la comparativa de gastos en la pestaña Gastos |
 | `finanzas-v1-det-det-ev-cGC_e`, `finanzas-v1-det-det-ev-cIC_e`, `finanzas-v1-det-det-ev-cG_e` | boolean — estado abierto/plegado de las copias de las tarjetas de Gastos dentro de Evolución (default plegadas = `false`). Ids de las copias: sufijo `_e` (ej. `cGC_e`, `gcBrow_e`); se dibujan solo al abrirlas |
 | `finanzas-v1-mig-rend-1` | flag de migración one-shot: ingresos "Ingresos extras" con 'rendimiento' en descripción → 'Rendimientos' |
-| `finanzas-v1-usd-aviso` | `{ silenciadoComprar, silenciadoPagar: 'YYYY-MM-DD' o null, proxEmergente: ISO o null }` — avisos de USD MEP de la Visa en Inicio |
+| `finanzas-v1-usd-aviso` | `{ silenciadoComprar, silenciadoPagar, silenciadoEmergente: 'YYYY-MM-DD' o null, proxEmergente: ISO o null }` — avisos de USD MEP de la Visa en Inicio (`silenciadoEmergente` silencia solo el emergente del día; los valores viejos sin ese campo siguen válidos) |
+| `finanzas-v1-tema` | `'auto'` (default) / `'claro'` / `'oscuro'` / `'negro'` — tema de la app |
+| `finanzas-v1-pin` | PIN de acceso (string de dígitos) |
+| `finanzas-v1-ocultar` | boolean — modo ojo (montos ocultos) |
+| `finanzas-v1-mi-nombre-banco` | string — cómo figura el nombre del usuario en los bancos (para detectar transferencias propias) |
+| `finanzas-v1-backup-meta` | `{ ts: ISO, method }` — cuándo y cómo se exportó el último backup |
+| `finanzas-v1-backup-snooze` | ISO — el aviso de backup queda pospuesto hasta esa fecha/hora |
+| `finanzas-v1-chart-vals` | boolean — mostrar valores sobre los gráficos |
+| `finanzas-v1-chart-vis-<id>` | boolean — gráfico `<id>` oculto (`true`) o visible |
+| `finanzas-v1-comp-sort` | `'venc'` (default) / `'entidad'` / `'monto'` — orden de la lista de compromisos |
+| `finanzas-v1-det-<id>` | boolean — sección plegable `<id>` abierta o plegada (las copias de Gastos en Evolución usan `finanzas-v1-det-det-ev-…`, ver fila anterior) |
+| `finanzas-v1-var-per` | `1` (default) / `7` / `30` — período en días del cuadro de variaciones |
 
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código

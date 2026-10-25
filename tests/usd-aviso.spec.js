@@ -190,10 +190,13 @@ test.describe('usd-aviso: emergente', () => {
     await abrir(page, lun(11, 0), buildEstado());
     await page.locator('#usdEmNoMercado').click();
     await expect(page.locator(EM)).toHaveCount(0);
-    await expect(page.locator(BC)).toHaveCount(0);
-    expect((await avisoCfg(page)).silenciadoComprar).toBe('2026-10-26');
+    await expect(page.locator(BC)).toBeVisible();      // el banner sigue visible
+    const cfg = await avisoCfg(page);
+    expect(cfg.silenciadoEmergente).toBe('2026-10-26');
+    expect(cfg.silenciadoComprar || null).toBeNull();
     await tick(page, 60 * 60000);
     await expect(page.locator(EM)).toHaveCount(0);
+    await expect(page.locator(BC)).toBeVisible();
     await page.clock.fastForward('24:00:00');          // martes 12:00
     await tick(page);
     await expect(page.locator(BC)).toBeVisible();
@@ -295,6 +298,22 @@ test.describe('usd-aviso: comprados, falta pagarlos', () => {
     await abrir(page, lun(11, 0), buildEstado({ usdCompra: compra, proxVenc: '2026-10-20' }));
     await expect(page.locator(BP)).toHaveClass(/danger/);
     await expect(page.locator(BP)).toContainText('venció el 20/10');
+    await expect(page.locator(BP)).toContainText('pagalos a la Visa junto con los pesos · venció el 20/10');
+    await expect(page.locator(BP)).not.toContainText('antes del');
+  });
+
+  test('sin vencer conserva "antes del" y los días que quedan', async ({ page }) => {
+    await abrir(page, lun(11, 0), buildEstado({ usdCompra: compra }));
+    await expect(page.locator(BP)).toContainText('pagalos a la Visa junto con los pesos antes del 30/10 · quedan 4 días');
+  });
+
+  test('valores viejos de la clave (sin silenciadoEmergente) siguen funcionando', async ({ page }) => {
+    await page.addInitScript((k) => {
+      if (!localStorage.getItem('__seeded')) localStorage.setItem(k, JSON.stringify({ silenciadoComprar: null, silenciadoPagar: null, proxEmergente: null }));
+    }, AK);
+    await abrir(page, lun(11, 0), buildEstado());
+    await expect(page.locator(EM)).toBeVisible();
+    await expect(page.locator(BC)).toBeVisible();
   });
 
   test('"Ya pagué los USD" saca el banner; deshacer lo trae de vuelta', async ({ page }) => {
