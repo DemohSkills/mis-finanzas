@@ -46,6 +46,12 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Cruce: `_cruzarBorradores(candidatos, medio)` se llama tras la deduplicación en los importadores (Santander/MP desde `_deduplicarImp`; Visa dentro de `_visaArmarCandidatos`). Un borrador cruza con un candidato gasto no duplicado (ni agrupable) si coincide el medio, el importe (dif < 0,01) y la fecha está a ±5 días; si hay varios, gana la fecha más cercana. Cada borrador se usa una sola vez y cada candidato toma como máximo uno; el candidato toma su categoría (pisa a las reglas) y queda `c.deBorrador = id`.
 - El preview NO consume: es idempotente y se recalcula. Los borradores se eliminan recién al confirmar la importación y solo los de movimientos efectivamente importados. Al confirmar, el registro del lote (`estado.importaciones[medio].borradoresUsados`) guarda una copia completa de los borradores consumidos; deshacer la importación (Santander/MP y Visa) los devuelve a `estado.borradores` sin duplicar por id.
 
+## Dictado en modo borrador
+- Si el transcript coincide con `/\bborrador(es)?\b/i` (código, no IA) y el modelo devuelve tipo `gasto`, `parsearVoz` muestra `mostrarConfirmBorradorVoz` ("¿Confirmás este borrador?") en lugar del panel de movimiento; con tipo `ingreso` o sin la palabra, el flujo es el de siempre.
+- El prompt de Haiku pide además `cuotas` (entero, 0 si no hay) y `dias_atras` (0 hoy, 1 ayer…); si faltan se asumen 0. Fecha del borrador = hoy menos `dias_atras`.
+- El medio que devuelve el modelo se valida con `_medioValido` (exacto, luego coincidencia parcial, si no `MEDIOS[0]`) y se puede cambiar en el select de Cuenta. Monto ≤ 0 o inválido: no se muestra el panel ni se guarda.
+- Al guardar: `estado.borradores.push({id, creado, fecha, monto, medio, categoria, nota})`; no toca `estado.gastos` ni saldos. Con `cuotas>1` la nota termina en ` · N cuotas` (máx. 120 caracteres) y el panel avisa que todavía no cruza solo con el resumen (el cruce por cuota es una etapa pendiente).
+
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código
 - No tocar la API key ni el PIN salvo que se pida explícitamente

@@ -3427,7 +3427,7 @@ $('btnVoz').onclick = () => {
 };
 
 async function parsearVoz(transcript, apiKey){
-  const prompt = `Analizá este texto y extraé: monto (número positivo, sin separadores), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve, tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":""}`;
+  const prompt = `Analizá este texto y extraé: monto (número positivo, sin separadores), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve (solo el qué se compró; NO incluyas las palabras de la orden como "anotar", "borrador" o "en cuotas"), tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}), cuotas (número entero si el texto dice "en N cuotas"; si no, 0) y dias_atras (entero: 0 si es hoy o no se menciona fecha, 1 si dice "ayer", 2 si dice "anteayer", N si dice "hace N días"). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":"","cuotas":0,"dias_atras":0}`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -3439,7 +3439,7 @@ async function parsearVoz(transcript, apiKey){
       },
       body:JSON.stringify({
         model:'claude-haiku-4-5',
-        max_tokens:250,
+        max_tokens:300,
         messages:[{role:'user',content:prompt}],
       })
     });
@@ -3449,7 +3449,15 @@ async function parsearVoz(transcript, apiKey){
     const match=text.match(/\{[\s\S]*\}/);
     if(!match) throw new Error('No JSON');
     const parsed=JSON.parse(match[0]);
-    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, parsed.tipo||'gasto', parsed.categoria||'');
+    const tipo=parsed.tipo||'gasto';
+    if(tipo!=='ingreso' && /\bborrador(es)?\b/i.test(transcript)){
+      const monto=Number(parsed.monto);
+      if(!(monto>0)) throw new Error('monto inválido');
+      const ent=v=>{const n=Math.trunc(Number(v));return n>0?n:0;};
+      mostrarConfirmBorradorVoz(monto, parsed.medio||'', parsed.descripcion||transcript, parsed.categoria||'', ent(parsed.cuotas), Math.min(ent(parsed.dias_atras),3650));
+      return;
+    }
+    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, tipo, parsed.categoria||'');
   } catch(err){
     $('voiceStatus').textContent='Error al procesar: '+err.message;
   }
@@ -3486,6 +3494,56 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA=''){
     estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:Math.round(Number(monto)*100)/100,fecha:hoy(),categoria:cat,medio,descripcion:desc,tipo,soloHistorial:false});
     guardar(); cont.hidden=true; resetForm(); render();
     $('voiceStatus').textContent='✅ Movimiento guardado.';
+    setTimeout(()=>$('voiceStatus').textContent='',3000);
+  };
+  $('btnVozCancel').onclick=()=>{ cont.hidden=true; $('voiceStatus').textContent=''; };
+}
+
+// Modo borrador del dictado: misma tarjeta de confirmación, pero guarda en estado.borradores (sin tocar saldos).
+function _medioValido(m){
+  const t=String(m||'').trim().toLowerCase();
+  if(!t) return MEDIOS[0];
+  return MEDIOS.find(x=>x.toLowerCase()===t) || MEDIOS.find(x=>x.toLowerCase().includes(t)||t.includes(x.toLowerCase())) || MEDIOS[0];
+}
+function mostrarConfirmBorradorVoz(monto, medioIA, desc, catIA='', cuotas=0, diasAtras=0){
+  const lista = getCats();
+  const reglaCat = aplicarRegla(desc);
+  const catIAExacta = catIA ? (lista.find(c=>c.toLowerCase()===catIA.toLowerCase())||null) : null;
+  const catAuto = reglaCat || catIAExacta || lista.find(c=>c==='Otros/Varios') || lista[0];
+  const d=new Date(); d.setDate(d.getDate()-diasAtras);
+  const fecha=d.toLocaleDateString('sv');
+  const selSt='font:inherit;border:1px solid var(--border);border-radius:6px;padding:3px 7px;background:var(--bg);color:var(--text)';
+  const cont = $('voiceConfirm');
+  cont.hidden = false;
+  cont.innerHTML = `
+    <div class="voice-confirm">
+      <p style="font-weight:600;margin:0 0 10px">¿Confirmás este borrador?</p>
+      <div class="vc-row"><span>Tipo</span><strong style="color:var(--warn)">📝 Borrador (no toca saldos)</strong></div>
+      <div class="vc-row"><span>Monto</span><strong class="num">$${Number(monto).toLocaleString('es-AR')}</strong></div>
+      <div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" style="${selSt}">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+      <div class="vc-row"><span>Fecha</span><strong>${fechaCorta(fecha)}</strong></div>
+      <div class="vc-row"><span>Nota</span><strong>${esc(desc)}</strong></div>
+      <div class="vc-row"><span>Categoría</span><select id="vozCat" style="${selSt}"></select></div>
+      ${cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Ojo: con cuotas el banco cobra cada cuota por separado. Este borrador todavía no se cruza solo con el resumen.</p>':''}
+      <div class="vc-actions">
+        <button type="button" class="primary" id="btnVozOk">✓ Guardar borrador</button>
+        <button type="button" id="btnVozCancel">Cancelar</button>
+      </div>
+    </div>`;
+  $('vozBorrMedio').value=_medioValido(medioIA);
+  fillCatSelect('vozCat', catAuto, false);
+  $('voiceStatus').textContent='';
+  $('btnVozOk').onclick=()=>{
+    const cat=$('vozCat').value;
+    if(cat==='__nueva__') return;
+    const m=Math.round(Number(monto)*100)/100;
+    if(!(m>0)){ $('voiceStatus').textContent='Error al procesar: monto inválido'; cont.hidden=true; return; }
+    const suf=cuotas>1?` · ${cuotas} cuotas`:'';
+    const nota=String(desc).trim().slice(0,120-suf.length)+suf;
+    estado.borradores ||= [];
+    estado.borradores.push({id:nuevoId(),creado:Date.now(),fecha,monto:m,medio:$('vozBorrMedio').value,categoria:cat,nota});
+    guardar(); renderBorradores(); cont.hidden=true;
+    $('voiceStatus').textContent='✅ Borrador guardado.';
     setTimeout(()=>$('voiceStatus').textContent='',3000);
   };
   $('btnVozCancel').onclick=()=>{ cont.hidden=true; $('voiceStatus').textContent=''; };
