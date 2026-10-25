@@ -20,8 +20,10 @@
 - Avisos en Inicio por los USD MEP de la Visa: banner "falta comprar" (días de mercado, amarillo/rojo/vencido) con emergente a pantalla completa lun–vie 11 a 16 hs repetido cada 30 min, y banner "comprados, falta pagarlos" (sin emergente). Constantes `USD_*` junto a `BACKUP_SNOOZE_K`. (`44b9f4d`)
 - Retoques de los avisos de USD (en `trabajo-nocturno`, sin publicar): "Hoy no hay mercado" silencia solo el emergente del día (campo `silenciadoEmergente`; el banner sigue) y el aviso de pagar vencido ya no repite la fecha. Tabla de claves de localStorage de `CLAUDE.md` completa.
 - Color de la barra de estado (meta `theme-color`) aplicado al arrancar según el tema guardado y, con tema auto, siguiendo `prefers-color-scheme`; función única `_themeColorPara` en el script inline del `<head>`. Tests en `tests/theme-color.spec.js` (en `trabajo-nocturno`, sin publicar).
+- Temas «Neón azul», «Neón turquesa» y «Neón violeta» (`neon-azul`/`neon-turquesa`/`neon-violeta`, en `trabajo-nocturno`, sin publicar): solo estilo (variables + `html[data-theme^="neon"]`), botones en Configuración, ciclo con «Pulse» (toast con nombre legible), `theme-color` `#060914`, tema guardado desconocido → auto. Tests en `tests/temas-neon.spec.js`.
 
 ## Pendiente (por orden de prioridad sugerido)
+   - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
 2. ~~**Borradores de gastos para conciliar con resúmenes**~~ ✅ Hecho (etapa 1, 2026-10-25): sección «📝 Borradores» en Movimientos (`estado.borradores`), cruce al importar Santander/Mercado Pago/Visa vía `_cruzarBorradores` (reglas en CLAUDE.md) y lupa en el buscador. Etapas siguientes, todavía pendientes:
    - 2a. ~~**Cargar borradores por dictado de voz.**~~ ✅ Hecho (2026-10-25): decir «borrador» en el dictado guarda un borrador (ver CLAUDE.md, «Dictado en modo borrador»).
@@ -55,7 +57,7 @@
 ## Reglas de trabajo acordadas
 - Una tarea por conversación de Code, con `/clear` antes (entorno `finanzas`, sin worktree). Un arreglo chico de la misma tarea se hace sin `/clear`.
 - Cambios visuales: primero mockup con imágenes, después el prompt.
-- Revisar siempre: los 4 temas de la app, modo ojo (importes ocultos), sin overflow horizontal a 360/412/450 px, sin ids duplicados, sin errores de consola.
+- Revisar siempre: los 7 temas de la app, modo ojo (importes ocultos), sin overflow horizontal a 360/412/450 px, sin ids duplicados, sin errores de consola.
 - No poner datos reales en el código ni en el repo.
 - No leer `index.html` ni `HISTORIAL.md` completos: `grep -n` y lectura por tramos; en `HISTORIAL.md` solo agregar al final.
 

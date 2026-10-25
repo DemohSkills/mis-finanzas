@@ -32,11 +32,11 @@ test.describe('Selector de tema', () => {
     expect(errors).toEqual([]);
   });
 
-  test('(b) los 4 botones de tema existen en la pestaña Config', async () => {
+  test('(b) los 7 botones de tema existen en la pestaña Config', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
     await expect(page.locator('#vista-config')).toBeVisible();
-    for (const t of ['auto','claro','oscuro','negro']) {
+    for (const t of ['auto','claro','oscuro','negro','neon-azul','neon-turquesa','neon-violeta']) {
       await expect(page.locator(`.tema-btn[data-tema="${t}"]`)).toBeVisible();
     }
   });
@@ -156,15 +156,13 @@ test.describe('Pulse — ciclo de temas', () => {
     } finally { await ctx.close(); }
   });
 
-  test('(j) ciclo completo: Auto→Claro→Oscuro→Negro→Auto en 4 toques', async () => {
+  test('(j) ciclo completo: Auto→Claro→Oscuro→Negro→3 neón→Auto en 7 toques', async () => {
     const { page, ctx } = await openWithTema(null);
     try {
-      await clickPulse(page); // → claro
-      expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('claro');
-      await clickPulse(page); // → oscuro
-      expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('oscuro');
-      await clickPulse(page); // → negro
-      expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('negro');
+      for (const t of ['claro', 'oscuro', 'negro', 'neon-azul', 'neon-turquesa', 'neon-violeta']) {
+        await clickPulse(page);
+        expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(t);
+      }
       await clickPulse(page); // → auto (null)
       expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBeNull();
     } finally { await ctx.close(); }
@@ -232,7 +230,7 @@ test.describe('Pulse — ciclo de temas', () => {
   test('(p) sin errores de consola al ciclar todos los temas', async () => {
     const { page, ctx, errors } = await openWithTema(null);
     try {
-      for (let i = 0; i < 4; i++) await clickPulse(page);
+      for (let i = 0; i < 7; i++) await clickPulse(page);
       expect(errors).toEqual([]);
     } finally { await ctx.close(); }
   });

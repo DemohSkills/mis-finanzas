@@ -34,6 +34,39 @@ html[data-theme="negro"]{
   --border:#222;--accent:#60a5fa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
   --grid-color:rgba(255,255,255,.08);
 }
+/* Temas neón: brillo estático (sin animaciones continuas, por batería); solo reacciona a :active */
+html[data-theme="neon-azul"],html[data-theme="neon-turquesa"],html[data-theme="neon-violeta"]{
+  --bg:#060914;--card:#0b1226;--text:#f0f8ff;--muted:#93a9c4;
+  --danger:#ff6b8a;--ok:#4dffb0;--warn:#ffd24a;
+}
+html[data-theme="neon-azul"]{
+  --border:rgba(59,130,255,.55);--accent:#3b82ff;--grid-color:rgba(59,130,255,.18);
+  --neon-a:59,130,255;--neon-b:122,92,255;--neon-1:#3b82ff;--neon-2:#7a5cff;--neon-txt:#ffffff;
+}
+html[data-theme="neon-turquesa"]{
+  --border:rgba(0,245,224,.55);--accent:#00f5e0;--ok:#b6ff5c;--grid-color:rgba(0,245,224,.18);
+  --neon-a:0,245,224;--neon-b:30,144,255;--neon-1:#00f5e0;--neon-2:#1e90ff;--neon-txt:#021014;
+}
+html[data-theme="neon-violeta"]{
+  --border:rgba(179,102,255,.55);--accent:#b366ff;--grid-color:rgba(179,102,255,.18);
+  --neon-a:179,102,255;--neon-b:255,79,216;--neon-1:#b366ff;--neon-2:#ff4fd8;--neon-txt:#14001f;
+}
+html[data-theme^="neon"] body{background:radial-gradient(900px 420px at 50% -8%,rgba(var(--neon-a),.28),transparent 62%),radial-gradient(700px 400px at 100% 40%,rgba(var(--neon-b),.12),transparent 60%),var(--bg);}
+html[data-theme^="neon"] section,html[data-theme^="neon"] .stat,html[data-theme^="neon"] .cfg-section,html[data-theme^="neon"] .ev-card,html[data-theme^="neon"] details.ev-card,html[data-theme^="neon"] .import-preview,html[data-theme^="neon"] .voice-confirm,html[data-theme^="neon"] .wiz-box,html[data-theme^="neon"] .pin-box{
+  border:1px solid rgba(var(--neon-a),.5);border-radius:16px;
+  box-shadow:0 0 18px rgba(var(--neon-a),.22),0 10px 30px rgba(0,0,0,.55),inset 0 0 26px rgba(var(--neon-a),.08);
+}
+html[data-theme^="neon"] button{border-color:rgba(var(--neon-a),.6);box-shadow:0 0 8px rgba(var(--neon-a),.25);transition:box-shadow .12s,transform .12s;}
+html[data-theme^="neon"] button.primary,html[data-theme^="neon"] .tabs button[aria-selected=true]{
+  background:linear-gradient(135deg,var(--neon-1),var(--neon-2));border-color:transparent;color:var(--neon-txt);
+  box-shadow:0 0 22px rgba(var(--neon-a),.85),0 0 6px rgba(var(--neon-b),.7),inset 0 0 2px rgba(255,255,255,.7);
+}
+html[data-theme^="neon"] button:active,html[data-theme^="neon"] button.primary:active,html[data-theme^="neon"] .tabs button[aria-selected=true]:active{
+  box-shadow:0 0 26px rgba(var(--neon-a),.95);transform:scale(.98);
+}
+html[data-theme^="neon"] h1,html[data-theme^="neon"] h2{text-shadow:0 0 14px rgba(var(--neon-a),.55);}
+html[data-theme^="neon"] .fab-voz-btn{box-shadow:0 0 26px rgba(var(--neon-a),.9);}
+html[data-theme^="neon"] .borr-pill{box-shadow:0 0 12px rgba(255,210,74,.7);}
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
 main{max-width:760px;margin:0 auto;padding:16px 16px 90px;}
@@ -514,14 +547,14 @@ body.ocultar .tk-val{display:none!important;}
 /* ── /TICKER EVOLUCIÓN ── */
 </style>
 <script>(function(){
-var M={claro:'#f4f6fa',oscuro:'#0f172a',negro:'#000'};
+var M={claro:'#f4f6fa',oscuro:'#0f172a',negro:'#000','neon-azul':'#060914','neon-turquesa':'#060914','neon-violeta':'#060914'};
 window._themeColorPara=function(t){
   if(t&&t!=='auto'&&M[t])return M[t];
   var d=true;try{d=window.matchMedia('(prefers-color-scheme:dark)').matches;}catch(e){}
   return d?'#0f172a':'#f4f6fa';
 };
 function meta(){return document.querySelector('meta[name="theme-color"]');}
-function guardado(){try{var t=JSON.parse(localStorage.getItem('finanzas-v1-tema'));return t&&t!=='auto'?t:null;}catch(e){return null;}}
+function guardado(){try{var t=JSON.parse(localStorage.getItem('finanzas-v1-tema'));return t&&t!=='auto'&&M.hasOwnProperty(t)?t:null;}catch(e){return null;}}
 var t=guardado();
 if(t){try{document.documentElement.setAttribute('data-theme',t);}catch(e){}}
 try{var m=meta();if(m)m.content=window._themeColorPara(t);}catch(e){}
@@ -1237,6 +1270,9 @@ try{
         <button type="button" class="mini tema-btn" data-tema="claro">Claro</button>
         <button type="button" class="mini tema-btn" data-tema="oscuro">Oscuro</button>
         <button type="button" class="mini tema-btn" data-tema="negro">Negro</button>
+        <button type="button" class="mini tema-btn" data-tema="neon-azul">Neón azul</button>
+        <button type="button" class="mini tema-btn" data-tema="neon-turquesa">Neón turquesa</button>
+        <button type="button" class="mini tema-btn" data-tema="neon-violeta">Neón violeta</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
         <span class="meta" style="margin:0;">Para actualizar: botón <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> en la cabecera. Tocá <b>Pulse</b> del título para ciclar el tema.</span>
@@ -1435,6 +1471,8 @@ const USD_VENTANA_FIN= 16;  // hora local (24 h) a la que cierra el mercado
 const USD_REPETIR_MIN= 30;  // minutos hasta repetir el emergente
 const USD_DIAS_ROJO  = 2;   // el banner pasa a rojo con esta cantidad de días (o menos)
 const TEMA_K         = 'finanzas-v1-tema';
+const TEMAS_VALIDOS  = ['auto','claro','oscuro','negro','neon-azul','neon-turquesa','neon-violeta'];
+const TEMAS_NOMBRE   = {auto:'Auto',claro:'Claro',oscuro:'Oscuro',negro:'Negro','neon-azul':'Neón azul','neon-turquesa':'Neón turquesa','neon-violeta':'Neón violeta'};
 const MY_NAME_K      = 'finanzas-v1-mi-nombre-banco';
 
 // ═══════════════════════════════════════════════════════
@@ -3340,6 +3378,7 @@ function renderVinculos(){
 // CONFIG TAB
 // ═══════════════════════════════════════════════════════
 function aplicarTema(t){
+  if(t&&!TEMAS_VALIDOS.includes(t)) t=null;
   if(!t||t==='auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme',t);
   ls.set(TEMA_K,t||'auto');
@@ -3362,7 +3401,8 @@ function renderConfig(){
   actualizarInfoBackup();
   renderFotosConfig();
   _actualizarImpUltimaInfo();
-  const temaActual=ls.get(TEMA_K)||'auto';
+  let temaActual=ls.get(TEMA_K)||'auto';
+  if(!TEMAS_VALIDOS.includes(temaActual)) temaActual='auto';
   document.querySelectorAll('.tema-btn').forEach(b=>{
     b.classList.toggle('primary',b.dataset.tema===temaActual);
   });
@@ -6903,13 +6943,13 @@ function wireEvents(){
   $('btnActualizarApp').onclick=_recargarApp;
   // Toque corto en "Pulse" del título → ciclar tema
   (()=>{const p=document.querySelector('.app-hdr h1 .pulse');if(!p)return;
-    const _TC=['auto','claro','oscuro','negro'];
+    const _TC=TEMAS_VALIDOS;
     let _t=0,_moved=false,_lastTouch=0;
     function _ciclarTema(){
       const cur=ls.get(TEMA_K)||'auto';
       const next=_TC[(_TC.indexOf(cur)+1)%_TC.length];
       aplicarTema(next==='auto'?null:next);
-      _showToast('Tema: '+next.charAt(0).toUpperCase()+next.slice(1),1200);
+      _showToast('Tema: '+TEMAS_NOMBRE[next],1200);
       try{navigator.vibrate(25);}catch{}
       p.classList.add('pulse-flash');
       setTimeout(()=>p.classList.remove('pulse-flash'),400);

@@ -28,7 +28,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-mig-rend-1` | flag de migración one-shot: ingresos "Ingresos extras" con 'rendimiento' en descripción → 'Rendimientos' |
 | `finanzas-v1-usd-aviso` | `{ silenciadoComprar, silenciadoPagar, silenciadoEmergente: 'YYYY-MM-DD' o null, proxEmergente: ISO o null }` — avisos de USD MEP de la Visa en Inicio (`silenciadoEmergente` silencia solo el emergente del día; los valores viejos sin ese campo siguen válidos) |
 | `finanzas-v1-usd-ref` | `{ cotizacion: number, fecha: 'YYYY-MM-DD' }` — dólar de referencia (Configuración); solo precarga la cotización de "Ya compré los USD", nunca se aplica solo. Va en el backup (campo `usdRef`) |
-| `finanzas-v1-tema` | `'auto'` (default) / `'claro'` / `'oscuro'` / `'negro'` — tema de la app |
+| `finanzas-v1-tema` | `'auto'` (default) / `'claro'` / `'oscuro'` / `'negro'` / `'neon-azul'` / `'neon-turquesa'` / `'neon-violeta'` — tema de la app; un valor desconocido cae en `'auto'`. Los neón: fondo `#060914` (también `theme-color`), brillo ESTÁTICO (regla fija: sin animaciones continuas, por batería; solo reacciona a `:active`); el turquesa usa `--ok` lima (`#b6ff5c`) para no confundir saldos positivos con el acento. Lista única `TEMAS_VALIDOS` en index.html |
 | `finanzas-v1-pin` | PIN de acceso (string de dígitos) |
 | `finanzas-v1-ocultar` | boolean — modo ojo (montos ocultos) |
 | `finanzas-v1-mi-nombre-banco` | string — cómo figura el nombre del usuario en los bancos (para detectar transferencias propias) |

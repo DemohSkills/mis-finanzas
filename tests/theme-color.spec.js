@@ -35,7 +35,7 @@ test.describe('theme-color al arrancar', () => {
   test.beforeAll(async () => { browser = await chromium.launch(); });
   test.afterAll(async () => { await browser.close(); });
 
-  const casos = [['negro', '#000'], ['claro', '#f4f6fa'], ['oscuro', '#0f172a']];
+  const casos = [['negro', '#000'], ['claro', '#f4f6fa'], ['oscuro', '#0f172a'], ['neon-azul', '#060914'], ['neon-turquesa', '#060914'], ['neon-violeta', '#060914']];
   for (const [tema, color] of casos) {
     test(`tema guardado ${tema}: meta ${color} apenas carga (sin PIN)`, async () => {
       const { page, ctx, errors } = await abrir(browser, tema, tema === 'claro' ? 'dark' : 'light');
@@ -87,8 +87,8 @@ test.describe('theme-color al arrancar', () => {
     const { page, ctx, errors } = await abrir(browser, 'negro', 'light');
     await desbloquear(page);
     await page.locator('.tabs button[data-vista="config"]').click();
-    const esperado = { claro: '#f4f6fa', oscuro: '#0f172a', negro: '#000', auto: '#f4f6fa' };
-    for (const t of ['claro', 'oscuro', 'negro', 'auto']) {
+    const esperado = { claro: '#f4f6fa', oscuro: '#0f172a', negro: '#000', auto: '#f4f6fa', 'neon-azul': '#060914', 'neon-turquesa': '#060914', 'neon-violeta': '#060914' };
+    for (const t of ['claro', 'oscuro', 'negro', 'neon-azul', 'neon-turquesa', 'neon-violeta', 'auto']) {
       await page.locator(`.tema-btn[data-tema="${t}"]`).click();
       expect(await leerMeta(page)).toBe(esperado[t]);
     }
