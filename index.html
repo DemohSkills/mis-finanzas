@@ -67,6 +67,8 @@ html[data-theme^="neon"] button:active,html[data-theme^="neon"] button.primary:a
 html[data-theme^="neon"] h1,html[data-theme^="neon"] h2{text-shadow:0 0 14px rgba(var(--neon-a),.55);}
 html[data-theme^="neon"] .tk-row.pos .tk-arrow,html[data-theme^="neon"] .tk-row.pos .tk-pct{color:var(--ok);}
 html[data-theme^="neon"] .tk-row.neg .tk-arrow,html[data-theme^="neon"] .tk-row.neg .tk-pct{color:var(--danger);}
+html[data-theme^="neon"] .avd-arco{filter:drop-shadow(0 0 6px color-mix(in srgb,currentColor 55%,transparent));}
+html[data-theme^="neon"] .avd-seg{filter:drop-shadow(0 0 5px color-mix(in srgb,currentColor 50%,transparent));}
 html[data-theme^="neon"] .ev-sep{background:linear-gradient(90deg,#ff4d6d,#ffa24a,#4cc9ff);box-shadow:0 0 12px rgba(255,162,74,.45);}
 html[data-theme^="neon"] .fab-voz-btn{box-shadow:0 0 26px rgba(var(--neon-a),.9);}
 html[data-theme^="neon"] .borr-pill{box-shadow:0 0 12px rgba(255,210,74,.7);}
@@ -4679,7 +4681,7 @@ function rActivosDeudas(){
     '<div class="avd-fila"><span class="avd-nom">🔴 Deudas</span><span class="avd-mon neg" id="avdDeudas">'+money(d)+'</span></div>'+
     '<div class="avd-barra"><i style="width:'+(d>0?100:0)+'%;background:var(--danger)"></i></div>'+
     '<div class="avd-gauge"><svg viewBox="0 0 200 108" aria-hidden="true"><path d="M20 100A80 80 0 0 1 180 100" pathLength="100" fill="none" stroke="var(--border)" stroke-width="14" stroke-linecap="round"/>'+
-      (arco>0?'<path d="M20 100A80 80 0 0 1 180 100" pathLength="100" fill="none" stroke="'+colCob+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+arco+' 100"/>':'')+'</svg>'+
+      (arco>0?'<path class="avd-arco" style="color:'+colCob+'" d="M20 100A80 80 0 0 1 180 100" pathLength="100" fill="none" stroke="'+colCob+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+arco+' 100"/>':'')+'</svg>'+
       '<div class="avd-gtxt" id="avdCob">'+(cob===null?'<b>Sin deudas</b>':'<b class="amt" data-cob="'+cob.toFixed(1)+'">'+pctF(cob)+'</b><span>de cobertura</span>')+'</div></div>'+
     '<p class="avd-leyenda" id="avdLey">'+(cob===null?'No tenés deudas registradas.':'Tus activos cubren el <span class="amt">'+pctF(cob)+'</span> de tus deudas')+'</p>';
   const gr=d>0?avdGruposDeuda():[];
@@ -4687,7 +4689,7 @@ function rActivosDeudas(){
   dn.hidden=false;
   const R=42,C=2*Math.PI*R;let off=0;
   const col=(r,i)=>r.otras?AVD_COLOR_OTRAS:AVD_COLORES[i%AVD_COLORES.length];
-  const arcs=gr.map((r,i)=>{const len=r.v/d*C;const el='<circle cx="60" cy="60" r="'+R+'" fill="none" stroke="'+col(r,i)+'" stroke-width="18" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-off)+'" data-v="'+Math.round(r.v*100)/100+'"/>';off+=len;return el;}).join('');
+  const arcs=gr.map((r,i)=>{const len=r.v/d*C;const el='<circle class="avd-seg" style="color:'+col(r,i)+'" cx="60" cy="60" r="'+R+'" fill="none" stroke="'+col(r,i)+'" stroke-width="18" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-off)+'" data-v="'+Math.round(r.v*100)/100+'"/>';off+=len;return el;}).join('');
   dn.innerHTML=
     '<div class="avd-dwrap"><svg viewBox="0 0 120 120" class="avd-donut" aria-hidden="true"><g transform="rotate(-90 60 60)"><circle cx="60" cy="60" r="'+R+'" fill="none" stroke="var(--border)" stroke-width="18"/>'+arcs+'</g></svg>'+
     '<div class="avd-dctr"><span>Deuda total</span><b class="neg" id="avdDTot">'+money(Math.round(d))+'</b></div></div>'+

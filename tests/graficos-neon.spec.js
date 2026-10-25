@@ -222,3 +222,28 @@ test.describe('Gráficos neón: mostrar/ocultar series', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('Activos vs Deudas: resplandor del medidor y el anillo', () => {
+  const filtros = page => page.evaluate(() => {
+    const f = s => { const e = document.querySelector(s); return e ? getComputedStyle(e).filter : null; };
+    return { arco: f('.avd-arco'), seg: f('.avd-seg') };
+  });
+  for (const tema of NEON) {
+    test(`${tema}: medidor y anillo tienen filter distinto de none`, async ({ page }) => {
+      await arrancar(page, { tema });
+      await irEvolucion(page);
+      const r = await filtros(page);
+      expect(r.arco).toContain('drop-shadow');
+      expect(r.seg).toContain('drop-shadow');
+    });
+  }
+  for (const tema of NO_NEON) {
+    test(`${tema}: medidor y anillo sin filter`, async ({ page }) => {
+      await arrancar(page, { tema });
+      await irEvolucion(page);
+      const r = await filtros(page);
+      expect(r.arco).toBe('none');
+      expect(r.seg).toBe('none');
+    });
+  }
+});
