@@ -35,7 +35,7 @@
 11. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
 12. **Dólar de referencia en Configuración** (para estimar el costo de los USD cuando no se cargó cotización).
 13. **Verificar la regla "titulos publicos"** con la próxima compra real de dólares MEP (el texto del débito en pesos no estaba confirmado).
-14. **Brave: pantalla completa e icono** (PWA instalada): ya se aplica el theme-color al arrancar; falta probar en Brave.
+14. ~~Brave: pantalla completa e icono~~ **CERRADO**: probado con reinstalación limpia. En Chrome la barra de estado toma el color de la app; en Brave no, porque Brave dibuja su propia barra (limitación de Brave, no se puede forzar desde la app). El icono de Brave (círculo blanco) también se descarta.
 15. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
 
 ## Flujo de publicación
