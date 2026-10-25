@@ -65,6 +65,9 @@ html[data-theme^="neon"] button:active,html[data-theme^="neon"] button.primary:a
   box-shadow:0 0 26px rgba(var(--neon-a),.95);transform:scale(.98);
 }
 html[data-theme^="neon"] h1,html[data-theme^="neon"] h2{text-shadow:0 0 14px rgba(var(--neon-a),.55);}
+html[data-theme^="neon"] .tk-row.pos .tk-arrow,html[data-theme^="neon"] .tk-row.pos .tk-pct{color:var(--ok);}
+html[data-theme^="neon"] .tk-row.neg .tk-arrow,html[data-theme^="neon"] .tk-row.neg .tk-pct{color:var(--danger);}
+html[data-theme^="neon"] .ev-sep{background:linear-gradient(90deg,#ff4d6d,#ffa24a,#4cc9ff);box-shadow:0 0 12px rgba(255,162,74,.45);}
 html[data-theme^="neon"] .fab-voz-btn{box-shadow:0 0 26px rgba(var(--neon-a),.9);}
 html[data-theme^="neon"] .borr-pill{box-shadow:0 0 12px rgba(255,210,74,.7);}
 *{box-sizing:border-box;}
@@ -3386,6 +3389,8 @@ function aplicarTema(t){
   if(meta) meta.content=window._themeColorPara(t);
   if(typeof _evolReady!=='undefined'&&_evolReady) iniciarEvolucion();
   if(typeof _gastosReady!=='undefined'&&_gastosReady) iniciarGastos();
+  // copias de Gastos en Evolución plegadas: se descartan para que al abrirlas se dibujen con el estilo nuevo
+  try{for(const[id,cids]of COPIAS_GASTOS){if(!copiaGastosAbierta(id))cids.forEach(c=>{if(_ci[c]){_ci[c].destroy();delete _ci[c];}});}}catch(e){}
   document.querySelectorAll('.tema-btn').forEach(b=>{
     b.classList.toggle('primary',b.dataset.tema===(t||'auto'));
   });
@@ -4392,7 +4397,82 @@ const _VALS_K='finanzas-v1-chart-vals';
 function getChartVals(){try{return JSON.parse(localStorage.getItem(_VALS_K))===true;}catch{return false;}}
 function setChartVals(v){try{localStorage.setItem(_VALS_K,JSON.stringify(v));}catch{}}
 function withChartJs(cb){if(typeof Chart!=='undefined'){cb();return;}_cjsCbs.push(cb);if(!_cjsLoading){_cjsLoading=true;const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';s.onload=()=>{const fns=_cjsCbs.splice(0);fns.forEach(f=>f());};document.head.appendChild(s);}}
-function mkChart(id,cfg){if(_ci[id]){_ci[id].destroy();delete _ci[id];}const cv=document.getElementById(id);if(!cv)return null;_ci[id]=new Chart(cv,cfg);return _ci[id];}
+// Gráficos neón (versión suave): solo con los 3 temas neón; en los demás mkChart no toca nada.
+const _esNeon=()=>(document.documentElement.getAttribute('data-theme')||'').indexOf('neon')===0;
+function _colParse(c){
+  if(typeof c!=='string')return null;
+  let m=c.match(/^#([0-9a-f]{6})$/i);if(m){const n=parseInt(m[1],16);return[n>>16&255,n>>8&255,n&255,1];}
+  m=c.match(/^rgba?\(([^)]+)\)$/i);if(m){const p=m[1].split(',').map(parseFloat);if(p.length>=3&&p.every(isFinite))return[p[0],p[1],p[2],p.length>3?p[3]:1];}
+  return null;
+}
+const _rgbaN=(c,a)=>`rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+const _neonPlugin={id:'neonGrafico',
+  // degradés recreados en cada draw con la geometría actual (sin chartArea no hace nada)
+  beforeDraw(chart){
+    const area=chart.chartArea;if(!area||!(area.bottom>area.top)||!(area.right>area.left))return;
+    const ctx=chart.ctx,horiz=chart.options.indexAxis==='y';
+    chart.data.datasets.forEach((ds,di)=>{
+      if(!chart.isDatasetVisible(di))return;
+      const meta=chart.getDatasetMeta(di);
+      if(meta.type==='line'){
+        const c=_colParse(ds.borderColor);if(!c||!ds.fill||!meta.dataset||!meta.dataset.options)return;
+        const g=ctx.createLinearGradient(0,area.top,0,area.bottom);
+        g.addColorStop(0,_rgbaN(c,.35));g.addColorStop(1,_rgbaN(c,0));
+        meta.dataset.options.backgroundColor=g;
+      }else if(meta.type==='bar'){
+        meta.data.forEach(el=>{
+          const o=el&&el.options;if(!o)return;
+          if(typeof o.backgroundColor==='string')el.$neonBase=o.backgroundColor;
+          const c=_colParse(el.$neonBase);if(!c)return;
+          const p=el.getProps(['x','y','base'],true);
+          if(![p.x,p.y,p.base].every(Number.isFinite))return;
+          const g=horiz?ctx.createLinearGradient(p.x,0,p.base,0):ctx.createLinearGradient(0,p.y,0,p.base);
+          g.addColorStop(0,_rgbaN(c,c[3]));g.addColorStop(1,_rgbaN(c,+(c[3]*.3).toFixed(3)));
+          o.backgroundColor=g;
+          o.borderColor=_rgbaN(c,Math.min(1,c[3]+.25));
+          o.borderWidth=Math.abs(horiz?p.x-p.base:p.y-p.base)<1?0:1.5;
+        });
+      }
+    });
+  },
+  // brillo solo en líneas
+  beforeDatasetDraw(chart,args){
+    if(!args.meta||args.meta.type!=='line')return;
+    const ds=chart.data.datasets[args.index];if(!ds||typeof ds.borderColor!=='string')return;
+    chart.ctx.save();chart.ctx.shadowColor=ds.borderColor;chart.ctx.shadowBlur=14;args.meta.$neonGlow=true;
+  },
+  afterDatasetDraw(chart,args){
+    if(args.meta&&args.meta.$neonGlow){args.meta.$neonGlow=false;chart.ctx.restore();}
+  }};
+function _neonizar(cfg,id){
+  const o=cfg.options||(cfg.options={});
+  const ta=CV('--neon-a');
+  const stacked=!!(o.scales&&o.scales.x&&o.scales.x.stacked);
+  if(o.scales)Object.values(o.scales).forEach(sc=>{if(sc&&sc.grid&&sc.grid.display!==false&&sc.grid.color)sc.grid.color=`rgba(${ta},.15)`;});
+  const tema=id==='cP'||/^cG(_e)?$/.test(id); // únicos con color "de la app" (patrimonio, gasto del mes): toman el tono del tema
+  ((cfg.data&&cfg.data.datasets)||[]).forEach(ds=>{
+    const tipo=ds.type||cfg.type;
+    if(tipo==='line'){
+      if(tema){ds.borderColor=`rgb(${ta})`;ds.backgroundColor=`rgba(${ta},.2)`;}
+      let last=-1;(ds.data||[]).forEach((v,i)=>{if(v!=null)last=i;});
+      ds.borderWidth=3;ds.pointRadius=cx=>cx.dataIndex===last?5:0;
+      ds.pointBackgroundColor=CV('--text');ds.pointBorderColor=ds.borderColor;ds.pointBorderWidth=2;ds.pointHoverRadius=6;
+    }else if(tipo==='bar'){
+      if(tema&&Array.isArray(ds.backgroundColor))ds.backgroundColor=ds.backgroundColor.map(c=>String(c).replace('56,189,248',ta));
+      ds.borderRadius=stacked?3:6;ds.borderWidth=1.5;ds.borderColor=ds.backgroundColor;
+    }
+  });
+  cfg.plugins=[...(cfg.plugins||[]),_neonPlugin];
+}
+function mkChart(id,cfg){
+  if(_ci[id]){_ci[id].destroy();delete _ci[id];}
+  const cv=document.getElementById(id);if(!cv)return null;
+  const neon=_esNeon();
+  if(neon){try{_neonizar(cfg,id);}catch(e){}}
+  _ci[id]=new Chart(cv,cfg);
+  if(neon){_ci[id].$neon=true;cv.dataset.neon='1';}else delete cv.dataset.neon;
+  return _ci[id];
+}
 const CV=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const S7=['#60a5fa','#f87171','#4ade80','#fb923c','#c084fc','#fbbf24','#38bdf8'];
 const fmtM=n=>{const a=Math.abs(n);const v=a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?Math.round(a/1e3)+'k':String(Math.round(a));return(n<0?'−':'')+v;};

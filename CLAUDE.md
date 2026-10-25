@@ -82,3 +82,8 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Una tarea por conversación. Para probar lógica, extraé la función y corrala con `node`; evitá el navegador con capturas salvo que se pida. Los tests Playwright (`npx playwright test`) sí se corren antes de cada commit.
 - No leas `HISTORIAL.md` completo: para registrar un cambio solo agregá la entrada nueva al final del archivo, sin releer el resto.
 - Al empezar una tarea, leé `PENDIENTES.md` (estado, pendientes y reglas); al cerrarla, actualizalo con un Edit puntual.
+
+## Gráficos neón
+- `mkChart` es el único punto de creación de gráficos. Con tema `neon-*` (`_esNeon()`) llama a `_neonizar(cfg,id)` y agrega el plugin `neonGrafico` (degradés recreados en `beforeDraw` con la geometría actual; brillo `shadowBlur` solo en líneas, en `beforeDatasetDraw`/`afterDatasetDraw`). El gráfico queda marcado con `chart.$neon` y `canvas.dataset.neon='1'`; en los demás temas no se toca nada.
+- Solo `cP` y `cG`/`cG_e` toman el tono del tema (`--neon-a`); el resto conserva sus colores con significado (rojo deuda/gasto, verde ingreso, paletas por categoría/entidad).
+- `aplicarTema` recrea los gráficos (Evolución y Gastos) y descarta las copias `_e` plegadas para que se redibujen al abrirlas.
