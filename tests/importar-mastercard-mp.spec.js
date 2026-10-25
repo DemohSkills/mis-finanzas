@@ -19,7 +19,7 @@ const pesos = n => `$ ${ar(n)}`;
  * consumos: [{ f:'15/ago', desc, cuota:'2 de 6'|'', op:'123456', pesos?:n, usd?:n }]
  * impuestos: [{ f:'27/sep', desc, pesos }]
  */
-function lineas({ mes = 'septiembre', cierre = '27 de septiembre', venc = '2 de octubre', total, minimo = 55304.41,
+function lineas({ mes = 'septiembre', cierre = '27 de septiembre', venc = '2 de octubre', total, minimo = 55304.41, minimoLinea,
   consumos = [], impuestos = [], pagosAnt = 0, ajustes = 0, composicion = true }) {
   const sumC = consumos.reduce((s, c) => s + (c.pesos || 0), 0);
   const sumI = impuestos.reduce((s, c) => s + c.pesos, 0);
@@ -29,7 +29,7 @@ function lineas({ mes = 'septiembre', cierre = '27 de septiembre', venc = '2 de 
     'Total a pagar $ 213.618 54',
     'Fecha de cierre Fecha de vencimiento',
     `${cierre} ${venc}`,
-    `El mínimo a pagar es ${pesos(minimo)}`,
+    minimoLinea || `El mínimo a pagar es ${pesos(minimo)}`,
     'Consolidado',
     `Saldo del periodo anterior ${pesos(0)} US$ 0,00`,
     `Consumos ${pesos(sumC)} US$ 0,00`,
@@ -99,6 +99,17 @@ test.describe('Mastercard MP (PDF): parseo', () => {
     expect(d.cierre).toBe('2026-09-27');
     expect(d.vencimiento).toBe('2026-10-02');
     expect(d.totalPesos).toBe(16761.85);
+  });
+
+  test('(a2) mínimo a pagar: con coma, con centavos separados por espacio y sin centavos (seguido de la fecha)', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    const con = async l => (await parse(page, lineas({ consumos: [C1], minimoLinea: l }))).minimo;
+    expect(await con('El mínimo a pagar es $ 55.304,41')).toBe(55304.41);
+    expect(await con('El mínimo a pagar es $ 55.304 41')).toBe(55304.41);
+    expect(await con('El mínimo a pagar es $ 55.304 2 de octubre')).toBe(55304);
+    expect(await con('El mínimo a pagar es $ 55.304 12 de octubre')).toBe(55304);
+    expect(await con('El mínimo a pagar es $ 55.304')).toBe(55304);
+    expect(await con('El mínimo a pagar es')).toBeNull();
   });
 
   test('(b) año inferido: fecha posterior al cierre → año anterior; cierre muy a futuro → año anterior', async ({ page }) => {

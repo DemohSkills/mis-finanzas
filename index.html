@@ -6358,7 +6358,9 @@ function parseMastercardMP(lineas, hoyStr) {
   let vencimiento = _mcISO(yC, mV, +fv[1]);
   if (vencimiento < cierre) vencimiento = _mcISO(yC + 1, mV, +fv[1]);
   const fechaFila = (dia, mes) => { const f = _mcISO(yC, mes, dia); return f > cierre ? _mcISO(yC - 1, mes, dia) : f; };
-  const mMin = full.match(/m[ií]nimo a pagar es \$\s*(\d[\d.]*,\d{2})/i);
+  // Importe con ",dd", con " dd" (centavos en otro renglón de pdf.js) o solo entero; un " dd" seguido de " de <mes>" es la fecha, no centavos.
+  const mMin = full.match(/m[ií]nimo a pagar es \$\s*(\d[\d.]*)(?:,(\d{2})(?!\d)|\s(\d{2})(?!\d)(?!\s*de\b))?/i);
+  const minimo = mMin ? parseFloat(mMin[1].replace(/\./g, '') + '.' + (mMin[2] || mMin[3] || '00')) : null;
 
   const LAB = [[/Saldo del periodo anterior/i, 'saldoAnterior'], [/Consumos/i, 'consumos'], [/Impuestos e intereses/i, 'impuestos'],
     [/Pagos anticipados/i, 'pagos'], [/Ajustes y reembolsos/i, 'ajustes'], [/Total a pagar/i, 'total']];
@@ -6394,7 +6396,7 @@ function parseMastercardMP(lineas, hoyStr) {
   const sumaMov = Math.round([...movs, ...impuestos].reduce((s, x) => s + x.pesos, 0) * 100) / 100;
   const difSuma = totalPesos === null ? null : Math.round((totalPesos - sumaMov) * 100) / 100;
   return {
-    cierre, vencimiento, minimo: mMin ? _mcNum(mMin[1]) : null, totalPesos, consol, movs, impuestos,
+    cierre, vencimiento, minimo: Number.isFinite(minimo) ? minimo : null, totalPesos, consol, movs, impuestos,
     omitidasUsd, sumaMov, difSuma,
     avisoPagos: !!((consol.pagos || 0) || (consol.ajustes || 0)),
   };
