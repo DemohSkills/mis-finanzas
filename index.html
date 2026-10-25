@@ -1354,6 +1354,12 @@ const APIKEY_K   = 'finanzas-v1-apikey';
 const BACKUP_DK      = 'finanzas-v1-backup-date';
 const BACKUP_META_K  = 'finanzas-v1-backup-meta';
 const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
+const USD_AVISO_K    = 'finanzas-v1-usd-aviso';
+const USD_AVISO_DIAS = 7;   // días corridos antes del vencimiento en que empiezan los avisos
+const USD_VENTANA_INI= 11;  // hora local (24 h) desde la que se muestra el emergente
+const USD_VENTANA_FIN= 16;  // hora local (24 h) a la que cierra el mercado
+const USD_REPETIR_MIN= 30;  // minutos hasta repetir el emergente
+const USD_DIAS_ROJO  = 2;   // el banner pasa a rojo con esta cantidad de días (o menos)
 const TEMA_K         = 'finanzas-v1-tema';
 const MY_NAME_K      = 'finanzas-v1-mi-nombre-banco';
 
@@ -1583,7 +1589,7 @@ function cargar() {
 }
 
 let _snapTimer = null;
-function guardar() { ls.set(SK, estado); if(estado?.patrimonioCargado){clearTimeout(_snapTimer);_snapTimer=setTimeout(guardarSnap,1500);} }
+function guardar() { ls.set(SK, estado); try{evaluarAvisosUsd();}catch{} if(estado?.patrimonioCargado){clearTimeout(_snapTimer);_snapTimer=setTimeout(guardarSnap,1500);} }
 
 // ── COMPROMISOS ─────────────────────────────────────────
 function mkFecha(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
@@ -1717,7 +1723,7 @@ function _compRowHtml(c){
         else if(diffD<=7){usdCls+=' alerta';vencLabel=` · antes del ${fechaCorta(c.proxVenc)}`;}
         else{vencLabel=` · antes del ${fechaCorta(c.proxVenc)}`;}
       }
-      chipUsd=`<span class="chip ${usdCls}">💵 Comprar <span class="amt">${c.usd.toLocaleString('es-AR')}</span> USD (dólar MEP, 11:15–15:15 hs)${vencLabel}</span>`;
+      chipUsd=`<span class="chip ${usdCls}">💵 Comprar <span class="amt">${c.usd.toLocaleString('es-AR')}</span> USD (dólar MEP, lun–vie 11 a 16 hs)${vencLabel}</span>`;
       btnUsd=`<button type="button" class="mini" onclick="abrirCompraUsd('${esc(c.id)}')">Ya compré los USD</button>`;
     }
   }
@@ -2542,6 +2548,7 @@ function initApp() {
   render();
   wireEvents();
   verificarAvisoBackup();
+  evaluarAvisosUsd();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3502,11 +3509,142 @@ function verificarAvisoBackup(){
     <button type="button" class="mini" onclick="descargarBackup()">Descargar</button>
     <button type="button" class="mini" onclick="pospBackup()">Después</button>`;
   const vistaInicio=document.getElementById('vista-inicio');
-  if(vistaInicio) vistaInicio.prepend(banner); else document.querySelector('main').prepend(banner);
+  const avisosUsd=document.getElementById('avisosUsd');
+  if(avisosUsd) avisosUsd.after(banner);
+  else if(vistaInicio) vistaInicio.prepend(banner); else document.querySelector('main').prepend(banner);
 }
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&!document.getElementById('app')?.hidden) verificarAvisoBackup();
+  if(document.visibilityState==='visible'&&!document.getElementById('app')?.hidden){ verificarAvisoBackup(); evaluarAvisosUsd(); }
 });
+
+// ═══════════════════════════════════════════════════════
+// AVISOS DE DÓLARES MEP (resumen Visa) — solo avisan, no tocan totales ni gastos
+// ═══════════════════════════════════════════════════════
+const _DIAS_SEM=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function _usdLeer(){
+  const a=ls.get(USD_AVISO_K)||{};
+  return {silenciadoComprar:a.silenciadoComprar||null,silenciadoPagar:a.silenciadoPagar||null,proxEmergente:a.proxEmergente||null};
+}
+function _usdGuardar(patch){ try{ ls.set(USD_AVISO_K,Object.assign(_usdLeer(),patch)); }catch{} }
+function _fechaLocal(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function _ddmm(s){ const p=s.split('-'); return p[2]+'/'+p[1]; }
+// días de mercado (lun–vie) desde hoy hasta el día anterior al vencimiento; hoy cuenta si aún no cerró
+function diasMercadoUsd(venc,ahora){
+  ahora=ahora||new Date();
+  const fin=_fechaLocal(venc);
+  const d=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  let n=0;
+  for(;d<fin;d.setDate(d.getDate()+1)){
+    const w=d.getDay();
+    if(w===0||w===6) continue;
+    if(d.getTime()===new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()).getTime()&&ahora.getHours()>=USD_VENTANA_FIN) continue;
+    n++;
+  }
+  return n;
+}
+function _diasCorridosUsd(venc,ahora){
+  ahora=ahora||new Date();
+  return Math.round((_fechaLocal(venc)-new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()))/864e5);
+}
+function _usdDespues(tipo){
+  _usdGuardar(tipo==='comprar'?{silenciadoComprar:hoy()}:{silenciadoPagar:hoy()});
+  _cerrarEmergenteUsd(); evaluarAvisosUsd();
+}
+function _usdYaCompre(id){
+  _usdGuardar({proxEmergente:new Date(Date.now()+USD_REPETIR_MIN*60000).toISOString()});
+  _cerrarEmergenteUsd(); abrirCompraUsd(id);
+}
+function _usdRecordar(){
+  _usdGuardar({proxEmergente:new Date(Date.now()+USD_REPETIR_MIN*60000).toISOString()});
+  _cerrarEmergenteUsd();
+}
+function _usdHoyNoHayMercado(){
+  _usdGuardar({silenciadoComprar:hoy()});
+  _cerrarEmergenteUsd(); evaluarAvisosUsd();
+}
+function _cerrarEmergenteUsd(){ const e=document.getElementById('overlayUsdHora'); if(e) e.remove(); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.getElementById('overlayUsdHora')) _usdRecordar(); });
+function _mostrarEmergenteUsd(c){
+  const ahora=new Date();
+  _usdGuardar({proxEmergente:new Date(Date.now()+USD_REPETIR_MIN*60000).toISOString()});
+  const ov=document.createElement('div');
+  ov.className='overlay'; ov.id='overlayUsdHora';
+  ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+  ov.innerHTML=`<div class="wiz-box" style="max-width:380px;text-align:center;">
+    <h2 style="margin:0 0 10px;font-size:1.1rem;">💵 Es hora de comprar los dólares</h2>
+    <p class="desc" style="color:var(--text);font-size:.95rem;margin:0 0 18px;">Hoy es ${_DIAS_SEM[ahora.getDay()]} y el mercado está abierto hasta las ${USD_VENTANA_FIN}:00. Faltan US$ <span class="amt">${(+c.usd).toLocaleString('es-AR')}</span> para ${esc(c.nombre)} (vence el ${_ddmm(c.proxVenc)}).</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button type="button" class="primary" style="padding:14px;font-size:1rem;" id="usdEmCompre">Ya compré los USD</button>
+      <button type="button" style="padding:14px;font-size:1rem;" id="usdEmRecordar">Recordámelo en ${USD_REPETIR_MIN} min</button>
+      <button type="button" style="padding:14px;font-size:1rem;" id="usdEmNoMercado">Hoy no hay mercado</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const id=c.id;
+  document.getElementById('usdEmCompre').onclick=()=>_usdYaCompre(id);
+  document.getElementById('usdEmRecordar').onclick=_usdRecordar;
+  document.getElementById('usdEmNoMercado').onclick=_usdHoyNoHayMercado;
+  try{ if(navigator.vibrate&&navigator.userActivation?.hasBeenActive) navigator.vibrate([250,120,250]); }catch{}
+}
+function evaluarAvisosUsd(){
+  try{
+    const app=document.getElementById('app');
+    const vista=document.getElementById('vista-inicio');
+    const cont0=document.getElementById('avisosUsd');
+    if(!app||app.hidden||!vista||typeof estado==='undefined'||!estado){ if(cont0) cont0.remove(); _cerrarEmergenteUsd(); return; }
+    const ahora=new Date(), hoyS=hoy();
+    const cfg=_usdLeer();
+    const res=(estado.compromisos||[]).filter(c=>c.tipo==='resumen'&&(c.usd||0)>0&&!c.usdPagado&&c.proxVenc);
+    const lim=(c)=>_diasCorridosUsd(c.proxVenc,ahora)<=USD_AVISO_DIAS;
+    const comprar=cfg.silenciadoComprar===hoyS?[]:res.filter(c=>!c.usdCompra&&lim(c));
+    const pagar=cfg.silenciadoPagar===hoyS?[]:res.filter(c=>c.usdCompra&&lim(c));
+    comprar.sort((a,b)=>a.proxVenc<b.proxVenc?-1:1); pagar.sort((a,b)=>a.proxVenc<b.proxVenc?-1:1);
+    const finde=ahora.getDay()===0||ahora.getDay()===6;
+    let html='';
+    for(const c of comprar){
+      const usd=`<span class="amt">${(+c.usd).toLocaleString('es-AR')}</span>`, nom=esc(c.nombre), dm=_ddmm(c.proxVenc);
+      const venc=_diasCorridosUsd(c.proxVenc,ahora)<0;
+      const n=diasMercadoUsd(c.proxVenc,ahora);
+      let txt, rojo;
+      if(venc){ txt=`💵 Los US$ ${usd} de ${nom} no figuran como comprados · venció el ${dm}`; rojo=true; }
+      else{
+        txt=`💵 Falta comprar US$ ${usd} (dólar MEP) · ${nom} vence ${dm} · `+((finde&&n>0)?'el mercado abre el lunes':`quedan ${n} día${n===1?'':'s'} de mercado`);
+        rojo=n<=USD_DIAS_ROJO;
+      }
+      html+=`<div class="backup-warn${rojo?' danger':''}" id="bannerUsdComprar_${esc(c.id)}"><span style="flex:1">${txt}</span>
+        <button type="button" class="mini" onclick="abrirCompraUsd('${esc(c.id)}')">Ya compré los USD</button>
+        <button type="button" class="mini" onclick="_usdDespues('comprar')">Después (hasta mañana)</button></div>`;
+    }
+    for(const c of pagar){
+      const usd=`<span class="amt">${(+c.usd).toLocaleString('es-AR')}</span>`, dm=_ddmm(c.proxVenc);
+      const n=_diasCorridosUsd(c.proxVenc,ahora);
+      const txt=n<0?`💳 Tenés US$ ${usd} comprados: pagalos a la Visa junto con los pesos antes del ${dm} · venció el ${dm}`
+        :`💳 Tenés US$ ${usd} comprados: pagalos a la Visa junto con los pesos antes del ${dm} · quedan ${n} día${n===1?'':'s'}`;
+      html+=`<div class="backup-warn${(n<0||n<=USD_DIAS_ROJO)?' danger':''}" id="bannerUsdPagar_${esc(c.id)}"><span style="flex:1">${txt}</span>
+        <button type="button" class="mini" onclick="pagarUsd('${esc(c.id)}')">Ya pagué los USD</button>
+        <button type="button" class="mini" onclick="_usdDespues('pagar')">Después (hasta mañana)</button></div>`;
+    }
+    let cont=document.getElementById('avisosUsd');
+    if(!html){ if(cont) cont.remove(); }
+    else{
+      if(!cont){ cont=document.createElement('div'); cont.id='avisosUsd'; }
+      if(cont.innerHTML!==html) cont.innerHTML=html;
+      if(vista.firstElementChild!==cont) vista.prepend(cont);
+    }
+    // emergente
+    const em=document.getElementById('overlayUsdHora');
+    if(em){ if(!comprar.length) em.remove(); return; }
+    if(!comprar.length||finde) return;
+    const h=ahora.getHours();
+    if(h<USD_VENTANA_INI||h>=USD_VENTANA_FIN) return;
+    if(cfg.proxEmergente&&Date.now()<new Date(cfg.proxEmergente).getTime()) return;
+    if(document.visibilityState==='hidden') return;
+    if(document.querySelector('.overlay:not([hidden])')) return;
+    if($('btnVoz')?.classList.contains('listening')) return;
+    const vc=$('voiceConfirm'); if(vc&&!vc.hidden) return;
+    _mostrarEmergenteUsd(comprar[0]);
+  }catch(e){}
+}
+setInterval(evaluarAvisosUsd,60000);
 
 // ═══════════════════════════════════════════════════════
 // PDF / PRINT — INFORME
@@ -5995,6 +6133,7 @@ window.pagarUsd = pagarUsd;
 window.deshacerUsd = deshacerUsd;
 window.deshacerCompraUsd = deshacerCompraUsd;
 window.abrirCompraUsd = abrirCompraUsd;
+window._usdDespues = _usdDespues;
 window.cerrarCompraUsd = cerrarCompraUsd;
 window.abrirFijoModal = abrirFijoModal;
 window.cerrarFijoModal = cerrarFijoModal;

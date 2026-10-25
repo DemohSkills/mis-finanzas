@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-10-23)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `c8661f1`.
-- Tests: 725 (Playwright). Todo en verde al publicar.
+- Tests: 770 (Playwright). Todo en verde al publicar.
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -18,6 +18,7 @@
 
 ## Hecho (en `trabajo-nocturno`, sin publicar)
 - Costo de los dólares MEP por el débito real del Santander: categoría nueva "En dólares" (gasto normal) y regla en el importador (débito con "titulos publicos" → "En dólares", sin revisar). Se sacó el botón "Ya pagué los USD" de "falta comprar": hay que pasar por "Ya compré los USD".
+- Avisos en Inicio por los USD MEP de la Visa: banner "falta comprar" (días de mercado, amarillo/rojo/vencido) con emergente a pantalla completa lun–vie 11 a 16 hs repetido cada 30 min, y banner "comprados, falta pagarlos" (sin emergente). Constantes `USD_*` junto a `BACKUP_SNOOZE_K`.
 
 ## Pendiente (por orden de prioridad sugerido)
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
@@ -32,10 +33,9 @@
 10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
 11. **Prueba A/B de modelos** (Sonnet 5.5 vs 4.6) con una tarea chica y `/cost` antes y después de cada una. Baja prioridad: el límite semanal está holgado.
 12. **Tabla de claves de localStorage en CLAUDE.md incompleta** (prioridad baja): el código usa ~22 claves y la tabla documenta 11 (faltan tema, pin, ocultar, mi-nombre-banco, backup-meta, backup-snooze, chart-vals, chart-vis, comp-sort, det, var-per).
-13. **Aviso en Inicio por compra de USD** (lun–vie, ventana horaria de compra MEP, repetición cada 30 min con la app abierta, días hábiles).
-14. **Dólar de referencia en Configuración** (para estimar el costo de los USD cuando no se cargó cotización).
-15. **Verificar la regla "titulos publicos"** con la próxima compra real de dólares MEP (el texto del débito en pesos no estaba confirmado).
-16. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
+13. **Dólar de referencia en Configuración** (para estimar el costo de los USD cuando no se cargó cotización).
+14. **Verificar la regla "titulos publicos"** con la próxima compra real de dólares MEP (el texto del débito en pesos no estaba confirmado).
+15. Pedidos anteriores que el usuario recuerde y no estén acá: agregarlos a esta lista.
 
 ## Flujo de publicación
 - Code trabaja y commitea en `trabajo-nocturno`, sin push.
