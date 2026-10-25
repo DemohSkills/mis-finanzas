@@ -115,17 +115,19 @@ test.describe('resumen-usd: chip de compra MEP', () => {
 // BOTONES Ya pagué / Deshacer
 // ─────────────────────────────────────────────────────────────
 test.describe('resumen-usd: botones de pago USD', () => {
-  test('usd>0 y no pagado → botón "Ya pagué los USD" visible', async ({ page }) => {
+  test('usd>0 y no pagado → botón "Ya compré los USD" visible', async ({ page }) => {
     await seedAndUnlock(page, buildEstado({ usd: 50 }));
     await goToCompromisos(page);
-    const btn = page.locator('.comp-row[data-id="cr-usd"] button:has-text("Ya pagué los USD")');
+    const btn = page.locator('.comp-row[data-id="cr-usd"] button:has-text("Ya compré los USD")');
     await expect(btn).toBeVisible();
   });
 
-  test('clic en "Ya pagué los USD" → usdPagado=true en localStorage y chip desaparece', async ({ page }) => {
+  test('comprar y luego "Ya pagué los USD a la Visa" → usdPagado=true en localStorage y chip desaparece', async ({ page }) => {
     await seedAndUnlock(page, buildEstado({ usd: 50 }));
     await goToCompromisos(page);
-    await page.locator('.comp-row[data-id="cr-usd"] button:has-text("Ya pagué los USD")').click();
+    await page.locator('.comp-row[data-id="cr-usd"] button:has-text("Ya compré los USD")').click();
+    await page.locator('#compraUsdForm button[type="submit"]').click();
+    await page.locator('.comp-row[data-id="cr-usd"] button:has-text("Ya pagué los USD a la Visa")').click();
     await page.waitForTimeout(300);
     // chip desaparece
     const count = await page.locator('.comp-row[data-id="cr-usd"] .chip.chip-usd').count();

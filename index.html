@@ -1340,7 +1340,7 @@ const CATS_DEFAULT = [
   'Transporte/Auto','Comida y Delivery','Propinas y Extras','Proyectos Web',
   'Servicios/Telecom','Salud','Tecnología/Electrónica','Compras Online',
   'Indumentaria y Calzado','Hogar y Materiales','Otros/Varios',
-  'Financiación Consolidada','Impuestos e Intereses','Ingresos brutos (retenciones)',
+  'Financiación Consolidada','Impuestos e Intereses','Ingresos brutos (retenciones)','En dólares',
 ];
 const CATS_INCOME_DEFAULT = ['Regalo','Sueldo/Honorarios','Reintegro','Transferencia recibida','Ingresos extras','Rendimientos','Otros ingresos'];
 
@@ -1718,8 +1718,7 @@ function _compRowHtml(c){
         else{vencLabel=` · antes del ${fechaCorta(c.proxVenc)}`;}
       }
       chipUsd=`<span class="chip ${usdCls}">💵 Comprar <span class="amt">${c.usd.toLocaleString('es-AR')}</span> USD (dólar MEP, 11:15–15:15 hs)${vencLabel}</span>`;
-      btnUsd=`<button type="button" class="mini" onclick="abrirCompraUsd('${esc(c.id)}')">Ya compré los USD</button>
-          <button type="button" class="mini" onclick="pagarUsd('${esc(c.id)}')">Ya pagué los USD</button>`;
+      btnUsd=`<button type="button" class="mini" onclick="abrirCompraUsd('${esc(c.id)}')">Ya compré los USD</button>`;
     }
   }
   return `<div class="comp-row${fin?' comp-row--fin':''}" data-id="${esc(c.id)}">
@@ -4981,6 +4980,8 @@ function parseVisaXlsx(filas) {
 
 // ── Categorization ────────────────────────────────────
 const _REGLAS_SANT = [
+  // Compra de dólares MEP: solo si es un débito (el segundo argumento es el monto)
+  { t: (d, m) => d.includes('titulos publicos') && m < 0, tipo:'gasto', cat:'En dólares' },
   { t: d => d.includes('debito automatico') && d.includes('arca'), tipo:'gasto', cat:'Impuestos e Intereses', descFija:'Débito automático ARCA (monotributo)' },
   { t: d => ['comision por servicio','iva 21%','ley 25.413','impuesto de sellos','interes por descubierto','comision por sorpresa'].some(k => d.includes(k)), tipo:'gasto', cat:'Impuestos e Intereses' },
   { t: d => d.includes('sircreb') || d.includes('iibb tucuman'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', agrupable:'Retenciones SIRCREB / IIBB Tucumán' },
@@ -5004,7 +5005,7 @@ function _categorizarSant(desc, monto) {
     return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
   }
   for (const r of _REGLAS_SANT) {
-    if (r.t(d)) {
+    if (r.t(d, monto)) {
       const tipo = r.tipo === 'auto' ? (monto >= 0 ? 'ingreso' : 'gasto') : r.tipo;
       return { tipo, cat:r.cat, agrupable:r.agrupable||null, transf:r.transf||false,
         transferPair:r.transferPair||null, transferPairInv:r.transferPairInv||null,

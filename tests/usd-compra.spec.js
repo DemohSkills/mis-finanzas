@@ -46,12 +46,12 @@ const leer = (page) => page.evaluate(sk => JSON.parse(localStorage.getItem(sk)).
 const COMPRA = { usd: 50, cotizacion: 1200, pesos: 60000, fecha: daysBefore(1) };
 
 test.describe('usd-compra: estados y botones', () => {
-  test('falta comprar: chip MEP y botones "Ya compré" / "Ya pagué"', async ({ page }) => {
+  test('falta comprar: chip MEP y solo el botón "Ya compré" (sin "Ya pagué")', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await goToCompromisos(page);
     await expect(page.locator(`${ROW} .chip.chip-usd`)).toBeVisible();
     await expect(page.locator(`${ROW} button:has-text("Ya compré los USD")`)).toBeVisible();
-    await expect(page.locator(`${ROW} button:has-text("Ya pagué los USD")`)).toBeVisible();
+    await expect(page.locator(`${ROW} button:has-text("Ya pagué los USD")`)).toHaveCount(0);
     await expect(page.locator(`${ROW} .usd-nota`)).toHaveCount(0);
   });
 
