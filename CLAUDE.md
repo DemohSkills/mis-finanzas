@@ -27,6 +27,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-det-det-ev-cGC_e`, `finanzas-v1-det-det-ev-cIC_e`, `finanzas-v1-det-det-ev-cG_e` | boolean — estado abierto/plegado de las copias de las tarjetas de Gastos dentro de Evolución (default plegadas = `false`). Ids de las copias: sufijo `_e` (ej. `cGC_e`, `gcBrow_e`); se dibujan solo al abrirlas |
 | `finanzas-v1-mig-rend-1` | flag de migración one-shot: ingresos "Ingresos extras" con 'rendimiento' en descripción → 'Rendimientos' |
 | `finanzas-v1-usd-aviso` | `{ silenciadoComprar, silenciadoPagar, silenciadoEmergente: 'YYYY-MM-DD' o null, proxEmergente: ISO o null }` — avisos de USD MEP de la Visa en Inicio (`silenciadoEmergente` silencia solo el emergente del día; los valores viejos sin ese campo siguen válidos) |
+| `finanzas-v1-usd-ref` | `{ cotizacion: number, fecha: 'YYYY-MM-DD' }` — dólar de referencia (Configuración); solo precarga la cotización de "Ya compré los USD", nunca se aplica solo. Va en el backup (campo `usdRef`) |
 | `finanzas-v1-tema` | `'auto'` (default) / `'claro'` / `'oscuro'` / `'negro'` — tema de la app |
 | `finanzas-v1-pin` | PIN de acceso (string de dígitos) |
 | `finanzas-v1-ocultar` | boolean — modo ojo (montos ocultos) |

@@ -709,6 +709,7 @@ try{
       <div class="wiz-field">
         <label>Cotización MEP a la que compraste (ARS por US$)</label>
         <input type="text" class="input-monto" inputmode="decimal" id="compraUsdCot" placeholder="Opcional">
+        <div class="meta" id="compraUsdRefNota" style="font-size:.75rem;margin-top:4px;" hidden></div>
       </div>
       <div class="wiz-field">
         <label>Costo en pesos</label>
@@ -1222,6 +1223,16 @@ try{
     </div>
 
     <div class="cfg-section">
+      <h2>💵 Dólar de referencia (MEP)</h2>
+      <p class="meta">Se usa para precargar la cotización cuando marcás 'Ya compré los USD'. No cambia compras ya guardadas.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" class="input-monto" inputmode="decimal" id="cfgUsdRef" placeholder="Ej: 1200" style="flex:1;">
+        <button type="button" id="btnGuardarUsdRef" class="primary" style="flex:0 0 auto;">Guardar</button>
+      </div>
+      <p class="meta" id="cfgUsdRefInfo" style="margin:6px 0 0;font-size:.75rem;"></p>
+    </div>
+
+    <div class="cfg-section">
       <h2>🔒 PIN de acceso</h2>
       <p class="meta">Protección casual. Cualquier persona con acceso al localStorage del navegador puede eludirla.</p>
       <button type="button" id="btnCambiarPIN" class="mini" style="margin-top:8px;">Cambiar PIN</button>
@@ -1372,6 +1383,7 @@ const BACKUP_DK      = 'finanzas-v1-backup-date';
 const BACKUP_META_K  = 'finanzas-v1-backup-meta';
 const BACKUP_SNOOZE_K= 'finanzas-v1-backup-snooze';
 const USD_AVISO_K    = 'finanzas-v1-usd-aviso';
+const USD_REF_K      = 'finanzas-v1-usd-ref';
 const USD_AVISO_DIAS = 7;   // días corridos antes del vencimiento en que empiezan los avisos
 const USD_VENTANA_INI= 11;  // hora local (24 h) desde la que se muestra el emergente
 const USD_VENTANA_FIN= 16;  // hora local (24 h) a la que cierra el mercado
@@ -2010,6 +2022,15 @@ function deshacerCompraUsd(id){
 
 // ── COMPRA DE USD (resumen Visa) ─────────────────────────
 let _compraUsdId=null;
+function getUsdRef(){
+  const r=ls.get(USD_REF_K);
+  if(!r||typeof r.cotizacion!=='number'||!(r.cotizacion>0)||typeof r.fecha!=='string') return null;
+  return r;
+}
+function fmtFechaDM(iso,conAnio){
+  const [y,m,d]=String(iso).split('-');
+  return conAnio?`${d}/${m}/${y}`:`${d}/${m}`;
+}
 function _compraUsdCalc(){
   const u=parseMonto($('compraUsdMonto').value), cot=parseMonto($('compraUsdCot').value);
   $('compraUsdPesos').value=(!isNaN(u)&&u>0&&!isNaN(cot)&&cot>0)?fmtInput(Math.round(u*cot*100)/100):'';
@@ -2020,6 +2041,22 @@ function abrirCompraUsd(id){
   _compraUsdId=id;
   $('compraUsdMonto').value=fmtInput(c.usd||0);
   $('compraUsdCot').value='';
+  const nota=$('compraUsdRefNota');
+  nota.hidden=true; nota.textContent=''; nota.style.color='';
+  const ref=getUsdRef();
+  if(ref){
+    // solo precarga: se guarda recién al confirmar con "Guardar compra"
+    $('compraUsdCot').value=fmtInput(ref.cotizacion);
+    const dm=fmtFechaDM(ref.fecha);
+    const dias=(new Date(hoy())-new Date(ref.fecha))/86400000;
+    if(dias>7){
+      nota.textContent=`Referencia vieja (${dm}): verificá la cotización`;
+      nota.style.color='var(--warn)';
+    } else {
+      nota.textContent=`Precargado con tu dólar de referencia del ${dm}. Corregilo si compraste a otro valor.`;
+    }
+    nota.hidden=false;
+  }
   $('compraUsdFecha').value=hoy();
   _compraUsdCalc();
   $('compraUsdModal').removeAttribute('hidden');
@@ -3113,6 +3150,7 @@ function renderConfig(){
   const apiKey=ls.get(APIKEY_K)||'';
   $('cfgApiKey').value=apiKey?'••••••••••••':'';
   $('cfgMiNombre').value=ls.get(MY_NAME_K)||'';
+  renderUsdRefCfg();
   actualizarInfoBackup();
   renderFotosConfig();
   _actualizarImpUltimaInfo();
@@ -3150,6 +3188,23 @@ $('btnGuardarMiNombre').onclick=()=>{
   const val=$('cfgMiNombre').value.trim();
   if(val) ls.set(MY_NAME_K,val); else localStorage.removeItem(MY_NAME_K);
   alert('Nombre guardado.');
+};
+
+function renderUsdRefCfg(){
+  const ref=getUsdRef();
+  $('cfgUsdRef').value=ref?fmtInput(ref.cotizacion):'';
+  $('cfgUsdRefInfo').textContent=ref?`Actualizado el ${fmtFechaDM(ref.fecha,true)}`:'Sin valor guardado';
+}
+$('btnGuardarUsdRef').onclick=()=>{
+  const raw=$('cfgUsdRef').value.trim();
+  if(!raw){
+    try{localStorage.removeItem(USD_REF_K);}catch{}
+    renderUsdRefCfg(); return;
+  }
+  const cot=parseMonto(raw);
+  if(isNaN(cot)||cot<=0){alert('Cotización inválida.');return;}
+  ls.set(USD_REF_K,{cotizacion:cot,fecha:hoy()});
+  renderUsdRefCfg();
 };
 
 $('btnCambiarPIN').onclick=()=>{
@@ -3399,6 +3454,7 @@ function buildBackupJson(){
     cats:ls.get(CATS_KEY)||[],
     catsIncome:ls.get(CATS_INC_K)||[],
     reglas:getReglas(),
+    usdRef:getUsdRef(),
   };
   return JSON.stringify(backup,null,2);
 }
@@ -3463,6 +3519,7 @@ function restaurarBackup(file){
       if(data.cats) ls.set(CATS_KEY,data.cats);
       if(data.catsIncome) ls.set(CATS_INC_K,data.catsIncome);
       if(data.reglas) ls.set(RULES_KEY,data.reglas);
+      if(data.usdRef&&data.usdRef.cotizacion>0) ls.set(USD_REF_K,data.usdRef);
       estado=cargar(); guardar(); render();
       if(document.getElementById('vista-evolucion')&&!document.getElementById('vista-evolucion').hidden) iniciarEvolucion();
       if(document.getElementById('vista-analisis')&&!document.getElementById('vista-analisis').hidden) iniciarGastos();
