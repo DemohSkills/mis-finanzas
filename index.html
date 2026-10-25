@@ -1254,6 +1254,7 @@ try{
       <p class="meta">Importá movimientos desde el resumen de tu banco. Parseo local: el archivo no se sube a ningún servidor.</p>
       <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar Santander / Mercado Pago</button>
       <button type="button" class="mini" id="btnImportarVisa" style="margin-top:8px;">📥 Importar Visa (Excel)</button>
+      <button type="button" class="mini" id="btnImportarMC" style="margin-top:8px;">📥 Importar Mastercard MP (PDF)</button>
       <div id="impUltimaInfo" style="margin-top:6px;font-size:.75rem;color:var(--muted);"></div>
     </div>
 
@@ -5973,6 +5974,7 @@ function _actualizarImpUltimaInfo() {
   if (imps['Banco Santander']) lines.push(`Santander: hasta ${fechaCorta(imps['Banco Santander'].hasta)}`);
   if (imps['Mercado Pago'])    lines.push(`Mercado Pago: hasta ${fechaCorta(imps['Mercado Pago'].hasta)}`);
   if (imps['Visa Santander'])  lines.push(`Visa: hasta ${fechaCorta(imps['Visa Santander'].hasta)}`);
+  if (imps['Mastercard MP'])   lines.push(`Mastercard MP: hasta ${fechaCorta(imps['Mastercard MP'].hasta)}`);
   el.textContent = lines.length ? `Última importación — ${lines.join(' · ')}` : '';
 }
 
@@ -6304,6 +6306,362 @@ function _deshacerUltimaImpVisa() {
   alert('Importación de Visa deshecha correctamente.');
 }
 
+// ── Mastercard MP (PDF) ────────────────────────────────
+// Parser puro sobre las líneas del PDF (ya agrupadas por Y). El año no viene en las filas: se infiere
+// con la fecha de cierre. El número de "Operación" cambia cada mes: NO vincula cuotas, solo entra en el ref.
+const _MC_MES_ABR = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const _MC_MES_LARGO = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const _MC_AMT_RE = /(-?)\s*(US\$|\$)\s*(-?)(\d[\d.]*,\d{2})/g;
+const _MC_ROW_RE = new RegExp('^(\\d{1,2})/(' + _MC_MES_ABR.join('|') + ')\\.?\\s+(.*)$', 'i');
+const _mcNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const _mcNum = s => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+const _mcISO = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+// Año del cierre: el actual, salvo que el mes de cierre quede a más de 2 meses en el futuro (entonces el anterior).
+function _mcAnioCierre(mesIdx, hoyStr) {
+  const y = +hoyStr.slice(0, 4), mHoy = +hoyStr.slice(5, 7) - 1;
+  return mesIdx - mHoy > 2 ? y - 1 : y;
+}
+
+function _mcParseFila(texto, conOperacion) {
+  const m = texto.match(_MC_ROW_RE);
+  if (!m) return null;
+  let pesos = null, usd = null;
+  let resto = m[3].replace(_MC_AMT_RE, (all, s1, mon, s2, num) => {
+    const v = _mcNum(num) * ((s1 || s2) ? -1 : 1);
+    if (mon === '$') { if (pesos === null) pesos = v; } else if (usd === null) usd = v;
+    return ' ';
+  });
+  let cuota = null;
+  resto = resto.replace(/\b(\d{1,3}) de (\d{1,3})\b/, (all, n, mm) => { if (+mm > 1 && +n >= 1 && +n <= +mm) cuota = { n: +n, m: +mm }; return ' '; });
+  let operacion = '';
+  if (conOperacion) resto = resto.replace(/(?:^|\s)(\d{4,})\s*$/, (all, op) => { operacion = op; return ' '; });
+  return {
+    dia: +m[1], mes: _MC_MES_ABR.indexOf(m[2].toLowerCase()),
+    desc: resto.replace(/\s+/g, ' ').trim(), cuota, operacion, pesos: pesos || 0, usd: usd || 0,
+  };
+}
+
+function parseMastercardMP(lineas, hoyStr) {
+  hoyStr = hoyStr || hoy();
+  const L = lineas.map(l => (typeof l === 'string' ? l : l.text).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const full = L.join(' ');
+  const iC = full.search(/Fecha de cierre/i), iV = full.search(/Fecha de vencimiento/i);
+  if (iC < 0 || iV < 0) throw new Error('No se encontraron las fechas de cierre y vencimiento del resumen.');
+  const fechasHdr = [...full.slice(Math.min(iC, iV)).matchAll(new RegExp('(\\d{1,2}) de (' + _MC_MES_LARGO.join('|') + '|setiembre)\\b', 'gi'))];
+  if (fechasHdr.length < 2) throw new Error('No se pudieron leer las fechas de cierre y vencimiento.');
+  const [fc, fv] = iC < iV ? [fechasHdr[0], fechasHdr[1]] : [fechasHdr[1], fechasHdr[0]];
+  const mesDe = mm => { const s = mm.toLowerCase(); return s === 'setiembre' ? 8 : _MC_MES_LARGO.indexOf(s); };
+  const mC = mesDe(fc[2]), mV = mesDe(fv[2]);
+  const yC = _mcAnioCierre(mC, hoyStr);
+  const cierre = _mcISO(yC, mC, +fc[1]);
+  let vencimiento = _mcISO(yC, mV, +fv[1]);
+  if (vencimiento < cierre) vencimiento = _mcISO(yC + 1, mV, +fv[1]);
+  const fechaFila = (dia, mes) => { const f = _mcISO(yC, mes, dia); return f > cierre ? _mcISO(yC - 1, mes, dia) : f; };
+  const mMin = full.match(/m[ií]nimo a pagar es \$\s*(\d[\d.]*,\d{2})/i);
+
+  const LAB = [[/Saldo del periodo anterior/i, 'saldoAnterior'], [/Consumos/i, 'consumos'], [/Impuestos e intereses/i, 'impuestos'],
+    [/Pagos anticipados/i, 'pagos'], [/Ajustes y reembolsos/i, 'ajustes'], [/Total a pagar/i, 'total']];
+  const consol = {}, movs = [], impuestos = [];
+  let omitidasUsd = 0, enDetalle = false, sec = null;
+  for (const t of L) {
+    if (!enDetalle) {
+      if (/DETALLE DE MOVIMIENTOS/i.test(t)) { enDetalle = true; continue; }
+      const lab = LAB.find(([re]) => re.test(t));
+      if (!lab || lab[1] in consol) continue;
+      const a = [...t.matchAll(_MC_AMT_RE)].find(x => x[2] === '$');
+      if (a) consol[lab[1]] = _mcNum(a[4]) * ((a[1] || a[3]) ? -1 : 1);
+      continue;
+    }
+    if (/Composici[oó]n del saldo/i.test(t) || /^Pagos anticipados/i.test(t) || /^Ajustes y reembolsos/i.test(t)) { sec = 'ignorar'; continue; }
+    if (/^Impuestos e intereses/i.test(t)) { sec = 'impuestos'; continue; }
+    if (/^Consumos\b/i.test(t)) { sec = 'consumos'; continue; }
+    if (/^Subtotal/i.test(t)) { sec = null; continue; }
+    if (sec !== 'consumos' && sec !== 'impuestos') continue;
+    const f = _mcParseFila(t, sec === 'consumos');
+    if (!f) continue;
+    const fecha = fechaFila(f.dia, f.mes);
+    if (sec === 'impuestos') { if (f.pesos > 0) impuestos.push({ fecha, desc: f.desc, pesos: f.pesos }); continue; }
+    if (f.usd > 0 && !f.pesos) { omitidasUsd++; continue; }
+    if (f.pesos <= 0) continue;
+    movs.push({ fecha, desc: f.desc, cuota: f.cuota, operacion: f.operacion, pesos: f.pesos, usd: f.usd });
+  }
+  let totalPesos = 'total' in consol ? consol.total : null;
+  if (totalPesos === null) {
+    const mT = full.match(/Total a pagar\s*\$\s*(\d[\d.]*)[ ,](\d{2})\b/i);
+    if (mT) totalPesos = parseFloat(mT[1].replace(/\./g, '') + '.' + mT[2]);
+  }
+  const sumaMov = Math.round([...movs, ...impuestos].reduce((s, x) => s + x.pesos, 0) * 100) / 100;
+  const difSuma = totalPesos === null ? null : Math.round((totalPesos - sumaMov) * 100) / 100;
+  return {
+    cierre, vencimiento, minimo: mMin ? _mcNum(mMin[1]) : null, totalPesos, consol, movs, impuestos,
+    omitidasUsd, sumaMov, difSuma,
+    avisoPagos: !!((consol.pagos || 0) || (consol.ajustes || 0)),
+  };
+}
+
+// Herencia de categoría: misma descripción normalizada + misma fecha original + mismo total de cuotas,
+// cuota anterior ya importada con importe parecido (≤ max(2,00; 1 %)); gana el importe más cercano.
+function _mcHeredarCategoria(c, medio) {
+  if (!c.plan || !c.cuota || c.cuota.n < 2) return null;
+  const nd = _mcNorm(c.plan.desc);
+  let mejor = null, mejorD = Infinity;
+  for (const g of estado.gastos) {
+    if (g.medio !== medio || !g.plan || !g.cuota) continue;
+    if (g.plan.m !== c.plan.m || g.plan.fecha !== c.plan.fecha || _mcNorm(g.plan.desc) !== nd) continue;
+    if (g.cuota.n >= c.cuota.n) continue;
+    const d = Math.abs(g.monto - c.monto);
+    if (d > Math.max(2, c.monto * 0.01)) continue;
+    if (d < mejorD || (d === mejorD && g.cuota.n > mejor.cuota.n)) { mejor = g; mejorD = d; }
+  }
+  return mejor ? mejor.categoria : null;
+}
+
+// Arma los candidatos, deduplica (misma lógica que Visa), hereda categoría y cruza con borradores (sin consumir).
+function _mcArmarCandidatos(data, medio) {
+  const cands = [];
+  for (const mov of data.movs) {
+    const ci = _categorizarVisa(mov.desc, mov.pesos);
+    const cuota = mov.cuota || null;
+    const plan = cuota ? { desc: mov.desc, fecha: mov.fecha, m: cuota.m } : null;
+    const desc = cuota ? `${mov.desc} (cuota ${cuota.n}/${cuota.m})` : mov.desc;
+    const ref = [mov.fecha, _mcNorm(mov.desc), cuota ? `${cuota.n}/${cuota.m}` : '1/1', mov.pesos.toFixed(2), mov.operacion].join('|');
+    cands.push({
+      fecha: cuota && cuota.n > 1 ? data.cierre : mov.fecha, desc, monto: mov.pesos, cat: ci.cat,
+      catInfo: { tipo: 'gasto', cat: ci.cat, paraRevisar: !!ci.paraRevisar },
+      medio, ref, refs: [ref], cuota, plan, _origDesc: mov.desc, yaExiste: false, _mov: mov,
+    });
+  }
+  for (const im of data.impuestos) {
+    const ref = [im.fecha, _mcNorm(im.desc), im.pesos.toFixed(2)].join('|');
+    cands.push({
+      fecha: im.fecha, desc: im.desc, monto: im.pesos, cat: 'Impuestos e Intereses',
+      catInfo: { tipo: 'gasto', cat: 'Impuestos e Intereses', paraRevisar: false },
+      medio, ref, refs: [ref], cuota: null, plan: null, _esOtro: true, yaExiste: false,
+    });
+  }
+  _deduplicarVisaImp(cands, medio);
+  for (const c of cands) {
+    if (!c._mov || c.yaExiste) continue;
+    if (c._mov._catOverride) { c.cat = c._mov._catOverride; c.catInfo = { ...c.catInfo, cat: c.cat, paraRevisar: false }; continue; }
+    if (!c.catInfo.paraRevisar) continue;
+    const her = _mcHeredarCategoria(c, medio);
+    if (her) { c.cat = her; c.catInfo = { ...c.catInfo, cat: her, paraRevisar: false }; c.heredada = true; }
+  }
+  _cruzarBorradores(cands, medio);
+  return cands;
+}
+
+let _mcData = null;
+const _MC_MEDIO = 'Mastercard MP';
+
+function _renderMcPreview(data) {
+  _mcData = data;
+  const body = $('impModalBody');
+  const cands = _mcArmarCandidatos(data, _MC_MEDIO);
+  const fmtD = d => d ? fechaCorta(d) : '—';
+  let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:.82rem;margin-bottom:10px;">
+    <div><span style="color:var(--muted)">Cierre:</span> <b>${fmtD(data.cierre)}</b></div>
+    <div><span style="color:var(--muted)">Vencimiento:</span> <b>${fmtD(data.vencimiento)}</b></div>
+    <div><span style="color:var(--muted)">Mínimo:</span> <b>${data.minimo != null ? fmt(data.minimo) : '—'}</b></div>
+  </div>
+  <div style="font-size:.9rem;margin-bottom:6px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);">
+    <b>Total a pagar:</b> ${data.totalPesos != null ? fmt(data.totalPesos) : '—'}
+  </div>`;
+  if (data.difSuma !== null) {
+    if (Math.abs(data.difSuma) > 1) {
+      html += `<div id="mcAvisoSuma" style="font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);margin-bottom:6px;">⚠ La suma de los movimientos no coincide con el total del resumen (diferencia ${fmt(Math.abs(data.difSuma))}).</div>`;
+    } else {
+      html += `<div id="mcSumaOk" style="font-size:.75rem;color:var(--ok,#16a34a);margin-bottom:6px;">✓ Suma verificada con el total del resumen</div>`;
+    }
+  }
+  if (data.avisoPagos) html += `<div id="mcAvisoPagos" style="font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);margin-bottom:6px;">⚠ El resumen trae pagos/ajustes que no se importan.</div>`;
+  if (data.omitidasUsd) html += `<p class="meta" id="mcUsdOmit" style="margin:0 0 6px">${data.omitidasUsd} consumo${data.omitidasUsd !== 1 ? 's' : ''} solo en USD no se importa${data.omitidasUsd !== 1 ? 'n' : ''}.</p>`;
+
+  const fila = c => {
+    const cuotaLabel = c.cuota ? `cuota ${c.cuota.n}/${c.cuota.m}` : '';
+    let metaCat;
+    if (c.deBorrador) {
+      metaCat = `<span>${esc(c.cat)}</span><span class="imp-borr-tag">📝 cruzó con borrador: ${esc(c.cat)}${c.deBorradorCuotas ? ` (cuota 1/${c.deBorradorCuotas})` : ''}</span>`;
+    } else if (c.heredada) {
+      metaCat = `<span>${esc(c.cat)}</span><span class="imp-borr-tag mc-heredada">↺ categoría heredada de la cuota anterior</span>`;
+    } else if (c.catInfo.paraRevisar && !c.yaExiste) {
+      const cats = getCats().map(ct => `<option value="${esc(ct)}"${ct === c.cat ? ' selected' : ''}>${esc(ct)}</option>`).join('');
+      metaCat = `<select class="imp-cat-sel mc-cat-sel" data-mi="${data.movs.indexOf(c._mov)}" style="font-size:.78rem;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--warn);">${cats}</select>`;
+    } else {
+      metaCat = `<span>${esc(c.cat)}</span>`;
+    }
+    return `<div class="imp-row" style="${c.yaExiste ? 'opacity:.5;' : ''}">
+      <div class="imp-row-top"><span class="imp-row-desc">${esc(c.desc.slice(0, 55))}</span><span>${fmt(c.monto)}</span></div>
+      <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span>${metaCat}${cuotaLabel ? `<span>${esc(cuotaLabel)}</span>` : ''}${c.yaExiste ? '<span>ya importado</span>' : ''}</div>
+    </div>`;
+  };
+  const cMovs = cands.filter(c => c._mov), cImp = cands.filter(c => c._esOtro);
+  html += `<details class="imp-sec" open><summary><span class="det-arrow">▶</span>Consumos (${cMovs.length})</summary>${cMovs.map(fila).join('')}</details>`;
+  if (cImp.length) html += `<details class="imp-sec" open><summary><span class="det-arrow">▶</span>Impuestos e intereses (${cImp.length})</summary>${cImp.map(fila).join('')}</details>`;
+
+  const nuevos = cands.filter(c => !c.yaExiste);
+  const pendRevisa = nuevos.some(c => c._mov && c.catInfo.paraRevisar);
+  const lastImp = (estado.importaciones || {})[_MC_MEDIO];
+  const lastImpHtml = lastImp
+    ? `<p class="meta" style="margin:0 0 8px">Última importación Mastercard MP: hasta ${fechaCorta(lastImp.hasta)}
+        <button type="button" class="mini" id="btnDeshacerMcLote" style="margin-left:6px">↩ Deshacer</button></p>` : '';
+  const avisoAlDia = lastImp && data.cierre <= lastImp.hasta
+    ? `<div style="font-size:.8rem;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);margin-bottom:8px;">⚠ Este resumen ya está al día (importado hasta ${fechaCorta(lastImp.hasta)}).</div>` : '';
+  const btnHtml = pendRevisa
+    ? `<button type="button" class="primary" id="btnConfirmarMcImp" disabled style="opacity:.5;cursor:not-allowed;">Asigná categoría a todos los ⚠</button>`
+    : `<button type="button" class="primary" id="btnConfirmarMcImp">Importar ${nuevos.length} movimiento${nuevos.length !== 1 ? 's' : ''}</button>`;
+  html = lastImpHtml + avisoAlDia + html + _borrSinCruzarHtml(_MC_MEDIO, cands);
+  html += `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">${btnHtml}<button type="button" class="mini" id="btnCancelarMcPrev">Cancelar</button></div>`;
+  body.innerHTML = html;
+  $('btnCancelarMcPrev').onclick = () => { $('impModal').hidden = true; };
+  const btnConf = $('btnConfirmarMcImp');
+  if (btnConf && !pendRevisa) btnConf.onclick = () => _confirmarImpMC();
+  const btnDes = $('btnDeshacerMcLote');
+  if (btnDes) btnDes.onclick = () => _deshacerUltimaImpMC();
+  body.querySelectorAll('.mc-cat-sel').forEach(sel => {
+    sel.onchange = () => { _mcData.movs[+sel.dataset.mi]._catOverride = sel.value; _renderMcPreview(_mcData); };
+  });
+}
+
+function _confirmarImpMC() {
+  const data = _mcData;
+  if (!data) return;
+  const medio = _MC_MEDIO, cierre = data.cierre;
+  const loteId = nuevoId(), now = Date.now();
+  const compromiso = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === medio);
+  const prevCompromiso = compromiso ? JSON.parse(JSON.stringify(compromiso)) : null;
+  const prevImportacion = (estado.importaciones || {})[medio] ? JSON.parse(JSON.stringify(estado.importaciones[medio])) : null;
+  const cands = _mcArmarCandidatos(data, medio);
+  if (cands.some(c => !c.yaExiste && c._mov && c.catInfo.paraRevisar)) {
+    alert('Hay movimientos sin categoría. Asigná una categoría antes de importar.');
+    return;
+  }
+  let cnt = 0;
+  const borrUsados = [];
+  for (const c of cands) {
+    if (c.yaExiste) continue;
+    if (c.deBorrador) borrUsados.push(c.deBorrador);
+    const gasto = {
+      id: nuevoId(), creado: now + cnt, monto: c.monto, fecha: c.fecha, categoria: c.cat,
+      medio, descripcion: c.desc, tipo: 'gasto', soloHistorial: false, refs: c.refs, lote: loteId,
+    };
+    if (c.cuota) gasto.cuota = { ...c.cuota };
+    if (c.plan) gasto.plan = { ...c.plan };
+    estado.gastos.push(gasto);
+    cnt++;
+    if (!c._esOtro) {
+      const mes = c.fecha.slice(0, 7);
+      for (const f of (estado.compromisos || [])) {
+        if (f.tipo !== 'fijo' || !f.activo) continue;
+        if (!_fijoMesCorresponde(f, mes)) continue;
+        if (f.pagos && f.pagos[mes]) continue;
+        if (_fijoCoincide(f, c._origDesc || c.desc)) {
+          f.pagos = f.pagos || {};
+          f.pagos[mes] = { fecha: c.fecha, monto: gasto.monto, gastoId: gasto.id, lote: loteId };
+          break;
+        }
+      }
+    }
+  }
+  const borrCopia = _copiarBorradores(borrUsados);
+  _consumirBorradores(borrUsados);
+  // Compromiso tipo 'resumen' de la entidad: se actualiza (o se crea si no existe)
+  let creoCompromiso = null;
+  estado.compromisos ||= [];
+  let comp = compromiso;
+  if (!comp) {
+    comp = { id: nuevoId(), nombre: medio, entidad: medio, monto: 0, pendientes: 1, proxVenc: null, tipo: 'resumen', estimado: false, cierre: null, usd: 0 };
+    estado.compromisos.push(comp);
+    creoCompromiso = comp.id;
+  }
+  if (!comp.cierre || cierre > comp.cierre) {
+    if (data.totalPesos != null) comp.monto = data.totalPesos;
+    comp.cierre = cierre;
+    comp.proxVenc = data.vencimiento;
+    if (data.minimo != null && data.minimo > 0) comp.pagoMinimo = data.minimo;
+  }
+  estado.importaciones ||= {};
+  estado.importaciones[medio] = {
+    hasta: cierre, lote: loteId, fecha: hoy(), borradoresUsados: borrCopia,
+    _prevCompromiso: prevCompromiso, _prevImportacion: prevImportacion, _creoCompromiso: creoCompromiso,
+  };
+  guardar(); guardarSnap(); render(); renderBorradores();
+  if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
+  _actualizarImpUltimaInfo();
+  $('impModal').hidden = true;
+  alert(`${cnt} movimientos importados correctamente (lote ${loteId.slice(0,8)}…).`);
+}
+
+function _deshacerUltimaImpMC() {
+  const medio = _MC_MEDIO;
+  const imp = (estado.importaciones || {})[medio];
+  if (!imp) return;
+  const { lote, _prevCompromiso, _prevImportacion, _creoCompromiso } = imp;
+  if (!lote) {
+    if (!confirm(`¿Borrar la marca "conciliado hasta ${fechaCorta(imp.hasta)}" de Mastercard MP?`)) return;
+    delete estado.importaciones[medio];
+    guardar(); render(); _actualizarImpUltimaInfo(); $('impModal').hidden = true; return;
+  }
+  const n = estado.gastos.filter(g => g.lote === lote).length;
+  if (!n) { alert('No hay movimientos de esta importación para deshacer.'); return; }
+  if (!confirm(`¿Deshacer la importación de Mastercard MP del ${fechaCorta(imp.hasta)} (${n} movimientos)?`)) return;
+  estado.gastos = estado.gastos.filter(g => g.lote !== lote);
+  for (const f of (estado.compromisos || [])) {
+    if (f.tipo !== 'fijo' || !f.pagos) continue;
+    for (const mes of Object.keys(f.pagos)) if (f.pagos[mes]?.lote === lote) delete f.pagos[mes];
+  }
+  if (_creoCompromiso) {
+    estado.compromisos = estado.compromisos.filter(c => c.id !== _creoCompromiso);
+  } else {
+    const comp = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === medio);
+    if (comp && _prevCompromiso) {
+      comp.monto = _prevCompromiso.monto; comp.cierre = _prevCompromiso.cierre; comp.proxVenc = _prevCompromiso.proxVenc;
+      if (_prevCompromiso.pagoMinimo != null) comp.pagoMinimo = _prevCompromiso.pagoMinimo; else delete comp.pagoMinimo;
+    }
+  }
+  _restaurarBorradores(imp.borradoresUsados);
+  if (_prevImportacion) estado.importaciones[medio] = _prevImportacion; else delete estado.importaciones[medio];
+  guardar(); guardarSnap(); render(); renderBorradores();
+  if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
+  _actualizarImpUltimaInfo();
+  $('impModal').hidden = true;
+  alert('Importación de Mastercard MP deshecha correctamente.');
+}
+
+function abrirImportMCModal() {
+  const body = $('impModalBody');
+  body.innerHTML = `
+    <p class="meta">Seleccioná el resumen de la Mastercard de Mercado Pago (<b>.pdf</b>). El parseo es local.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+      <input type="file" id="impMcFile" accept=".pdf" style="flex:1;font-size:.82rem;">
+    </div>
+    <div id="impMcStatus" style="margin-top:8px;font-size:.8rem;color:var(--muted);min-height:1em;"></div>`;
+  const fileEl = $('impMcFile');
+  fileEl.onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const st = $('impMcStatus');
+    st.textContent = 'Cargando pdf.js…';
+    let pdfjsLib;
+    try { pdfjsLib = await _cargarPDFJS(); }
+    catch (err) { st.textContent = `❌ ${err.message}`; fileEl.value = ''; return; }
+    st.textContent = 'Leyendo PDF…';
+    try {
+      const ab = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+      const lineas = await _extraerLineasPDF(pdf);
+      if (!/DETALLE DE MOVIMIENTOS/i.test(lineas.map(l => l.text).join(' ')))
+        throw new Error('El PDF no parece un resumen de Mastercard MP (no se encontró "DETALLE DE MOVIMIENTOS").');
+      const data = parseMastercardMP(lineas);
+      if (!data.movs.length && !data.impuestos.length) throw new Error('No se encontraron movimientos en el PDF.');
+      st.textContent = '';
+      _renderMcPreview(data);
+    } catch (err) { st.textContent = `❌ ${err.message}`; }
+    fileEl.value = '';
+  };
+  $('impModal').hidden = false;
+}
+
 // ── Open Visa Excel import modal ───────────────────────
 function abrirImportVisaModal() {
   const body = $('impModalBody');
@@ -6508,6 +6866,11 @@ window._fijoCoincide = _fijoCoincide;
 window._confirmarImpBanco = _confirmarImpBanco;
 window._deshacerUltimaImp = _deshacerUltimaImp;
 window._confirmarImpVisa = _confirmarImpVisa;
+window.parseMastercardMP = parseMastercardMP;
+window._mcArmarCandidatos = _mcArmarCandidatos;
+window._renderMcPreview = _renderMcPreview;
+window._confirmarImpMC = _confirmarImpMC;
+window._deshacerUltimaImpMC = _deshacerUltimaImpMC;
 window._deshacerUltimaImpVisa = _deshacerUltimaImpVisa;
 window._deduplicarVisaImp = _deduplicarVisaImp;
 window._setImpState = (cands, medio) => { _impCandidatos = cands; _impMedio = medio; _impSaldoInfo = null; _impFechaFinal = cands.reduce((mx,c)=>c.fecha>mx?c.fecha:mx,''); };
@@ -6602,6 +6965,7 @@ function wireEvents(){
   };
   $('btnImportarBanco').onclick=abrirImportModal;
   $('btnImportarVisa').onclick=abrirImportVisaModal;
+  $('btnImportarMC').onclick=abrirImportMCModal;
   $('btnCerrarImpModal').onclick=()=>{ $('impModal').hidden=true; };
 }
 
