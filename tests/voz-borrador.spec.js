@@ -77,12 +77,14 @@ test('(b) sin "borrador" el flujo es el de siempre y crea el gasto', async ({ pa
   expect(d.borradores || []).toHaveLength(0);
 });
 
-test('(c) cuotas=3 agrega " · 3 cuotas" y el aviso; cuotas 0/1 no', async ({ page }) => {
+test('(c) cuotas=3 guarda b.cuotas (sin sufijo en la nota) y el aviso; cuotas 0/1 no', async ({ page }) => {
   await setup(page, base({ cuotas: 3 }));
   await dictar(page, 'borrador pizza en 3 cuotas');
-  await expect(page.locator('#vozBorrCuotas')).toContainText('Ojo: con cuotas el banco cobra cada cuota por separado');
+  await expect(page.locator('#vozBorrCuotas')).toContainText('Se cruza con la primera cuota del resumen');
   await page.click('#btnVozOk');
-  expect((await estadoDe(page)).borradores[0].nota).toBe('pizza · 3 cuotas');
+  const b0 = (await estadoDe(page)).borradores[0];
+  expect(b0.nota).toBe('pizza');
+  expect(b0.cuotas).toBe(3);
 
   for (const c of [0, 1]) {
     await responder(page, base({ cuotas: c }));
@@ -91,6 +93,7 @@ test('(c) cuotas=3 agrega " · 3 cuotas" y el aviso; cuotas 0/1 no', async ({ pa
     await page.click('#btnVozOk');
     const bs = (await estadoDe(page)).borradores;
     expect(bs[bs.length - 1].nota).toBe('pizza');
+    expect(bs[bs.length - 1].cuotas).toBeUndefined();
   }
 });
 

@@ -25,7 +25,9 @@
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
 2. ~~**Borradores de gastos para conciliar con resúmenes**~~ ✅ Hecho (etapa 1, 2026-10-25): sección «📝 Borradores» en Movimientos (`estado.borradores`), cruce al importar Santander/Mercado Pago/Visa vía `_cruzarBorradores` (reglas en CLAUDE.md) y lupa en el buscador. Etapas siguientes, todavía pendientes:
    - 2a. ~~**Cargar borradores por dictado de voz.**~~ ✅ Hecho (2026-10-25): decir «borrador» en el dictado guarda un borrador (ver CLAUDE.md, «Dictado en modo borrador»).
-   - 2b. **Borradores con cuotas**: una compra en N cuotas cruza con el importe de cada cuota (total/N), mes a mes.
+   - 2b. ~~**Borradores con cuotas, versión mínima.**~~ ✅ Hecho (2026-10-25): el borrador con `cuotas` N cruza solo con la cuota 1 de ese plan en la Visa (ver CLAUDE.md, «Borradores con cuotas»). Pendientes de esta etapa:
+     - (1) Verificar con el resumen real del 29/10 la tolerancia de importe (`max(2,00; 1 %)` de total÷N) y el formato de la columna de cuotas.
+     - (2) Que las cuotas 2..N hereden la categoría de la cuota 1 (hoy no se cruzan: siguen como siempre).
    - 2c. **Dividir una compra en varias categorías.**
 3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.

@@ -1042,7 +1042,7 @@ try{
       <details id="det-borradores" class="section-collapse">
         <summary><span class="det-arrow">▶</span><h2>📝 Borradores</h2><span id="borrContador" class="borr-pill" hidden></span></summary>
         <p class="meta" style="margin:0 0 10px">Anotá un gasto al momento. No toca saldos: al importar el resumen se cruza solo.</p>
-        <form id="formBorrador" autocomplete="off">
+        <form id="formBorrador" autocomplete="off" novalidate>
           <label>Importe
             <input type="text" class="input-monto" id="borrMonto" inputmode="decimal">
           </label>
@@ -1054,6 +1054,9 @@ try{
           </label>
           <label>Categoría
             <select id="borrCat"></select>
+          </label>
+          <label>Cuotas
+            <input type="number" id="borrCuotas" min="2" max="60" step="1" inputmode="numeric" placeholder="Opcional: ej 3">
           </label>
           <label class="full">Nota (opcional)
             <input type="text" id="borrNota" maxlength="120" placeholder="Ej: pizza, nafta…">
@@ -1665,6 +1668,21 @@ function guardar() { ls.set(SK, estado); try{evaluarAvisosUsd();}catch{} if(esta
 // ── BORRADORES (gastos anotados al momento, sin tocar saldos) ──────────
 const _diasEntre = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
 
+// Cuotas de un borrador: b.cuotas (entero >=2) o, en los viejos, el sufijo " · N cuotas" de la nota. 0 = pago único.
+const _RE_CUOTAS_NOTA = /\s·\s(\d+)\s+cuotas$/;
+function _cuotasDeBorrador(b) {
+  const c = Number(b?.cuotas);
+  if (Number.isInteger(c) && c >= 2) return c;
+  const m = _RE_CUOTAS_NOTA.exec(String(b?.nota || ''));
+  const n = m ? parseInt(m[1], 10) : 0;
+  return n >= 2 ? n : 0;
+}
+// " · N cuotas" derivado del campo, sin duplicar si la nota ya lo trae.
+function _sufijoCuotasBorr(b) {
+  const n = _cuotasDeBorrador(b);
+  return n && !_RE_CUOTAS_NOTA.test(String(b.nota || '')) ? ` · ${n} cuotas` : '';
+}
+
 function renderBorradores() {
   const lista = $('borrLista'); if (!lista) return;
   const bs = [...(estado.borradores || [])].sort((a, b) => (b.creado || 0) - (a.creado || 0));
@@ -1675,7 +1693,7 @@ function renderBorradores() {
   lista.innerHTML = bs.map(b => {
     const dias = _diasEntre(b.fecha, h);
     const viejo = dias > 7;
-    const titulo = b.nota ? `${esc(b.nota)} · ${esc(b.categoria)}` : esc(b.categoria);
+    const titulo = (b.nota ? `${esc(b.nota)} · ${esc(b.categoria)}` : esc(b.categoria)) + esc(_sufijoCuotasBorr(b));
     return `<div class="borr-row" data-id="${esc(b.id)}">
       <div class="borr-izq">
         <div>${titulo}</div>
@@ -1701,12 +1719,20 @@ function anotarBorrador(e) {
   const fecha = $('borrFecha').value || hoy();
   const cat = $('borrCat').value;
   if (!cat || cat === '__nueva__') { alert('Elegí una categoría.'); return; }
+  const cuotasTxt = $('borrCuotas').value.trim();
+  let cuotas = 0;
+  if (cuotasTxt !== '') {
+    cuotas = Number(cuotasTxt);
+    if (!/^\d+$/.test(cuotasTxt) || cuotas < 2 || cuotas > 60) { alert('Las cuotas deben ser un entero entre 2 y 60 (o dejalo vacío si fue un pago único).'); return; }
+  }
   estado.borradores ||= [];
-  estado.borradores.push({
+  const b = {
     id: nuevoId(), creado: Date.now(), fecha, monto: Math.round(monto * 100) / 100,
     medio: $('borrMedio').value, categoria: cat, nota: $('borrNota').value.trim().slice(0, 120),
-  });
-  $('borrMonto').value = ''; $('borrNota').value = ''; $('borrFecha').value = hoy();
+  };
+  if (cuotas) b.cuotas = cuotas;
+  estado.borradores.push(b);
+  $('borrMonto').value = ''; $('borrNota').value = ''; $('borrCuotas').value = ''; $('borrFecha').value = hoy();
   guardar(); renderBorradores();
 }
 
@@ -1723,16 +1749,26 @@ function initBorradores() {
 function _cruzarBorradores(candidatos, medio) {
   for (const c of candidatos) {
     if (c._catInfoPrev) { c.catInfo = c._catInfoPrev; c.paraRevisar = c._paraRevPrev; delete c._catInfoPrev; delete c._paraRevPrev; }
-    delete c.deBorrador;
+    delete c.deBorrador; delete c.deBorradorCuotas;
   }
   const pool = (estado.borradores || []).filter(b => b.medio === medio);
   const usados = new Set();
   for (const c of candidatos) {
     if (c.yaExiste || c._agrupado || c._esOtro || c.catInfo?.agrupable || c.catInfo?.tipo !== 'gasto') continue;
     const monto = Math.abs(c.monto);
+    const esPlan = !!(c.cuota && c.cuota.m > 1);
     let mejor = null, mejorD = Infinity;
     for (const b of pool) {
-      if (usados.has(b.id) || Math.abs(b.monto - monto) >= 0.01) continue;
+      if (usados.has(b.id)) continue;
+      const M = _cuotasDeBorrador(b);
+      if (M) {
+        // Con cuotas: solo la cuota 1 del mismo plan, importe ≈ total ÷ cuotas
+        if (!(c.cuota && c.cuota.n === 1 && c.cuota.m === M)) continue;
+        const cuotaImp = b.monto / M;
+        if (Math.abs(monto - cuotaImp) > Math.max(2, cuotaImp * 0.01)) continue;
+      } else if (esPlan || Math.abs(b.monto - monto) >= 0.01) {
+        continue; // sin cuotas: nunca con líneas de un plan de cuotas; importe exacto
+      }
       const d = Math.abs(_diasEntre(b.fecha, c.fecha));
       if (d <= 5 && d < mejorD) { mejor = b; mejorD = d; }
     }
@@ -1743,6 +1779,8 @@ function _cruzarBorradores(candidatos, medio) {
     c.paraRevisar = false;
     if (c.cat !== undefined) c.cat = mejor.categoria;
     c.deBorrador = mejor.id;
+    const Mj = _cuotasDeBorrador(mejor);
+    if (Mj) c.deBorradorCuotas = Mj;
   }
   return candidatos;
 }
@@ -1757,7 +1795,7 @@ function _borrSinCruzarHtml(medio, candidatos) {
   if (!sin.length) return '';
   return `<div id="impBorrSin" style="margin-top:10px;">
     <div style="font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">QUEDARON SIN CRUZAR (${sin.length})</div>
-    ${sin.map(b => `<div class="imp-row"><div class="imp-row-top"><span class="imp-row-desc">${esc(b.nota ? b.nota + ' · ' + b.categoria : b.categoria)}</span><span class="imp-row-monto neg">${fmt(b.monto)}</span></div><div class="imp-row-meta"><span>${fechaCorta(b.fecha)}</span></div></div>`).join('')}
+    ${sin.map(b => `<div class="imp-row"><div class="imp-row-top"><span class="imp-row-desc">${esc((b.nota ? b.nota + ' · ' + b.categoria : b.categoria) + _sufijoCuotasBorr(b))}</span><span class="imp-row-monto neg">${fmt(b.monto)}</span></div><div class="imp-row-meta"><span>${fechaCorta(b.fecha)}</span></div></div>`).join('')}
     <p class="meta" style="font-size:.76rem;margin:4px 0 0">Siguen en Borradores. Si el banco lo cobró con otro importe, borralo y cargá el movimiento a mano.</p>
   </div>`;
 }
@@ -3524,7 +3562,7 @@ function mostrarConfirmBorradorVoz(monto, medioIA, desc, catIA='', cuotas=0, dia
       <div class="vc-row"><span>Fecha</span><strong>${fechaCorta(fecha)}</strong></div>
       <div class="vc-row"><span>Nota</span><strong>${esc(desc)}</strong></div>
       <div class="vc-row"><span>Categoría</span><select id="vozCat" style="${selSt}"></select></div>
-      ${cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Ojo: con cuotas el banco cobra cada cuota por separado. Este borrador todavía no se cruza solo con el resumen.</p>':''}
+      ${cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Se cruza con la primera cuota del resumen (importe total ÷ cuotas). Las cuotas 2 y siguientes no se cruzan todavía.</p>':''}
       <div class="vc-actions">
         <button type="button" class="primary" id="btnVozOk">✓ Guardar borrador</button>
         <button type="button" id="btnVozCancel">Cancelar</button>
@@ -3538,10 +3576,11 @@ function mostrarConfirmBorradorVoz(monto, medioIA, desc, catIA='', cuotas=0, dia
     if(cat==='__nueva__') return;
     const m=Math.round(Number(monto)*100)/100;
     if(!(m>0)){ $('voiceStatus').textContent='Error al procesar: monto inválido'; cont.hidden=true; return; }
-    const suf=cuotas>1?` · ${cuotas} cuotas`:'';
-    const nota=String(desc).trim().slice(0,120-suf.length)+suf;
+    const nota=String(desc).trim().slice(0,120);
     estado.borradores ||= [];
-    estado.borradores.push({id:nuevoId(),creado:Date.now(),fecha,monto:m,medio:$('vozBorrMedio').value,categoria:cat,nota});
+    const bor={id:nuevoId(),creado:Date.now(),fecha,monto:m,medio:$('vozBorrMedio').value,categoria:cat,nota};
+    if(cuotas>1 && cuotas<=60) bor.cuotas=cuotas;
+    estado.borradores.push(bor);
     guardar(); renderBorradores(); cont.hidden=true;
     $('voiceStatus').textContent='✅ Borrador guardado.';
     setTimeout(()=>$('voiceStatus').textContent='',3000);
@@ -5985,7 +6024,7 @@ function _renderVisaPreview(data) {
       if (esUsd) {
         metaCat = `<span class="chip" style="font-size:.72rem;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);">En dólares</span>`;
       } else if (crMap.has(mov)) {
-        metaCat = `<span>${esc(crMap.get(mov).cat)}</span><span class="imp-borr-tag">📝 cruzó con borrador: ${esc(crMap.get(mov).cat)}</span>`;
+        metaCat = `<span>${esc(crMap.get(mov).cat)}</span><span class="imp-borr-tag">📝 cruzó con borrador: ${esc(crMap.get(mov).cat)}${crMap.get(mov).deBorradorCuotas ? ` (cuota 1/${crMap.get(mov).deBorradorCuotas})` : ''}</span>`;
       } else if (catInfo.paraRevisar && !mov._catOverride) {
         const cats = getCats().map(ct => `<option value="${esc(ct)}"${ct === catInfo.cat ? ' selected' : ''}>${esc(ct)}</option>`).join('');
         metaCat = `<select class="imp-cat-sel visa-cat-sel" data-ti="${data.tarjetas.indexOf(tarjeta)}" data-mi="${mi}" style="font-size:.78rem;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--warn);">${cats}</select>`;
@@ -6434,6 +6473,7 @@ window._categorizarVisa = _categorizarVisa;
 window._renderVisaPreview = _renderVisaPreview;
 window._deduplicarImp = _deduplicarImp;
 window._cruzarBorradores = _cruzarBorradores;
+window._cuotasDeBorrador = _cuotasDeBorrador;
 window._renderImpPreview = _renderImpPreview;
 window._setImpState = (c, m) => { _impCandidatos = c; _impMedio = m; };
 window._agruparRuidoImp = _agruparRuidoImp;
