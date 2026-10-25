@@ -23,7 +23,10 @@
 
 ## Pendiente (por orden de prioridad sugerido)
 1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
-2. **Borradores de gastos para conciliar con resúmenes** (prioridad media): anotar al momento un gasto (fecha, importe, cuenta MP/Santander/Visa, categoría, nota opcional) SIN tocar saldos. Al importar el resumen, cada movimiento se cruza con los borradores (misma cuenta, importe exacto, fecha con ventana de unos días) y toma su categoría; el borrador pasa a usado. Evita duplicar el gasto. Falta: lista de borradores sin cruzar para revisar/borrar, un borrador se consume una sola vez, y (segunda etapa) dividir una compra en varias categorías. Antes: revisar el matching actual del importador para encajarlo ahí.
+2. ~~**Borradores de gastos para conciliar con resúmenes**~~ ✅ Hecho (etapa 1, 2026-10-25): sección «📝 Borradores» en Movimientos (`estado.borradores`), cruce al importar Santander/Mercado Pago/Visa vía `_cruzarBorradores` (reglas en CLAUDE.md) y lupa en el buscador. Etapas siguientes, todavía pendientes:
+   - 2a. **Cargar borradores por dictado de voz.**
+   - 2b. **Borradores con cuotas**: una compra en N cuotas cruza con el importe de cada cuota (total/N), mes a mes.
+   - 2c. **Dividir una compra en varias categorías.**
 3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
 5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.

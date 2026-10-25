@@ -152,7 +152,18 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .comp-hoy-div{display:flex;align-items:center;gap:8px;padding:2px 0;margin:4px 0;}
 .comp-hoy-div hr{flex:1;border:none;border-top:1px solid var(--border);margin:0;}
 .comp-hoy-div span{font-size:.75rem;color:var(--muted);white-space:nowrap;}
-#busqMov{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:.9rem;flex:1;min-width:0;}
+#busqMov{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px 7px 30px;font-size:.9rem;flex:1;min-width:0;}
+.busq-wrap{position:relative;flex:1;min-width:0;display:flex;}
+.busq-lupa{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:.85rem;pointer-events:none;line-height:1;}
+.borr-pill{background:var(--warn);color:#000;font-size:.72rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;}
+.borr-pill[hidden]{display:none;}
+.borr-rotulo{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:14px 0 4px;}
+.borr-row{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:8px 0;}
+.borr-row:first-of-type{border-top:0;}
+.borr-izq{min-width:0;flex:1;overflow-wrap:anywhere;}
+.borr-der{display:flex;align-items:center;gap:8px;flex-shrink:0;text-align:right;}
+.borr-viejo{color:var(--warn)!important;}
+.imp-borr-tag{font-size:.72rem;color:var(--ok);}
 .subtotal{display:flex;justify-content:space-between;font-weight:700;padding:8px 4px 0;border-top:2px solid var(--border);margin-top:4px;}
 /* Vínculos */
 .persona{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
@@ -1027,9 +1038,39 @@ try{
       </details>
     </section>
 
+    <section class="no-print">
+      <details id="det-borradores" class="section-collapse">
+        <summary><span class="det-arrow">▶</span><h2>📝 Borradores</h2><span id="borrContador" class="borr-pill" hidden></span></summary>
+        <p class="meta" style="margin:0 0 10px">Anotá un gasto al momento. No toca saldos: al importar el resumen se cruza solo.</p>
+        <form id="formBorrador" autocomplete="off">
+          <label>Importe
+            <input type="text" class="input-monto" id="borrMonto" inputmode="decimal">
+          </label>
+          <label>Fecha
+            <input type="date" id="borrFecha">
+          </label>
+          <label>Cuenta
+            <select id="borrMedio"></select>
+          </label>
+          <label>Categoría
+            <select id="borrCat"></select>
+          </label>
+          <label class="full">Nota (opcional)
+            <input type="text" id="borrNota" maxlength="120" placeholder="Ej: pizza, nafta…">
+          </label>
+          <div class="acciones">
+            <button type="submit" class="primary" id="btnAnotarBorrador">Anotar borrador</button>
+          </div>
+        </form>
+        <div class="borr-rotulo">SIN CRUZAR</div>
+        <div id="borrLista"></div>
+      </details>
+    </section>
+
     <section class="no-print" style="padding-bottom:0">
+      <div class="meta" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:0 2px 4px">BUSCAR EN MOVIMIENTOS</div>
       <div style="display:flex;gap:6px;align-items:center">
-        <input type="search" id="busqMov" placeholder="pizza 15/10 >100000" autocomplete="off">
+        <div class="busq-wrap"><span class="busq-lupa" aria-hidden="true">🔍</span><input type="search" id="busqMov" placeholder="Buscar… ej: pizza 15/10 >100000" autocomplete="off"></div>
         <button type="button" class="mini" id="busqLimpiar" title="Limpiar búsqueda">✕</button>
       </div>
       <div id="busqSummary" class="meta" style="padding:3px 2px;font-size:.8rem;min-height:1.1em"></div>
@@ -1603,6 +1644,7 @@ function cargar() {
   data.compromisos ||= [];
   for (const it of data.items) if (!it.historial) it.historial = [];
   data.importaciones ||= {};
+  if (!Array.isArray(data.borradores)) data.borradores = [];
   // Migración única: ingresos 'Ingresos extras' con 'rendimiento' en descripción → 'Rendimientos'
   const _MIG_REND_K = 'finanzas-v1-mig-rend-1';
   if (!ls.get(_MIG_REND_K)) {
@@ -1619,6 +1661,114 @@ function cargar() {
 
 let _snapTimer = null;
 function guardar() { ls.set(SK, estado); try{evaluarAvisosUsd();}catch{} if(estado?.patrimonioCargado){clearTimeout(_snapTimer);_snapTimer=setTimeout(guardarSnap,1500);} }
+
+// ── BORRADORES (gastos anotados al momento, sin tocar saldos) ──────────
+const _diasEntre = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+
+function renderBorradores() {
+  const lista = $('borrLista'); if (!lista) return;
+  const bs = [...(estado.borradores || [])].sort((a, b) => (b.creado || 0) - (a.creado || 0));
+  const pill = $('borrContador');
+  if (pill) { pill.hidden = !bs.length; pill.textContent = `${bs.length} sin cruzar`; }
+  if (!bs.length) { lista.innerHTML = '<p class="meta" style="margin:0">No hay borradores.</p>'; return; }
+  const h = hoy();
+  lista.innerHTML = bs.map(b => {
+    const dias = _diasEntre(b.fecha, h);
+    const viejo = dias > 7;
+    const titulo = b.nota ? `${esc(b.nota)} · ${esc(b.categoria)}` : esc(b.categoria);
+    return `<div class="borr-row" data-id="${esc(b.id)}">
+      <div class="borr-izq">
+        <div>${titulo}</div>
+        <div class="meta" style="font-size:.75rem">${esc(b.medio)} · ${fechaCorta(b.fecha)}${viejo ? ` · <span class="borr-viejo borr-hace">hace ${dias} días sin cruzar</span>` : ''}</div>
+      </div>
+      <div class="borr-der"><span class="neg amt borr-monto${viejo ? ' borr-viejo' : ''}">${fmt(b.monto)}</span><button type="button" class="mini danger borr-del" title="Borrar borrador">×</button></div>
+    </div>`;
+  }).join('');
+  lista.querySelectorAll('.borr-del').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.closest('.borr-row').dataset.id;
+      if (!confirm('¿Borrar este borrador?')) return;
+      estado.borradores = estado.borradores.filter(b => b.id !== id);
+      guardar(); renderBorradores();
+    };
+  });
+}
+
+function anotarBorrador(e) {
+  e?.preventDefault();
+  const monto = readMonto('borrMonto');
+  if (isNaN(monto) || monto <= 0) { alert('Ingresá un importe mayor a 0.'); return; }
+  const fecha = $('borrFecha').value || hoy();
+  const cat = $('borrCat').value;
+  if (!cat || cat === '__nueva__') { alert('Elegí una categoría.'); return; }
+  estado.borradores ||= [];
+  estado.borradores.push({
+    id: nuevoId(), creado: Date.now(), fecha, monto: Math.round(monto * 100) / 100,
+    medio: $('borrMedio').value, categoria: cat, nota: $('borrNota').value.trim().slice(0, 120),
+  });
+  $('borrMonto').value = ''; $('borrNota').value = ''; $('borrFecha').value = hoy();
+  guardar(); renderBorradores();
+}
+
+function initBorradores() {
+  $('borrMedio').innerHTML = MEDIOS.map(m => `<option>${m}</option>`).join('');
+  fillCatSelect('borrCat');
+  $('borrFecha').value = hoy();
+  $('formBorrador').onsubmit = anotarBorrador;
+  renderBorradores();
+}
+
+// Cruza candidatos de un importador con los borradores del medio. Muta c.catInfo/c.paraRevisar
+// y marca c.deBorrador = id. No consume nada: eso pasa al confirmar. Idempotente (se puede recalcular).
+function _cruzarBorradores(candidatos, medio) {
+  for (const c of candidatos) {
+    if (c._catInfoPrev) { c.catInfo = c._catInfoPrev; c.paraRevisar = c._paraRevPrev; delete c._catInfoPrev; delete c._paraRevPrev; }
+    delete c.deBorrador;
+  }
+  const pool = (estado.borradores || []).filter(b => b.medio === medio);
+  const usados = new Set();
+  for (const c of candidatos) {
+    if (c.yaExiste || c._agrupado || c._esOtro || c.catInfo?.agrupable || c.catInfo?.tipo !== 'gasto') continue;
+    const monto = Math.abs(c.monto);
+    let mejor = null, mejorD = Infinity;
+    for (const b of pool) {
+      if (usados.has(b.id) || Math.abs(b.monto - monto) >= 0.01) continue;
+      const d = Math.abs(_diasEntre(b.fecha, c.fecha));
+      if (d <= 5 && d < mejorD) { mejor = b; mejorD = d; }
+    }
+    if (!mejor) continue;
+    usados.add(mejor.id);
+    c._catInfoPrev = c.catInfo; c._paraRevPrev = c.paraRevisar;
+    c.catInfo = { ...c.catInfo, cat: mejor.categoria, paraRevisar: false };
+    c.paraRevisar = false;
+    if (c.cat !== undefined) c.cat = mejor.categoria;
+    c.deBorrador = mejor.id;
+  }
+  return candidatos;
+}
+
+function _borradoresSinCruzar(medio, candidatos) {
+  const usados = new Set(candidatos.filter(c => c.deBorrador && !c.yaExiste).map(c => c.deBorrador));
+  return (estado.borradores || []).filter(b => b.medio === medio && !usados.has(b.id));
+}
+
+function _borrSinCruzarHtml(medio, candidatos) {
+  const sin = _borradoresSinCruzar(medio, candidatos);
+  if (!sin.length) return '';
+  return `<div id="impBorrSin" style="margin-top:10px;">
+    <div style="font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">QUEDARON SIN CRUZAR (${sin.length})</div>
+    ${sin.map(b => `<div class="imp-row"><div class="imp-row-top"><span class="imp-row-desc">${esc(b.nota ? b.nota + ' · ' + b.categoria : b.categoria)}</span><span class="imp-row-monto neg">${fmt(b.monto)}</span></div><div class="imp-row-meta"><span>${fechaCorta(b.fecha)}</span></div></div>`).join('')}
+    <p class="meta" style="font-size:.76rem;margin:4px 0 0">Siguen en Borradores. Si el banco lo cobró con otro importe, borralo y cargá el movimiento a mano.</p>
+  </div>`;
+}
+
+// Elimina de estado.borradores los usados por candidatos efectivamente importados. Devuelve cuántos.
+function _consumirBorradores(ids) {
+  if (!ids.length) return 0;
+  const set = new Set(ids), antes = estado.borradores.length;
+  estado.borradores = estado.borradores.filter(b => !set.has(b.id));
+  return antes - estado.borradores.length;
+}
 
 // ── COMPROMISOS ─────────────────────────────────────────
 function mkFecha(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
@@ -2590,6 +2740,7 @@ function arrancarApp() {
 
 function initApp() {
   fillCatSelect('categoria');
+  initBorradores();
   $('medio').innerHTML = MEDIOS.map(m=>`<option>${m}</option>`).join('');
   $('formDestino').innerHTML = MEDIOS.map(m=>`<option>${m}</option>`).join('');
   $('itemGrupo').innerHTML = GRUPOS.map(g=>`<option>${g}</option>`).join('');
@@ -3449,7 +3600,7 @@ function confirmarImport(rows){
 function buildBackupJson(){
   const backup={
     version:1, fecha:hoy(),
-    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}},
+    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}, borradores:[...(estado.borradores||[])]},
     snaps:cargarSnaps(),
     cats:ls.get(CATS_KEY)||[],
     catsIncome:ls.get(CATS_INC_K)||[],
@@ -3523,7 +3674,8 @@ function restaurarBackup(file){
       estado=cargar(); guardar(); render();
       if(document.getElementById('vista-evolucion')&&!document.getElementById('vista-evolucion').hidden) iniciarEvolucion();
       if(document.getElementById('vista-analisis')&&!document.getElementById('vista-analisis').hidden) iniciarGastos();
-      fillCatSelect('categoria'); fillCatSelect('reglaCat');
+      fillCatSelect('categoria'); fillCatSelect('reglaCat'); fillCatSelect('borrCat');
+      renderBorradores();
       renderConfig();
       alert('Backup restaurado correctamente.');
     } catch(err){
@@ -5444,7 +5596,8 @@ function _renderImpPreview() {
     if (!items.length) return '';
     const rows = items.map(c => {
       const sgn = c.monto >= 0;
-      const fijoTag=c._fijoMatch?`<span class="imp-fijo-tag">✓ Fijo: ${esc(c._fijoMatch.nombre)}</span>`:'';
+      const fijoTag=(c._fijoMatch?`<span class="imp-fijo-tag">✓ Fijo: ${esc(c._fijoMatch.nombre)}</span>`:'')
+        +(c.deBorrador?`<span class="imp-borr-tag">📝 cruzó con borrador: ${esc(c.catInfo?.cat||'')}</span>`:'');
       return `<div class="imp-row">
         <div class="imp-row-top">
           <span class="imp-row-desc">${esc(c.desc.slice(0,60))}</span>
@@ -5489,6 +5642,7 @@ function _renderImpPreview() {
     ${paraRevHtml}
     ${mkSec('imp-nuevos','Nuevos', nuevos.filter(c=>!c.paraRevisar), true)}
     ${mkSec('imp-yaest','Ya estaban', yaEst)}
+    ${_borrSinCruzarHtml(_impMedio, cands)}
     ${saldoHtml}
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
       <button type="button" class="primary" id="btnConfirmarImp">Importar ${nuevos.length} movimientos</button>
@@ -5516,6 +5670,7 @@ function _renderImpPreview() {
       _impAgrupar
     );
     _deduplicarImp(_impCandidatos, _impMedio);
+    _cruzarBorradores(_impCandidatos, _impMedio);
     _renderImpPreview();
   };
   const histEl = $('impHistHasta');
@@ -5547,6 +5702,7 @@ function _renderImpPreview() {
       }
     }
     _deduplicarImp(_impCandidatos, _impMedio);
+    _cruzarBorradores(_impCandidatos, _impMedio);
     _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
     _renderImpPreview();
   };
@@ -5558,11 +5714,13 @@ function _confirmarImpBanco(conAjuste) {
   const fechaFinal = _impCandidatos.reduce((mx, c) => c.fecha > mx ? c.fecha : mx, '');
   const now = Date.now();
   let cnt = 0;
+  const borrUsados = [];
   // Ensure income categories exist
   addCatIncome('Ingresos extras');
   addCatIncome('Rendimientos');
   for (const c of _impCandidatos) {
     if (c.yaExiste) continue;
+    if (c.deBorrador && !c._agrupado) borrUsados.push(c.deBorrador);
     const soloH = !!c.soloHistorial;
     const tipo = c.catInfo.tipo;
     const cat = c.catInfo.cat;
@@ -5653,7 +5811,8 @@ function _confirmarImpBanco(conAjuste) {
   // Save import metadata
   estado.importaciones ||= {};
   estado.importaciones[_impMedio] = { hasta: fechaFinal, lote: loteId, fecha: hoy() };
-  guardar(); guardarSnap(); render();
+  _consumirBorradores(borrUsados);
+  guardar(); guardarSnap(); render(); renderBorradores();
   if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
@@ -5720,6 +5879,9 @@ function _renderVisaPreview(data) {
     <b>Total a pagar:</b> ${fmt(data.totalPesos)}${data.totalUSD ? ` &nbsp;·&nbsp; <b>${fmtUSD(data.totalUSD)}</b>` : ''}
   </div>`;
 
+  const _vCands = _visaArmarCandidatos(data, 'Visa Santander');
+  const crMap = new Map(_vCands.filter(c => c._mov && c.deBorrador).map(c => [c._mov, c]));
+
   for (const tarjeta of data.tarjetas) {
     const sumP = tarjeta.movs.reduce((s,m) => s + m.pesos, 0);
     const sumU = tarjeta.movs.reduce((s,m) => s + m.usd, 0);
@@ -5745,6 +5907,8 @@ function _renderVisaPreview(data) {
       let metaCat;
       if (esUsd) {
         metaCat = `<span class="chip" style="font-size:.72rem;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);">En dólares</span>`;
+      } else if (crMap.has(mov)) {
+        metaCat = `<span>${esc(crMap.get(mov).cat)}</span><span class="imp-borr-tag">📝 cruzó con borrador: ${esc(crMap.get(mov).cat)}</span>`;
       } else if (catInfo.paraRevisar && !mov._catOverride) {
         const cats = getCats().map(ct => `<option value="${esc(ct)}"${ct === catInfo.cat ? ' selected' : ''}>${esc(ct)}</option>`).join('');
         metaCat = `<select class="imp-cat-sel visa-cat-sel" data-ti="${data.tarjetas.indexOf(tarjeta)}" data-mi="${mi}" style="font-size:.78rem;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--warn);">${cats}</select>`;
@@ -5785,7 +5949,7 @@ function _renderVisaPreview(data) {
   const nPesosMov = data.tarjetas.reduce((s, t) => s + t.movs.filter(m => m.pesos > 0 && !m.usd).length, 0);
   const nOtros = data.otros.length ? new Set(data.otros.map(o => _categorizarVisa(o.desc, o.monto).cat)).size : 0;
   const nTotal = nPesosMov + nOtros;
-  const pendRevisa = data.tarjetas.some(t => t.movs.some(m => m.pesos > 0 && !m.usd && _categorizarVisa(m.desc, m.pesos).paraRevisar && !m._catOverride));
+  const pendRevisa = data.tarjetas.some(t => t.movs.some(m => m.pesos > 0 && !m.usd && _categorizarVisa(m.desc, m.pesos).paraRevisar && !m._catOverride && !crMap.has(m)));
   const lastImpVisa = (estado.importaciones || {})['Visa Santander'];
   const yaAlDia = lastImpVisa && data.cierre <= lastImpVisa.hasta;
   const lastImpHtml = lastImpVisa
@@ -5797,7 +5961,7 @@ function _renderVisaPreview(data) {
     ? `<button type="button" class="primary" id="btnConfirmarVisaImp" disabled style="opacity:.5;cursor:not-allowed;">Asigná categoría a todos los ⚠</button>`
     : `<button type="button" class="primary" id="btnConfirmarVisaImp">Importar ${nTotal} movimiento${nTotal !== 1 ? 's' : ''}</button>`;
 
-  html = lastImpHtml + avisoAlDia + html;
+  html = lastImpHtml + avisoAlDia + html + _borrSinCruzarHtml('Visa Santander', _vCands);
   html += `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
     ${btnHtml}
     <button type="button" class="mini" id="btnCancelarVisaPrev">Cancelar</button>
@@ -5854,34 +6018,10 @@ function _deduplicarVisaImp(candidatos, medio) {
   }
 }
 
-// ── Confirm Visa import ───────────────────────────────
-function _confirmarImpVisa() {
-  const data = _visaData;
-  if (!data) return;
-  const medio = 'Visa Santander';
+// Arma los candidatos de pesos de un resumen Visa, deduplica y cruza con borradores (sin consumir).
+// Los de movimientos llevan c._mov (el movimiento del parser); los "otros conceptos" llevan _esOtro.
+function _visaArmarCandidatos(data, medio) {
   const cierre = data.cierre;
-  const loteId = nuevoId();
-  const now = Date.now();
-
-  // Save previous state for undo
-  const compromisoVisa = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === medio);
-  const prevCompromiso = compromisoVisa ? JSON.parse(JSON.stringify(compromisoVisa)) : null;
-  const prevImportacion = (estado.importaciones || {})[medio] ? JSON.parse(JSON.stringify((estado.importaciones || {})[medio])) : null;
-
-  // Check pending reviews
-  for (const tarjeta of data.tarjetas) {
-    for (const mov of tarjeta.movs) {
-      const esUsd = mov.usd > 0 && !mov.pesos;
-      if (esUsd || !mov.pesos) continue;
-      const ci = _categorizarVisa(mov.desc, mov.pesos);
-      if (ci.paraRevisar && !mov._catOverride) {
-        alert('Hay movimientos sin categoría. Asigná una categoría antes de importar.');
-        return;
-      }
-    }
-  }
-
-  // Build candidates
   const candidatos = [];
   for (const tarjeta of data.tarjetas) {
     for (const mov of tarjeta.movs) {
@@ -5894,9 +6034,9 @@ function _confirmarImpVisa() {
       const ref = mov.comprobante ? `${mov.comprobante}|${mov.fecha}|${mov.pesos.toFixed(2)}` : null;
       candidatos.push({
         fecha: mov.fecha, desc, monto: mov.pesos, cat,
-        catInfo: { tipo: 'gasto', cat, paraRevisar: false },
+        catInfo: { tipo: 'gasto', cat, paraRevisar: !!ci.paraRevisar && !mov._catOverride },
         medio, ref, refs: ref ? [ref] : [], cuota: mov.cuota || null,
-        _origDesc: origDesc, yaExiste: false,
+        _origDesc: origDesc, yaExiste: false, _mov: mov,
       });
     }
   }
@@ -5919,12 +6059,37 @@ function _confirmarImpVisa() {
       });
     }
   }
-
   _deduplicarVisaImp(candidatos, medio);
+  _cruzarBorradores(candidatos, medio);
+  return candidatos;
+}
+
+// ── Confirm Visa import ───────────────────────────────
+function _confirmarImpVisa() {
+  const data = _visaData;
+  if (!data) return;
+  const medio = 'Visa Santander';
+  const cierre = data.cierre;
+  const loteId = nuevoId();
+  const now = Date.now();
+
+  // Save previous state for undo
+  const compromisoVisa = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === medio);
+  const prevCompromiso = compromisoVisa ? JSON.parse(JSON.stringify(compromisoVisa)) : null;
+  const prevImportacion = (estado.importaciones || {})[medio] ? JSON.parse(JSON.stringify((estado.importaciones || {})[medio])) : null;
+
+  const candidatos = _visaArmarCandidatos(data, medio);
+  // Check pending reviews (los que cruzaron con un borrador ya traen categoría)
+  if (candidatos.some(c => c._mov && c.catInfo.paraRevisar)) {
+    alert('Hay movimientos sin categoría. Asigná una categoría antes de importar.');
+    return;
+  }
 
   let cnt = 0;
+  const borrUsados = [];
   for (const c of candidatos) {
     if (c.yaExiste) continue;
+    if (c.deBorrador) borrUsados.push(c.deBorrador);
     const gasto = {
       id: nuevoId(), creado: now + cnt,
       monto: c.monto, fecha: c.fecha, categoria: c.cat,
@@ -5948,7 +6113,7 @@ function _confirmarImpVisa() {
       }
     }
   }
-
+  _consumirBorradores(borrUsados);
   // Update compromiso resumen
   if (compromisoVisa) {
     const prevCierre = compromisoVisa.cierre;
@@ -5972,7 +6137,7 @@ function _confirmarImpVisa() {
     hasta: cierre, lote: loteId, fecha: hoy(),
     _prevCompromiso: prevCompromiso, _prevImportacion: prevImportacion,
   };
-  guardar(); guardarSnap(); render();
+  guardar(); guardarSnap(); render(); renderBorradores();
   if (_gastosReady) { rChartIC(); rChartG(); } if (_evolReady) rChartD();
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
@@ -6132,6 +6297,7 @@ function abrirImportModal() {
         _deduplicarImp(_impCandidatos, _impMedio);
         _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
         _deduplicarImp(_impCandidatos, _impMedio);
+        _cruzarBorradores(_impCandidatos, _impMedio);
         _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
         _renderImpPreview();
       } catch (err) { st.textContent = `❌ ${err.message}`; }
@@ -6169,6 +6335,7 @@ function abrirImportModal() {
         _deduplicarImp(_impCandidatos, _impMedio);
         _impCandidatos = _agruparRuidoImp(_impCandidatos, _impAgrupar);
         _deduplicarImp(_impCandidatos, _impMedio);
+        _cruzarBorradores(_impCandidatos, _impMedio);
         _impSaldoInfo = _verifSaldo(_impMedio, _impFechaFinal, _impSaldoFinal, _impCandidatos);
         _renderImpPreview();
       } catch (err) { st.textContent = `❌ ${err.message}`; }
@@ -6187,6 +6354,9 @@ window.parseVisaXlsx = parseVisaXlsx;
 window._categorizarVisa = _categorizarVisa;
 window._renderVisaPreview = _renderVisaPreview;
 window._deduplicarImp = _deduplicarImp;
+window._cruzarBorradores = _cruzarBorradores;
+window._renderImpPreview = _renderImpPreview;
+window._setImpState = (c, m) => { _impCandidatos = c; _impMedio = m; };
 window._agruparRuidoImp = _agruparRuidoImp;
 window._verifSaldo = _verifSaldo;
 window._getEstado = () => estado;
