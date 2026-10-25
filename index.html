@@ -502,7 +502,24 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 body.ocultar .tk-val{display:none!important;}
 /* ── /TICKER EVOLUCIÓN ── */
 </style>
-<script>(function(){try{var t=JSON.parse(localStorage.getItem('finanzas-v1-tema'));if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
+<script>(function(){
+var M={claro:'#f4f6fa',oscuro:'#0f172a',negro:'#000'};
+window._themeColorPara=function(t){
+  if(t&&t!=='auto'&&M[t])return M[t];
+  var d=true;try{d=window.matchMedia('(prefers-color-scheme:dark)').matches;}catch(e){}
+  return d?'#0f172a':'#f4f6fa';
+};
+function meta(){return document.querySelector('meta[name="theme-color"]');}
+function guardado(){try{var t=JSON.parse(localStorage.getItem('finanzas-v1-tema'));return t&&t!=='auto'?t:null;}catch(e){return null;}}
+var t=guardado();
+if(t){try{document.documentElement.setAttribute('data-theme',t);}catch(e){}}
+try{var m=meta();if(m)m.content=window._themeColorPara(t);}catch(e){}
+try{
+  var mq=window.matchMedia('(prefers-color-scheme:dark)');
+  var f=function(){if(!guardado()){var m=meta();if(m)m.content=window._themeColorPara(null);}};
+  if(mq.addEventListener)mq.addEventListener('change',f);else if(mq.addListener)mq.addListener(f);
+}catch(e){}
+})()</script>
 </head>
 <body>
 
@@ -3077,18 +3094,12 @@ function renderVinculos(){
 // ═══════════════════════════════════════════════════════
 // CONFIG TAB
 // ═══════════════════════════════════════════════════════
-const _THEME_META={auto:'#0f172a',claro:'#f4f6fa',oscuro:'#0f172a',negro:'#000'};
 function aplicarTema(t){
   if(!t||t==='auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme',t);
   ls.set(TEMA_K,t||'auto');
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta){
-    if(!t||t==='auto'){
-      const dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
-      meta.content=dark?'#0f172a':'#f4f6fa';
-    } else meta.content=_THEME_META[t]||'#0f172a';
-  }
+  if(meta) meta.content=window._themeColorPara(t);
   if(typeof _evolReady!=='undefined'&&_evolReady) iniciarEvolucion();
   if(typeof _gastosReady!=='undefined'&&_gastosReady) iniciarGastos();
   document.querySelectorAll('.tema-btn').forEach(b=>{

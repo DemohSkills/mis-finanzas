@@ -37,7 +37,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-chart-vis-<id>` | boolean — gráfico `<id>` oculto (`true`) o visible |
 | `finanzas-v1-comp-sort` | `'venc'` (default) / `'entidad'` / `'monto'` — orden de la lista de compromisos |
 | `finanzas-v1-det-<id>` | boolean — sección plegable `<id>` abierta o plegada (las copias de Gastos en Evolución usan `finanzas-v1-det-det-ev-…`, ver fila anterior) |
-| `finanzas-v1-var-per` | `1` (default) / `7` / `30` — período en días del cuadro de variaciones |
+| `finanzas-v1-var-per` | `1` (default) / `7` / `30` / `90` — período en días del cuadro de variaciones |
 
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código
