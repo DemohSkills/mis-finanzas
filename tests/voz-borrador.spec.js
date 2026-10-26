@@ -173,3 +173,59 @@ test('(j) variantes "borradores" y "Borrador" activan el modo', async ({ page })
   await dictar(page, 'pizza sin la palabra');
   await expect(page.locator('#voiceConfirm')).toContainText('¿Confirmás este movimiento?');
 });
+
+// ── Centavos en el dictado de borrador ──
+const guardarConMonto = async (page, ia, transcript) => {
+  await setup(page, base({ monto: ia }));
+  await dictar(page, transcript);
+  await expect(page.locator('#voiceConfirm')).toContainText('¿Confirmás este borrador?');
+  const input = await page.inputValue('#vozBorrMonto');
+  await page.click('#btnVozOk');
+  return { input, monto: (await estadoDe(page)).borradores[0].monto };
+};
+for (const [ia, esperado, mostrado] of [
+  [33333.33, 33333.33, '33.333,33'], ['33333.33', 33333.33, '33.333,33'], [33333.3, 33333.3, '33.333,3'],
+  [1500.5, 1500.5, '1.500,5'], [0.99, 0.99, '0,99'], [33333, 33333, '33.333'],
+  ['33.333,33', 33333.33, '33.333,33'], ['33333,33', 33333.33, '33.333,33'],
+]) {
+  test(`(centavos) la IA devuelve ${JSON.stringify(ia)} → se muestra ${mostrado} y se guarda ${esperado}`, async ({ page }) => {
+    const r = await guardarConMonto(page, ia, 'borrador gasté algo');
+    expect(r.input).toBe(mostrado);
+    expect(r.monto).toBe(esperado);
+  });
+}
+for (const t of ['borrador gasté 33.333,33', 'borrador gasté 33333,33']) {
+  test(`(centavos) la IA descarta los centavos pero el dictado "${t}" los trae → se recuperan`, async ({ page }) => {
+    const r = await guardarConMonto(page, 33333, t);
+    expect(r.monto).toBe(33333.33);
+  });
+}
+test('(centavos) el dictado con otra cifra no pisa el monto de la IA', async ({ page }) => {
+  const r = await guardarConMonto(page, 4500, 'borrador pizza 3.200,50 y otra cosa');
+  expect(r.monto).toBe(4500);
+});
+test('(centavos) "mil quinientos con cincuenta" → IA 1500.5 se guarda 1500.5', async ({ page }) => {
+  expect((await guardarConMonto(page, 1500.5, 'borrador mil quinientos con cincuenta')).monto).toBe(1500.5);
+});
+test('(centavos) el monto de la confirmación es editable y se guarda lo que se ve', async ({ page }) => {
+  await setup(page, base({ monto: 33333 }));
+  await dictar(page, 'borrador gasté treinta y tres mil');
+  await page.fill('#vozBorrMonto', '33.333,33');
+  await page.click('#btnVozOk');
+  expect((await estadoDe(page)).borradores[0].monto).toBe(33333.33);
+});
+test('(centavos) monto inválido editado no guarda', async ({ page }) => {
+  await setup(page, base());
+  await dictar(page, 'borrador pizza');
+  await page.fill('#vozBorrMonto', 'abc');
+  await page.click('#btnVozOk');
+  expect((await estadoDe(page)).borradores || []).toHaveLength(0);
+});
+test('(centavos) gasto normal por voz conserva 33333.33 de punta a punta', async ({ page }) => {
+  await setup(page, base({ monto: '33333.33', medio: 'Efectivo' }));
+  await dictar(page, 'gasté 33.333,33 en pizza');
+  await expect(page.locator('#voiceConfirm')).toContainText('$33.333,33');
+  await page.click('#btnVozOk');
+  const g = (await estadoDe(page)).gastos.find(x => x.id !== 'g1');
+  expect(g.monto).toBe(33333.33);
+});

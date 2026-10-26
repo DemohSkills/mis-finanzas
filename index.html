@@ -3512,8 +3512,18 @@ $('btnVoz').onclick = () => {
   recog.start();
 };
 
+// Monto devuelto por la IA → número con centavos. Acepta número o texto ("33333.33", "33.333,33", "33333,33").
+// Si la IA devolvió el entero pero el dictado trae explícitos los centavos ("33.333,33"), usa los del dictado. Sin dudas: NaN (nunca redondea).
+function _montoVoz(raw, transcript=''){
+  const m = typeof raw==='number' ? raw : (/^\s*\d+\.\d{1,2}\s*$/.test(String(raw)) ? parseFloat(raw) : parseMonto(raw));
+  if(!(m>0)) return NaN;
+  if(Number.isInteger(m)){
+    for(const t of String(transcript).match(/\d[\d.]*,\d{1,2}(?!\d)/g)||[]){ const v=parseMonto(t); if(v>0 && Math.trunc(v)===m) return v; }
+  }
+  return Math.round(m*100)/100;
+}
 async function parsearVoz(transcript, apiKey){
-  const prompt = `Analizá este texto y extraé: monto (número positivo, sin separadores), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve (solo el qué se compró; NO incluyas las palabras de la orden como "anotar", "borrador" o "en cuotas"), tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}), cuotas (número entero si el texto dice "en N cuotas"; si no, 0) y dias_atras (entero: 0 si es hoy o no se menciona fecha, 1 si dice "ayer", 2 si dice "anteayer", N si dice "hace N días"). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":"","cuotas":0,"dias_atras":0}`;
+  const prompt = `Analizá este texto y extraé: monto (número positivo con hasta 2 decimales: conservá los centavos si el texto los dice, ej. "treinta y tres mil trescientos treinta y tres con treinta y tres" → 33333.33; usá punto como separador decimal y NINGÚN separador de miles; si no hay centavos, entero), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve (solo el qué se compró; NO incluyas las palabras de la orden como "anotar", "borrador" o "en cuotas"), tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}), cuotas (número entero si el texto dice "en N cuotas"; si no, 0) y dias_atras (entero: 0 si es hoy o no se menciona fecha, 1 si dice "ayer", 2 si dice "anteayer", N si dice "hace N días"). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":"","cuotas":0,"dias_atras":0}`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -3537,13 +3547,13 @@ async function parsearVoz(transcript, apiKey){
     const parsed=JSON.parse(match[0]);
     const tipo=parsed.tipo||'gasto';
     if(tipo!=='ingreso' && /\bborrador(es)?\b/i.test(transcript)){
-      const monto=Number(parsed.monto);
+      const monto=_montoVoz(parsed.monto, transcript);
       if(!(monto>0)) throw new Error('monto inválido');
       const ent=v=>{const n=Math.trunc(Number(v));return n>0?n:0;};
       mostrarConfirmBorradorVoz(monto, parsed.medio||'', parsed.descripcion||transcript, parsed.categoria||'', ent(parsed.cuotas), Math.min(ent(parsed.dias_atras),3650));
       return;
     }
-    mostrarConfirmVoz(parsed.monto||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, tipo, parsed.categoria||'');
+    mostrarConfirmVoz(_montoVoz(parsed.monto, transcript)||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, tipo, parsed.categoria||'');
   } catch(err){
     $('voiceStatus').textContent='Error al procesar: '+err.message;
   }
@@ -3561,7 +3571,7 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA=''){
     <div class="voice-confirm">
       <p style="font-weight:600;margin:0 0 10px">¿Confirmás este movimiento?</p>
       <div class="vc-row"><span>Tipo</span><strong class="${isIng?'pos':'neg'}">${isIng?'💰 Ingreso':'💸 Gasto'}</strong></div>
-      <div class="vc-row"><span>Monto</span><strong class="num">$${Number(monto).toLocaleString('es-AR')}</strong></div>
+      <div class="vc-row"><span>Monto</span><strong class="num">$${fmtInput(Number(monto))}</strong></div>
       <div class="vc-row"><span>Medio</span><strong>${esc(medio)}</strong></div>
       <div class="vc-row"><span>Descripción</span><strong>${esc(desc)}</strong></div>
       <div class="vc-row"><span>Categoría</span>
@@ -3605,7 +3615,7 @@ function mostrarConfirmBorradorVoz(monto, medioIA, desc, catIA='', cuotas=0, dia
     <div class="voice-confirm">
       <p style="font-weight:600;margin:0 0 10px">¿Confirmás este borrador?</p>
       <div class="vc-row"><span>Tipo</span><strong style="color:var(--warn)">📝 Borrador (no toca saldos)</strong></div>
-      <div class="vc-row"><span>Monto</span><strong class="num">$${Number(monto).toLocaleString('es-AR')}</strong></div>
+      <div class="vc-row"><span>Monto</span><input id="vozBorrMonto" type="text" inputmode="decimal" value="${fmtInput(Number(monto))}" style="${selSt};width:9em;text-align:right"></div>
       <div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" style="${selSt}">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
       <div class="vc-row"><span>Fecha</span><strong>${fechaCorta(fecha)}</strong></div>
       <div class="vc-row"><span>Nota</span><strong>${esc(desc)}</strong></div>
@@ -3622,7 +3632,7 @@ function mostrarConfirmBorradorVoz(monto, medioIA, desc, catIA='', cuotas=0, dia
   $('btnVozOk').onclick=()=>{
     const cat=$('vozCat').value;
     if(cat==='__nueva__') return;
-    const m=Math.round(Number(monto)*100)/100;
+    const m=Math.round(readMonto('vozBorrMonto')*100)/100;
     if(!(m>0)){ $('voiceStatus').textContent='Error al procesar: monto inválido'; cont.hidden=true; return; }
     const nota=String(desc).trim().slice(0,120);
     estado.borradores ||= [];
