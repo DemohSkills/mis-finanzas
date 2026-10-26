@@ -4996,27 +4996,42 @@ function rChartD(){
   const genLabels=chart=>chart.data.datasets.map((ds,i)=>{
     const lastV=ds.data[ds.data.length-1]??0;
     const oculto=document.body.classList.contains('ocultar');
-    return{text:ds.label+(oculto?'':' · '+fmtM(lastV)),fillStyle:ds.borderColor,strokeStyle:ds.borderColor,lineWidth:ds.borderWidth||2,lineDash:ds.borderDash||[],pointStyle:'line',hidden:!chart.isDatasetVisible(i),datasetIndex:i};
+    return{text:ds.label+(oculto?'':' · '+fmtM(lastV)),fillStyle:ds.borderColor,strokeStyle:ds.borderColor,lineWidth:ds.borderWidth||2,lineDash:ds.borderDash||[],pointStyle:'line',fontColor:CV('--muted'),hidden:!chart.isDatasetVisible(i),datasetIndex:i};
   });
   const dLabPlugin={id:'cDLab',afterDatasetsDraw(chart){
+    chart.$cDLabs=[];
     if(document.body.classList.contains('ocultar'))return;
     const showAll=getChartVals();
-    const{ctx}=chart;
+    const{ctx,chartArea}=chart;
+    ctx.save();ctx.font='9px sans-serif';
+    const fin=[];
     chart.data.datasets.forEach((ds,i)=>{
       if(!chart.isDatasetVisible(i))return;
-      const meta=chart.getDatasetMeta(i);
-      const pts=meta.data;
-      const indices=showAll?pts.map((_,j)=>j):(pts.length?[pts.length-1]:[]);
-      indices.forEach(pi=>{
-        const v=ds.data[pi];if(!v)return;
-        const pt=pts[pi];
-        ctx.save();ctx.font='9px sans-serif';ctx.fillStyle=ds.borderColor;ctx.textAlign='center';ctx.textBaseline='bottom';
+      const pts=chart.getDatasetMeta(i).data;
+      if(!pts.length)return;
+      const last=pts.length-1;
+      if(showAll)pts.forEach((pt,j)=>{
+        const v=ds.data[j];if(!v||j===last)return;
+        ctx.fillStyle=ds.borderColor;ctx.textAlign='center';ctx.textBaseline='bottom';
         ctx.fillText('$'+fmtM(v),pt.x,pt.y-3);
-        ctx.restore();
       });
+      const v=ds.data[last];if(!v)return;
+      fin.push({y:pts[last].y,x:pts[last].x+4,text:'$'+fmtM(v),color:ds.borderColor});
     });
+    // separar etiquetas de fin de línea (alto 12px) manteniendo el orden y sin salir del área
+    const H=12,top=chartArea.top+H/2,bot=chartArea.bottom-H/2;
+    fin.sort((p,q)=>p.y-q.y);
+    fin.forEach((l,k)=>{l.y=Math.min(Math.max(l.y,top),bot);if(k&&l.y<fin[k-1].y+H)l.y=fin[k-1].y+H;});
+    for(let k=fin.length-1;k>=0;k--){if(fin[k].y>bot)fin[k].y=bot;if(k<fin.length-1&&fin[k].y>fin[k+1].y-H)fin[k].y=fin[k+1].y-H;}
+    ctx.textAlign='left';ctx.textBaseline='middle';
+    fin.forEach(l=>{
+      l.w=ctx.measureText(l.text).width;
+      ctx.fillStyle=l.color;ctx.fillText(l.text,l.x,l.y);
+      chart.$cDLabs.push({x:l.x,y:l.y,w:l.w,h:H,text:l.text,color:l.color});
+    });
+    ctx.restore();
   }};
-  mkChart('cD',{type:'line',data:{labels,datasets:[ln('Visa Santander','vs','#f87171'),ln('Boris MP','bm','#fb923c',[5,4]),ln('Mastercard MP','mc','#fbbf24'),ln('Créditos MP','cm','#38bdf8',[2,2])]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{...legO('bottom','cD'),labels:{...legO().labels,generateLabels:genLabels}},tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))},plugins:[dLabPlugin]}); applyChartVis('cD'); initCfgD();
+  mkChart('cD',{type:'line',data:{labels,datasets:[ln('Visa Santander','vs','#f87171'),ln('Boris MP','bm','#fb923c',[5,4]),ln('Mastercard MP','mc','#fbbf24'),ln('Créditos MP','cm','#38bdf8',[2,2])]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{right:44}},plugins:{legend:{...legO('bottom','cD'),labels:{...legO().labels,generateLabels:genLabels}},tooltip:{...ttO(),callbacks:{label:c=>' '+c.dataset.label+': $'+fmtM(c.parsed.y)}}},scales:axO(v=>'$'+fmtM(v))},plugins:[dLabPlugin]}); applyChartVis('cD'); initCfgD();
   const btnV=$('btnValsD');
   if(btnV){btnV.textContent=getChartVals()?'Valores ✓':'Valores';if(!btnV._inited){btnV._inited=true;btnV.onclick=()=>{setChartVals(!getChartVals());rChartD();};}}
 }
