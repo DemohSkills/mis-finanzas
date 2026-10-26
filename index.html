@@ -464,6 +464,7 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
 .imp-row-monto{white-space:nowrap;font-weight:700;}
 .imp-row-monto.pos{color:var(--accent);}
 .imp-row-monto.neg{color:var(--danger);}
+.imp-row-monto.neu{color:var(--muted);}
 .imp-row-meta{font-size:.73rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;}
 .imp-revisar-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;}
 .imp-revisar-actions select{font-size:.78rem;padding:3px 7px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);}
@@ -5726,6 +5727,9 @@ function _categorizarSant(desc, monto) {
 
 // ── Mercado Pago categorization ───────────────────────
 const _REGLAS_MP = [
+  // Reservas: transferencias entre Mercado Pago y Reservas MP (antes de las genéricas)
+  { t: d => ['reserva por gastos','reserva programada','dinero reservado'].some(k=>d.includes(k)), tipo:'gasto', cat:'Transferencia entre cuentas', transf:true, reserva:'enviar' },
+  { t: d => d.includes('dinero retirado'), tipo:'ingreso', cat:'Transferencia entre cuentas', transf:true, reserva:'retirar' },
   { t: d => d.includes('rendimientos'), tipo:'ingreso', cat:'Rendimientos', agrupable:'Rendimientos Mercado Pago' },
   { t: d => ['pago ausa','pago au oeste','peaje','rutas sur','emova subte','ceamse','ausol'].some(k=>d.includes(k)), tipo:'gasto', cat:'Transporte/Auto', agrupable:'Peajes y subte' },
   { t: d => d.includes('pago de impuesto') && d.includes('iibb') && d.includes('bs. as.'), tipo:'gasto', cat:'Ingresos brutos (retenciones)', descFija:'Impuesto a los IIBB Bs. As.' },
@@ -5738,7 +5742,6 @@ const _REGLAS_MP = [
   { t: d => d.includes('cashback mercado pago') || d.includes('pago-drivers'), tipo:'ingreso', cat:'Sueldo/Honorarios', descFija:'Pago Meli Envíos' },
   { t: d => ['pago de servicio','pago aysa','movistar','personal','iplan'].some(k=>d.includes(k)), tipo:'gasto', cat:'Servicios/Telecom' },
   { t: d => d.includes('pago con qr'), tipo:'gasto', cat:'Otros/Varios', paraRevisar:true },
-  { t: d => d.includes('dinero reservado'), tipo:'gasto', cat:'Otros/Varios' },
   { t: d => d.includes('transferencia recibida'), tipo:'ingreso', cat:'Transferencia recibida', paraRevisar:true },
   { t: d => d.includes('transferencia enviada'), tipo:'gasto', cat:'Otros/Varios', paraRevisar:true },
 ];
@@ -5754,10 +5757,33 @@ function _categorizarMP(desc, monto) {
     if (r.t(d)) {
       const tipo = r.tipo === 'auto' ? (monto >= 0 ? 'ingreso' : 'gasto') : r.tipo;
       return { tipo, cat:r.cat, agrupable:r.agrupable||null, transf:r.transf||false,
-        transferPair:r.transferPair||null, paraRevisar:r.paraRevisar||false, descFija:r.descFija||null };
+        transferPair:r.transferPair||null, reserva:r.reserva||null, paraRevisar:r.paraRevisar||false, descFija:r.descFija||null };
     }
   }
   return { tipo: monto >= 0 ? 'ingreso' : 'gasto', cat:'Otros/Varios', paraRevisar:true };
+}
+
+// Reservas MP: si al retirar el saldo de Reservas MP (con las reservas del mismo lote, en orden
+// cronológico) no alcanza, la diferencia se registra como rendimiento (c._rend) antes de la transferencia.
+function _reservaRendPlan(cands) {
+  const res = cands.filter(c => c.catInfo?.reserva);
+  for (const c of res) c._rend = 0;
+  const act = res.filter(c => !c.yaExiste && !c.soloHistorial).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  for (const c of act) {
+    const monto = Math.abs(c.monto);
+    let run = estado.iniciales['Reservas MP'] || 0;
+    for (const g of estado.gastos) {
+      if (g.medio !== 'Reservas MP' || g.soloHistorial || g.fecha > c.fecha) continue;
+      run += (g.tipo || 'gasto') === 'ingreso' ? g.monto : -g.monto;
+    }
+    for (const o of act) {
+      if (o === c) break;
+      const m = Math.abs(o.monto);
+      run += o.catInfo.reserva === 'enviar' ? m : o._rend - m;
+    }
+    if (c.catInfo.reserva === 'retirar' && run < monto - 0.005) c._rend = Math.round((monto - run) * 100) / 100;
+  }
+  return res;
 }
 
 // ── Visa categorization ───────────────────────────────
@@ -5929,6 +5955,7 @@ function _renderImpPreview() {
     }).join('');
   }
 
+  _reservaRendPlan(cands);
   // Compute fijo match for each new gasto candidate (not agrupado, no existing payment)
   const _fijosCargados=(estado.compromisos||[]).filter(f=>f.tipo==='fijo'&&f.activo);
   for(const c of nuevos){
@@ -5948,13 +5975,15 @@ function _renderImpPreview() {
     const rows = items.map(c => {
       const sgn = c.monto >= 0;
       const fijoTag=(c._fijoMatch?`<span class="imp-fijo-tag">✓ Fijo: ${esc(c._fijoMatch.nombre)}</span>`:'')
-        +(c.deBorrador?`<span class="imp-borr-tag">📝 cruzó con borrador: ${esc(c.catInfo?.cat||'')}</span>`:'');
+        +(c.deBorrador?`<span class="imp-borr-tag">📝 cruzó con borrador: ${esc(c.catInfo?.cat||'')}</span>`:'')
+        +(c._rend>0?`<span class="imp-borr-tag">+${fmt(c._rend)} rendimientos de reserva</span>`:'');
+      const catTxt = c.catInfo?.reserva ? '↔ Reservas MP' : (c.catInfo?.cat||'');
       return `<div class="imp-row">
         <div class="imp-row-top">
           <span class="imp-row-desc">${esc(c.desc.slice(0,60))}</span>
-          <span class="imp-row-monto ${sgn?'pos':'neg'}">${sgn?'+':''}${fmt(Math.abs(c.monto))}</span>
+          <span class="imp-row-monto ${c.catInfo?.reserva?"neu":(sgn?"pos":"neg")}">${sgn?'+':''}${fmt(Math.abs(c.monto))}</span>
         </div>
-        <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span><span>${esc(c.catInfo?.cat||'')}</span>${fijoTag}</div>
+        <div class="imp-row-meta"><span>${fechaCorta(c.fecha)}</span><span>${esc(catTxt)}</span>${fijoTag}</div>
       </div>`;
     }).join('');
     return `<details class="imp-sec" ${open?'open':''}>
@@ -6069,6 +6098,7 @@ function _confirmarImpBanco(conAjuste) {
   // Ensure income categories exist
   addCatIncome('Ingresos extras');
   addCatIncome('Rendimientos');
+  _reservaRendPlan(_impCandidatos);
   for (const c of _impCandidatos) {
     if (c.yaExiste) continue;
     if (c.deBorrador && !c._agrupado) borrUsados.push(c.deBorrador);
@@ -6107,7 +6137,15 @@ function _confirmarImpBanco(conAjuste) {
       if (existing) { visaLinked = true; }
       else { visaPair = true; }
     }
-    const transferId = (visaPair || efectivoPair) ? nuevoId() : undefined;
+    const reservaPair = !!c.catInfo.reserva;
+    // Retiro de reserva: primero los rendimientos acumulados que el resumen no muestra
+    if (reservaPair && c._rend > 0) {
+      estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto:c._rend, fecha:c.fecha,
+        categoria:'Rendimientos', medio:'Reservas MP', descripcion:'Rendimientos de reservas (al retirar)',
+        tipo:'ingreso', soloHistorial:soloH, refs:[], lote:loteId });
+      cnt++;
+    }
+    const transferId = (visaPair || efectivoPair || reservaPair) ? nuevoId() : undefined;
     const gasto = {
       id: nuevoId(), creado: now + cnt,
       monto, fecha: c.fecha, categoria: cat, medio,
@@ -6141,6 +6179,12 @@ function _confirmarImpBanco(conAjuste) {
       estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto, fecha:c.fecha,
         categoria:'Pago de Visa/MP', medio:pairMedio, descripcion:desc,
         tipo:'ingreso', soloHistorial:soloH, transferencia:true, transferId, refs:[], lote:loteId });
+      cnt++;
+    }
+    if (reservaPair) {
+      estado.gastos.push({ id:nuevoId(), creado:now+cnt, monto, fecha:c.fecha,
+        categoria:'Transferencia entre cuentas', medio:'Reservas MP', descripcion:desc,
+        tipo:tipo==='gasto'?'ingreso':'gasto', soloHistorial:soloH, transferencia:true, transferId, refs:[], lote:loteId });
       cnt++;
     }
     if (efectivoPair) {
