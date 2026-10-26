@@ -141,6 +141,11 @@ details.section-collapse>summary .det-arrow{font-size:.75rem;transition:transfor
 details.section-collapse[open]>summary .det-arrow{transform:rotate(90deg);}
 details.section-collapse>summary h2{margin:0;flex:1;}
 details.section-collapse[open]>summary{margin-bottom:12px;}
+details.borr-manual{margin:0 0 12px;}
+details.borr-manual>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;gap:6px;padding:8px 0;font-weight:600;font-size:.95rem;color:var(--text);}
+details.borr-manual>summary::-webkit-details-marker{display:none;}
+details.borr-manual>summary .det-arrow{font-size:.75rem;transition:transform .15s;flex-shrink:0;opacity:.55;}
+details.borr-manual[open]>summary .det-arrow{transform:rotate(90deg);}
 /* Eye — ocultar montos */
 .eye-btn{font-size:1.1rem;padding:0;line-height:1;width:36px;height:36px;min-width:36px;text-align:center;display:inline-flex;align-items:center;justify-content:center;}
 body.ocultar .amt{font-size:0!important;letter-spacing:0!important;vertical-align:middle;}
@@ -1085,6 +1090,8 @@ try{
       <details id="det-borradores" class="section-collapse">
         <summary><span class="det-arrow">▶</span><h2>📝 Borradores</h2><span id="borrContador" class="borr-pill" hidden></span></summary>
         <p class="meta" style="margin:0 0 10px">Anotá un gasto al momento. No toca saldos: al importar el resumen se cruza solo.</p>
+        <details id="det-borr-manual" class="borr-manual">
+        <summary><span class="det-arrow">▶</span>✍️ Carga manual</summary>
         <form id="formBorrador" autocomplete="off" novalidate>
           <label>Importe
             <input type="text" class="input-monto" id="borrMonto" inputmode="decimal">
@@ -1109,6 +1116,7 @@ try{
             <button type="button" id="btnCancelarBorrador" hidden>Cancelar</button>
           </div>
         </form>
+        </details>
         <div class="borr-rotulo">SIN CRUZAR</div>
         <div id="borrLista"></div>
       </details>
@@ -1757,6 +1765,7 @@ function editarBorrador(id) {
   $('btnAnotarBorrador').textContent = 'Guardar cambios';
   $('btnCancelarBorrador').hidden = false;
   const det = $('det-borradores'); if (det) det.open = true;
+  const man = $('det-borr-manual'); if (man) man.open = true;
   renderBorradores();
   $('formBorrador').scrollIntoView({ behavior: 'smooth', block: 'center' });
   $('borrMonto').focus();

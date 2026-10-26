@@ -53,7 +53,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Las cuotas 2..N NO se cruzan todavía: siguen como siempre (pendiente: que hereden la categoría de la cuota 1). Deshacer restaura el objeto completo, `cuotas` incluido.
 
 ## Editar borradores
-- Botón ✎ (`.borr-edit`) en cada fila de `renderBorradores`: `editarBorrador(id)` carga el borrador en `#formBorrador` (abre la sección, scroll al formulario). Estado de edición en la variable `_borrEditId` (no se persiste); el botón de guardar pasa a «Guardar cambios», aparece `#btnCancelarBorrador` y la fila lleva `.borr-editando`.
+- Formulario dentro de `<details id="det-borr-manual">` («✍️ Carga manual», cerrado al iniciar, estado no persistido); ✎ lo abre; guardar/cancelar no lo cierran. Botón ✎ (`.borr-edit`) en cada fila de `renderBorradores`: `editarBorrador(id)` carga el borrador en `#formBorrador` (abre la sección, scroll al formulario). Estado de edición en la variable `_borrEditId` (no se persiste); el botón de guardar pasa a «Guardar cambios», aparece `#btnCancelarBorrador` y la fila lleva `.borr-editando`.
 - `anotarBorrador` con `_borrEditId` actualiza el MISMO objeto (id y `creado` no cambian; `cuotas` se agrega o se quita) con las mismas validaciones. Si el borrador deja de existir (borrado, consumido por una importación), `renderBorradores` llama `_salirEdicionBorrador()` y el formulario vuelve a modo normal. No toca `_cruzarBorradores` ni saldos.
 
 ## Dictado en modo borrador

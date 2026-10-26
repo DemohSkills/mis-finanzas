@@ -182,6 +182,7 @@ test.describe('borradores con cuotas: formulario manual', () => {
     await page.locator('nav.tabs button[data-vista="gastos"]').click();
     await page.waitForSelector('#busqMov');
     await page.locator('#det-borradores > summary').click();
+    await page.locator('#det-borr-manual > summary').click();
   }
 
   test('(i) vacío = sin campo; 1, 0, 61 y decimal se rechazan; 3 se guarda', async ({ page }) => {

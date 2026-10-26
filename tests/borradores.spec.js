@@ -38,6 +38,7 @@ async function goToMovim(page) {
   await page.waitForSelector('#busqMov');
 }
 const abrirBorr = (page) => page.locator('#det-borradores > summary').click();
+const abrirManual = (page) => page.locator('#det-borr-manual > summary').click();
 const estadoDe = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window._getEstado())));
 
 /** Arma candidatos bancarios sintéticos, cruza y muestra el preview (sin confirmar). */
@@ -96,6 +97,7 @@ test.describe('borradores: sección y lista', () => {
     const saldosAntes = await page.locator('#saldos').innerText();
     const antes = await estadoDe(page);
     await abrirBorr(page);
+    await abrirManual(page);
     await page.fill('#borrMonto', '2500');
     await page.selectOption('#borrMedio', 'Mercado Pago');
     await page.fill('#borrNota', 'kiosco');
@@ -124,6 +126,7 @@ test.describe('borradores: sección y lista', () => {
     const msgs = [];
     page.on('dialog', d => { msgs.push(d.message()); d.accept(); });
     await abrirBorr(page);
+    await abrirManual(page);
     for (const v of ['0', '', '-300']) {
       await page.fill('#borrMonto', v);
       await page.click('#btnAnotarBorrador');
@@ -456,5 +459,55 @@ test.describe('borradores: deshacer importación los devuelve', () => {
       return ancho <= util;
     });
     expect(ok).toBe(true);
+  });
+});
+
+test.describe('borradores: Carga manual plegable', () => {
+  const manualAbierto = (page) => page.locator('#det-borr-manual').evaluate(e => e.open);
+
+  test('(1) al abrir Borradores, Carga manual está cerrada y la lista visible', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado({ borradores: [{ id: 'b1', creado: 1, fecha: '2026-10-18', monto: 1500, medio: 'Efectivo', categoria: 'Comida', nota: 'pizza' }] }));
+    await goToMovim(page);
+    await abrirBorr(page);
+    expect(await manualAbierto(page)).toBe(false);
+    await expect(page.locator('#formBorrador')).toBeHidden();
+    await expect(page.locator('.borr-rotulo')).toBeVisible();
+    await expect(page.locator('#borrLista .borr-row')).toBeVisible();
+  });
+
+  test('(2) el ✎ abre Carga manual y carga el borrador', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado({ borradores: [{ id: 'b1', creado: 1, fecha: '2026-10-18', monto: 1500, medio: 'Efectivo', categoria: 'Comida', nota: 'pizza' }] }));
+    await goToMovim(page);
+    await abrirBorr(page);
+    await page.locator('#borrLista .borr-edit').click();
+    expect(await manualAbierto(page)).toBe(true);
+    await expect(page.locator('#formBorrador')).toBeVisible();
+    expect(await page.inputValue('#borrNota')).toBe('pizza');
+    // cancelar no la cierra
+    await page.click('#btnCancelarBorrador');
+    expect(await manualAbierto(page)).toBe(true);
+  });
+
+  test('(3) anotar un borrador deja la sección abierta', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await goToMovim(page);
+    await abrirBorr(page);
+    await abrirManual(page);
+    await page.fill('#borrMonto', '900');
+    await page.click('#btnAnotarBorrador');
+    await expect(page.locator('#borrLista .borr-row')).toHaveCount(1);
+    expect(await manualAbierto(page)).toBe(true);
+  });
+
+  test('(4) al recargar la app arranca cerrada', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await goToMovim(page);
+    await abrirBorr(page);
+    await abrirManual(page);
+    expect(await manualAbierto(page)).toBe(true);
+    await page.reload();
+    for (const d of TEST_PIN) await page.click(`button[data-d="${d}"]`);
+    await page.waitForTimeout(400);
+    expect(await manualAbierto(page)).toBe(false);
   });
 });
