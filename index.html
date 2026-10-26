@@ -1468,7 +1468,7 @@ try{
 // ═══════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════
-const MEDIOS  = ['Banco Santander','Mercado Pago','Astropay','Visa Santander','Mastercard MP','Efectivo','American Express'];
+const MEDIOS  = ['Banco Santander','Mercado Pago','Astropay','Visa Santander','Mastercard MP','Efectivo','American Express','Reservas MP'];
 const GRUPOS  = ['Cobros pendientes','Préstamos con personas','Créditos bancarios','Impuestos','Servicios y gastos fijos','Otros'];
 const CATS_DEFAULT = [
   'Transporte/Auto','Comida y Delivery','Propinas y Extras','Proyectos Web',
@@ -2959,7 +2959,7 @@ function renderSaldos() {
   cont.innerHTML = '';
 
   const GRUPOS_SALDO = [
-    { label: 'ACTIVOS', medios: ['Efectivo','Mercado Pago','Banco Santander'], tipo: 'activo' },
+    { label: 'ACTIVOS', medios: ['Mercado Pago','Reservas MP','Banco Santander','Efectivo'], tipo: 'activo' },
     { label: 'DEUDAS',  medios: ['Visa Santander','Mastercard MP'],             tipo: 'deuda'  },
     { label: 'OTROS',   medios: ['Astropay','American Express'],                tipo: 'otro'   },
   ];
@@ -3010,15 +3010,17 @@ function renderSaldos() {
       cont.appendChild(h);
       const grid = document.createElement('div');
       grid.className = 'saldos-grid';
-      for (const m of medios.filter(m => m !== 'Efectivo')) grid.appendChild(crearCaja(m, tipo));
+      const enLinea = ['Reservas MP','Efectivo'];
+      for (const m of medios.filter(m => !enLinea.includes(m))) grid.appendChild(crearCaja(m, tipo));
       cont.appendChild(grid);
-      // Efectivo: tarjeta full-width de una sola línea
-      const s = saldoDe('Efectivo');
-      const ef = document.createElement('div');
-      ef.className = 'saldo saldo-activo saldo-full';
-      ef.innerHTML = `<div class="nombre">Efectivo</div><div class="monto pos amt">${fmtV(s)}</div><button type="button">Ajustar saldo</button>`;
-      ef.querySelector('button').onclick = () => ajustarSaldo('Efectivo');
-      cont.appendChild(ef);
+      // Reservas MP y Efectivo: tarjetas full-width de una sola línea
+      for (const m of enLinea) {
+        const ef = document.createElement('div');
+        ef.className = 'saldo saldo-activo saldo-full';
+        ef.innerHTML = `<div class="nombre">${esc(m)}</div><div class="monto pos amt">${fmtV(saldoDe(m))}</div><button type="button">Ajustar saldo</button>`;
+        ef.querySelector('button').onclick = () => ajustarSaldo(m);
+        cont.appendChild(ef);
+      }
     } else {
       const h = document.createElement('div');
       h.className = 'saldo-grupo-titulo';
@@ -5264,7 +5266,7 @@ function iniciarEvolucion(){
 // TRANSFERENCIAS ENTRE CUENTAS
 // ═══════════════════════════════════════════════════════
 const MEDIOS_TARJETA=['Visa Santander','Mastercard MP','American Express'];
-const MEDIOS_CUENTA =['Banco Santander','Mercado Pago','Astropay','Efectivo'];
+const MEDIOS_CUENTA =['Banco Santander','Mercado Pago','Astropay','Efectivo','Reservas MP'];
 let _transMode='transferir';
 let _transResumenId=null;
 

@@ -97,3 +97,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - `mkChart` es el único punto de creación de gráficos. Con tema `neon-*` (`_esNeon()`) llama a `_neonizar(cfg,id)` y agrega el plugin `neonGrafico` (degradés recreados en `beforeDraw` con la geometría actual; brillo `shadowBlur` solo en líneas, en `beforeDatasetDraw`/`afterDatasetDraw`). El gráfico queda marcado con `chart.$neon` y `canvas.dataset.neon='1'`; en los demás temas no se toca nada.
 - Solo `cP` y `cG`/`cG_e` toman el tono del tema (`--neon-a`); el resto conserva sus colores con significado (rojo deuda/gasto, verde ingreso, paletas por categoría/entidad).
 - `aplicarTema` recrea los gráficos (Evolución y Gastos) y descarta las copias `_e` plegadas para que se redibujen al abrirlas.
+
+## Cuentas
+- `MEDIOS`: Banco Santander, Mercado Pago, Astropay, Visa Santander, Mastercard MP, Efectivo, American Express, **Reservas MP**.
+- **Reservas MP** es un ACTIVO aparte (dinero reservado en Mercado Pago, arranca en $0; `cargar()` la migra a 0). Está en `MEDIOS_CUENTA` (Transferir / Pagar tarjeta) y en el grupo ACTIVOS de `renderSaldos` (fila de una línea, clase `.saldo-activo`). Suma a Activos y patrimonio, pero **NO entra en `MEDIOS_NO_TARJETA`**: no cuenta en «Disponible hoy» (ni en «Con total Visa») porque no es gastable hoy. Los importadores no la tocan (integración con el resumen de MP: pendiente).
