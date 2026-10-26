@@ -90,6 +90,7 @@ test.describe('Temas neón', () => {
   test('(b2/c) cambiar en Configuración: meta, botón activo y sin desborde a 360px', async () => {
     const { page, ctx, errors } = await abrir(browser, null, 360);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     for (const t of NEON) {
       await page.locator(`.tema-btn[data-tema="${t}"]`).click();
       expect(await attr(page)).toBe(t);
@@ -128,6 +129,7 @@ test.describe('Temas neón', () => {
     expect(await attr(page)).toBeNull();
     expect(await page.evaluate(s => document.querySelector(s).content, META)).toBe('#f4f6fa');
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await expect(page.locator('.tema-btn[data-tema="auto"]')).toHaveClass(/primary/);
     expect(errors).toEqual([]);
     await ctx.close();

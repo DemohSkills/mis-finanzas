@@ -87,6 +87,7 @@ test.describe('theme-color al arrancar', () => {
     const { page, ctx, errors } = await abrir(browser, 'negro', 'light');
     await desbloquear(page);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     const esperado = { claro: '#f4f6fa', oscuro: '#0f172a', negro: '#000', auto: '#f4f6fa', 'neon-azul': '#060914', 'neon-turquesa': '#060914', 'neon-violeta': '#060914' };
     for (const t of ['claro', 'oscuro', 'negro', 'neon-azul', 'neon-turquesa', 'neon-violeta', 'auto']) {
       await page.locator(`.tema-btn[data-tema="${t}"]`).click();

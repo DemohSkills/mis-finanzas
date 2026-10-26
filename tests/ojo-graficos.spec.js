@@ -129,6 +129,7 @@ test.describe('ojo-graficos: modo ojo oculta/muestra ticks de ejes', () => {
     await page.waitForTimeout(300);
     // Cambiar tema a oscuro
     await page.locator('nav.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.waitForTimeout(200);
     await page.locator('.tema-btn[data-tema="oscuro"]').click();
     await page.waitForTimeout(200);

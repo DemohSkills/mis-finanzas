@@ -281,6 +281,7 @@ test.describe('pestana-gastos: cambio de tema', () => {
     await seedAndUnlock(page);
     await goToAnalisis(page);
     await page.locator('nav.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.waitForTimeout(200);
     await page.locator('.tema-btn[data-tema="oscuro"]').click();
     await page.waitForTimeout(200);

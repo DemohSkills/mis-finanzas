@@ -149,6 +149,7 @@ test.describe('ticker-evol: cinta de indicadores en Evolución', () => {
     await page.locator('#btnOjo').click();
     await page.waitForTimeout(200);
     await page.locator('nav.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.locator('.tema-btn[data-tema="oscuro"]').click();
     await page.waitForTimeout(200);
     await page.locator('nav.tabs button[data-vista="evolucion"]').click();

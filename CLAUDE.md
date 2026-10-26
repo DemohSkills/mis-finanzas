@@ -74,6 +74,10 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Verificación: consumos (pesos) + impuestos vs «Total a pagar» del Consolidado; diferencia > $1 → aviso amarillo (igual se puede importar), si no «✓ Suma verificada».
 - Cruce con borradores, deduplicación (`_deduplicarVisaImp`), «conciliado hasta» y deshacer: igual que Visa. Saldos: los gastos entran como gastos normales (`soloHistorial:false`) del medio, como en Visa; el saldo de la deuda se ajusta a mano con «Ajustar saldo». Compromiso `resumen` de `Mastercard MP`: se actualiza (monto, cierre, proxVenc, pagoMinimo) o se crea si no existe; deshacer lo restaura o lo quita.
 
+## Configuración (vista-config)
+- 12 secciones `<details class="cfg-section" id="cfg-…" data-cfg="cfg-…">` (fotos: `id="detFotos"`, `data-cfg="cfg-fotos"`) en este orden: apariencia, informe, importar (título «🏦 Importar resúmenes»), backup, usdref, reglas, cats-gastos, cats-ingresos, pin, nombre, apikey, fotos. Todas plegadas cada vez que se ENTRA a la vista (`mostrarVista`), estado no persistido; `renderConfig` nunca cambia `open`.
+- Para llevar al usuario a un ajuste: `abrirCfg('cfg-xxx',{foco:'idInput'})` (abre la sección, scroll y foco); nunca solo `mostrarVista('config')`.
+
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código
 - No tocar la API key ni el PIN salvo que se pida explícitamente

@@ -391,6 +391,14 @@ select.mode-sel{font-size:.75rem;padding:2px 6px;border-radius:6px;}
 /* ── Config tab ──────────────────────────────────────────────── */
 .cfg-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
 .cfg-section h2{margin:0 0 12px;font-size:.9rem;}
+details.cfg-section{padding:0 16px;}
+details.cfg-section>summary{cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;gap:8px;min-height:48px;padding:6px 0;}
+details.cfg-section>summary::-webkit-details-marker{display:none;}
+details.cfg-section>summary h2{margin:0;flex:1;}
+details.cfg-section>summary .det-arrow{font-size:.75rem;transition:transform .15s;opacity:.55;flex-shrink:0;}
+details.cfg-section[open]>summary .det-arrow{transform:rotate(90deg);}
+details.cfg-section[open]{padding-bottom:14px;}
+details.cfg-section[open]>summary{margin-bottom:6px;}
 .rule-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);}
 .rule-row:first-child{border-top:0;}
 .rule-row .rp{flex:1;font-size:.82rem;overflow-wrap:anywhere;}
@@ -1281,8 +1289,8 @@ try{
 
   <!-- ── CONFIG ── -->
   <div class="vista vista-config" id="vista-config" hidden>
-    <div class="cfg-section">
-      <h2>🌗 Apariencia</h2>
+    <details class="cfg-section" id="cfg-apariencia" data-cfg="cfg-apariencia">
+      <summary><span class="det-arrow">▶</span><h2>🌗 Apariencia</h2></summary>
       <p class="meta">Tema de color de la aplicación.</p>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;" id="temaOpciones">
         <button type="button" class="mini tema-btn" data-tema="auto">Auto</button>
@@ -1296,50 +1304,25 @@ try{
       <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
         <span class="meta" style="margin:0;">Para actualizar: botón <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> en la cabecera. Tocá <b>Pulse</b> del título para ciclar el tema.</span>
       </div>
-    </div>
+    </details>
 
-    <div class="cfg-section">
-      <h2>📄 Informe financiero</h2>
+    <details class="cfg-section" id="cfg-informe" data-cfg="cfg-informe">
+      <summary><span class="det-arrow">▶</span><h2>📄 Informe financiero</h2></summary>
       <p class="meta">Generá un informe imprimible con resumen, situación y detalle de movimientos.</p>
       <button type="button" class="mini" id="btnInformeConfig" style="margin-top:8px;">📄 Informe</button>
-    </div>
+    </details>
 
-    <div class="cfg-section">
-      <h2>🏦 Importar Visa (CSV)</h2>
+    <details class="cfg-section" id="cfg-importar" data-cfg="cfg-importar">
+      <summary><span class="det-arrow">▶</span><h2>🏦 Importar resúmenes</h2></summary>
       <p class="meta">Importá movimientos desde el resumen de tu banco. Parseo local: el archivo no se sube a ningún servidor.</p>
       <button type="button" class="mini" id="btnImportarBanco" style="margin-top:8px;">📥 Importar Santander / Mercado Pago</button>
       <button type="button" class="mini" id="btnImportarVisa" style="margin-top:8px;">📥 Importar Visa (Excel)</button>
       <button type="button" class="mini" id="btnImportarMC" style="margin-top:8px;">📥 Importar Mastercard MP (PDF)</button>
       <div id="impUltimaInfo" style="margin-top:6px;font-size:.75rem;color:var(--muted);"></div>
-    </div>
+    </details>
 
-    <div class="cfg-section">
-      <h2>👤 Mi nombre en los bancos</h2>
-      <p class="meta">Se usa para detectar tus propias transferencias al importar Mercado Pago. Dejalo vacío para deshabilitar la detección.</p>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <input type="text" id="cfgMiNombre" placeholder="Ej: Apellido Nombre" style="flex:1;border-radius:8px;border:1px solid var(--border);padding:8px 10px;background:var(--bg);color:var(--text);font:inherit;">
-        <button type="button" id="btnGuardarMiNombre" class="primary" style="flex:0 0 auto;">Guardar</button>
-      </div>
-    </div>
-
-    <div class="cfg-section">
-      <h2>💵 Dólar de referencia (MEP)</h2>
-      <p class="meta">Se usa para precargar la cotización cuando marcás 'Ya compré los USD'. No cambia compras ya guardadas.</p>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <input type="text" class="input-monto" inputmode="decimal" id="cfgUsdRef" placeholder="Ej: 1200" style="flex:1;">
-        <button type="button" id="btnGuardarUsdRef" class="primary" style="flex:0 0 auto;">Guardar</button>
-      </div>
-      <p class="meta" id="cfgUsdRefInfo" style="margin:6px 0 0;font-size:.75rem;"></p>
-    </div>
-
-    <div class="cfg-section">
-      <h2>🔒 PIN de acceso</h2>
-      <p class="meta">Protección casual. Cualquier persona con acceso al localStorage del navegador puede eludirla.</p>
-      <button type="button" id="btnCambiarPIN" class="mini" style="margin-top:8px;">Cambiar PIN</button>
-    </div>
-
-    <div class="cfg-section">
-      <h2>💾 Copia de seguridad</h2>
+    <details class="cfg-section" id="cfg-backup" data-cfg="cfg-backup">
+      <summary><span class="det-arrow">▶</span><h2>💾 Copia de seguridad</h2></summary>
       <p class="meta">Exportá todos tus datos. No incluye PIN ni API key.</p>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
         <button type="button" class="mini" id="btnExportBackup">⬇ Descargar</button>
@@ -1348,22 +1331,20 @@ try{
         <input type="file" id="backupFile" accept=".json,.txt" hidden>
       </div>
       <p class="meta" id="lastBackupInfo" style="margin-top:8px"></p>
-    </div>
+    </details>
 
-    <div class="cfg-section">
-      <h2>🏷 Categorías de gastos</h2>
-      <div class="cat-chips" id="catChips"></div>
-      <button type="button" class="mini" id="btnNuevaCat">+ Crear categoría</button>
-    </div>
+    <details class="cfg-section" id="cfg-usdref" data-cfg="cfg-usdref">
+      <summary><span class="det-arrow">▶</span><h2>💵 Dólar de referencia (MEP)</h2></summary>
+      <p class="meta">Se usa para precargar la cotización cuando marcás 'Ya compré los USD'. No cambia compras ya guardadas.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" class="input-monto" inputmode="decimal" id="cfgUsdRef" placeholder="Ej: 1200" style="flex:1;">
+        <button type="button" id="btnGuardarUsdRef" class="primary" style="flex:0 0 auto;">Guardar</button>
+      </div>
+      <p class="meta" id="cfgUsdRefInfo" style="margin:6px 0 0;font-size:.75rem;"></p>
+    </details>
 
-    <div class="cfg-section">
-      <h2>🏷 Categorías de ingresos</h2>
-      <div class="cat-chips" id="catIngresoChips"></div>
-      <button type="button" class="mini" id="btnNuevaCatIngreso">+ Crear categoría</button>
-    </div>
-
-    <div class="cfg-section">
-      <h2>🤖 Reglas de categorización automática</h2>
+    <details class="cfg-section" id="cfg-reglas" data-cfg="cfg-reglas">
+      <summary><span class="det-arrow">▶</span><h2>🤖 Reglas de categorización automática</h2></summary>
       <p class="meta">Si la descripción contiene el texto, se asigna la categoría automáticamente.</p>
       <div id="reglasLista"></div>
       <form id="formRegla" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;" autocomplete="off">
@@ -1371,24 +1352,49 @@ try{
         <select id="reglaCat" style="flex:2;min-width:140px;border-radius:8px;border:1px solid var(--border);padding:7px 10px;background:var(--bg);color:var(--text);font:inherit;"></select>
         <button type="submit" class="primary" style="flex:0 0 auto;">Agregar regla</button>
       </form>
-    </div>
+    </details>
 
-    <div class="cfg-section">
-      <h2>🎙 API key de Claude (para voz)</h2>
+    <details class="cfg-section" id="cfg-cats-gastos" data-cfg="cfg-cats-gastos">
+      <summary><span class="det-arrow">▶</span><h2>🏷 Categorías de gastos</h2></summary>
+      <div class="cat-chips" id="catChips"></div>
+      <button type="button" class="mini" id="btnNuevaCat">+ Crear categoría</button>
+    </details>
+
+    <details class="cfg-section" id="cfg-cats-ingresos" data-cfg="cfg-cats-ingresos">
+      <summary><span class="det-arrow">▶</span><h2>🏷 Categorías de ingresos</h2></summary>
+      <div class="cat-chips" id="catIngresoChips"></div>
+      <button type="button" class="mini" id="btnNuevaCatIngreso">+ Crear categoría</button>
+    </details>
+
+    <details class="cfg-section" id="cfg-pin" data-cfg="cfg-pin">
+      <summary><span class="det-arrow">▶</span><h2>🔒 PIN de acceso</h2></summary>
+      <p class="meta">Protección casual. Cualquier persona con acceso al localStorage del navegador puede eludirla.</p>
+      <button type="button" id="btnCambiarPIN" class="mini" style="margin-top:8px;">Cambiar PIN</button>
+    </details>
+
+    <details class="cfg-section" id="cfg-nombre" data-cfg="cfg-nombre">
+      <summary><span class="det-arrow">▶</span><h2>👤 Mi nombre en los bancos</h2></summary>
+      <p class="meta">Se usa para detectar tus propias transferencias al importar Mercado Pago. Dejalo vacío para deshabilitar la detección.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" id="cfgMiNombre" placeholder="Ej: Apellido Nombre" style="flex:1;border-radius:8px;border:1px solid var(--border);padding:8px 10px;background:var(--bg);color:var(--text);font:inherit;">
+        <button type="button" id="btnGuardarMiNombre" class="primary" style="flex:0 0 auto;">Guardar</button>
+      </div>
+    </details>
+
+    <details class="cfg-section" id="cfg-apikey" data-cfg="cfg-apikey">
+      <summary><span class="det-arrow">▶</span><h2>🎙 API key de Claude (para voz)</h2></summary>
       <p class="meta">Se guarda solo en este dispositivo (localStorage). No la compartas. Usá una clave con límites de uso.</p>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <input type="password" id="cfgApiKey" placeholder="sk-ant-…" style="flex:1;border-radius:8px;border:1px solid var(--border);padding:8px 10px;background:var(--bg);color:var(--text);font:inherit;">
         <button type="button" id="btnGuardarApiKey" class="primary" style="flex:0 0 auto;">Guardar</button>
       </div>
-    </div>
+    </details>
 
-    <div class="cfg-section">
-      <details id="detFotos">
-        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:4px 0;"><h2 style="margin:0">📷 Fotos del gráfico</h2></summary>
+    <details class="cfg-section" id="detFotos" data-cfg="cfg-fotos">
+      <summary><span class="det-arrow">▶</span><h2>📷 Fotos del gráfico</h2></summary>
         <p class="meta" style="margin-top:6px">Una foto diaria para los gráficos de Evolución. Se actualiza automáticamente al guardar cambios.</p>
         <div id="fotosLista" style="margin-top:8px"></div>
-      </details>
-    </div>
+    </details>
   </div>
 
   <!-- ── COMPROMISOS ── -->
@@ -2916,6 +2922,8 @@ function initApp() {
 // PESTAÑAS
 // ═══════════════════════════════════════════════════════
 function mostrarVista(v) {
+  // Al ENTRAR a Configuración todas las secciones arrancan plegadas (estado no persistido)
+  if (v==='config' && document.getElementById('vista-config').hidden) document.querySelectorAll('#vista-config details.cfg-section').forEach(d=>{ d.open=false; });
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.vista===v));
   document.querySelectorAll('.vista').forEach(el => el.hidden = el.id !== 'vista-'+v);
   try { localStorage.setItem(SK+'-vista', v); } catch{}
@@ -3453,6 +3461,15 @@ function aplicarTema(t){
     b.classList.toggle('primary',b.dataset.tema===(t||'auto'));
   });
 }
+// Abre (details.open=true) la sección de Configuración `key` (data-cfg), va a la vista y hace scroll/foco
+function abrirCfg(key,opts){
+  opts=opts||{};
+  mostrarVista('config');
+  const d=document.querySelector('#vista-config details[data-cfg="'+key+'"]'); if(!d) return;
+  d.open=true;
+  try{ d.scrollIntoView({block:'start'}); }catch{}
+  if(opts.foco){ const e=$(opts.foco); if(e) try{ e.focus({preventScroll:true}); }catch{} }
+}
 function renderConfig(){
   renderCfgCats();
   renderReglasLista();
@@ -3544,7 +3561,7 @@ $('btnVoz').onclick = () => {
   const apiKey = ls.get(APIKEY_K);
   if (!apiKey) {
     alert('Configurá tu API key de Claude en la pestaña ⚙️ para usar la carga por voz.');
-    mostrarVista('config'); return;
+    abrirCfg('cfg-apikey',{foco:'cfgApiKey'}); return;
   }
   if (recog) { recog.stop(); return; }
   recog = new SR();

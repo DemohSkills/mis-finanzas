@@ -442,6 +442,7 @@ test.describe('importar-visa', () => {
     await enterPIN(page);
 
     await page.locator('[data-vista="config"]').click();
+    await page.locator('#cfg-importar').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.waitForSelector('#vista-config');
 
     const btn = page.locator('#btnImportarVisa');

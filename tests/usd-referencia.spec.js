@@ -43,6 +43,7 @@ async function goToCompromisos(page) {
 }
 async function goToConfig(page) {
   await page.locator('nav.tabs button[data-vista="config"]').click();
+  await page.locator('#cfg-usdref').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
   await page.waitForSelector('#cfgUsdRef');
 }
 async function abrirModal(page) {

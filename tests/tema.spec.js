@@ -35,6 +35,7 @@ test.describe('Selector de tema', () => {
   test('(b) los 7 botones de tema existen en la pestaña Config', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await expect(page.locator('#vista-config')).toBeVisible();
     for (const t of ['auto','claro','oscuro','negro','neon-azul','neon-turquesa','neon-violeta']) {
       await expect(page.locator(`.tema-btn[data-tema="${t}"]`)).toBeVisible();
@@ -44,6 +45,7 @@ test.describe('Selector de tema', () => {
   test('(c) al seleccionar "oscuro" se aplica data-theme en <html>', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.locator('.tema-btn[data-tema="oscuro"]').click();
     const attr = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
     expect(attr).toBe('oscuro');
@@ -52,6 +54,7 @@ test.describe('Selector de tema', () => {
   test('(d) el tema persiste tras recargar la página', async () => {
     const { page, ctx } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.locator('.tema-btn[data-tema="negro"]').click();
     // Reload — the early inline script should restore data-theme before body renders
     await page.reload();
@@ -67,8 +70,10 @@ test.describe('Selector de tema', () => {
   test('(e) el informe sigue con fondo blanco en tema Negro', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.locator('.tema-btn[data-tema="negro"]').click();
     // Open informe
+    await page.locator('#cfg-informe').evaluate(d => { d.open = true; });
     await page.locator('#btnInformeConfig').click();
     const inf = page.locator('#informeView');
     await expect(inf).toBeVisible();
@@ -80,6 +85,7 @@ test.describe('Selector de tema', () => {
   test('(f) el botón activo tiene clase "primary"', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.locator('.tema-btn[data-tema="claro"]').click();
     await expect(page.locator('.tema-btn[data-tema="claro"]')).toHaveClass(/primary/);
     await expect(page.locator('.tema-btn[data-tema="oscuro"]')).not.toHaveClass(/primary/);
@@ -88,6 +94,7 @@ test.describe('Selector de tema', () => {
   test('(g) "auto" restaura el comportamiento sin data-theme', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
     await page.locator('.tema-btn[data-tema="oscuro"]').click();
     await page.locator('.tema-btn[data-tema="auto"]').click();
     const attr = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
@@ -97,6 +104,7 @@ test.describe('Selector de tema', () => {
   test('(h) en tema Negro --grid-color usa color tenue; Oscuro y Claro usan sus valores de borde', async () => {
     const { page } = await openApp(browser);
     await page.locator('.tabs button[data-vista="config"]').click();
+    await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
 
     await page.locator('.tema-btn[data-tema="negro"]').click();
     const gridNegro = await page.evaluate(() =>
@@ -221,6 +229,7 @@ test.describe('Pulse — ciclo de temas', () => {
     try {
       await clickPulse(page); // → claro
       await page.locator('.tabs button[data-vista="config"]').click();
+      await page.locator('#cfg-apariencia').evaluate(d => { d.open = true; }); // Configuración: secciones plegadas por defecto
       await page.waitForTimeout(200);
       await expect(page.locator('.tema-btn[data-tema="claro"]')).toHaveClass(/primary/);
       await expect(page.locator('.tema-btn[data-tema="auto"]')).not.toHaveClass(/primary/);
