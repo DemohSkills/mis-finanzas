@@ -201,6 +201,7 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .borr-izq{min-width:0;flex:1;overflow-wrap:anywhere;}
 .borr-der{display:flex;align-items:center;gap:8px;flex-shrink:0;text-align:right;}
 .borr-viejo{color:var(--warn)!important;}
+.borr-row.borr-editando{background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:inset 3px 0 0 var(--accent);padding-left:8px;border-radius:6px;}
 .imp-borr-tag{font-size:.72rem;color:var(--ok);}
 .subtotal{display:flex;justify-content:space-between;font-weight:700;padding:8px 4px 0;border-top:2px solid var(--border);margin-top:4px;}
 /* Vínculos */
@@ -1101,6 +1102,7 @@ try{
           </label>
           <div class="acciones">
             <button type="submit" class="primary" id="btnAnotarBorrador">Anotar borrador</button>
+            <button type="button" id="btnCancelarBorrador" hidden>Cancelar</button>
           </div>
         </form>
         <div class="borr-rotulo">SIN CRUZAR</div>
@@ -1727,8 +1729,38 @@ function _sufijoCuotasBorr(b) {
   return n && !_RE_CUOTAS_NOTA.test(String(b.nota || '')) ? ` · ${n} cuotas` : '';
 }
 
+let _borrEditId = null;
+// Vuelve el formulario de borradores al modo "anotar" (no renderiza la lista).
+function _salirEdicionBorrador() {
+  _borrEditId = null;
+  $('borrMonto').value = ''; $('borrNota').value = ''; $('borrCuotas').value = ''; $('borrFecha').value = hoy();
+  $('btnAnotarBorrador').textContent = 'Anotar borrador';
+  $('btnCancelarBorrador').hidden = true;
+}
+function cancelarEdicionBorrador() { _salirEdicionBorrador(); renderBorradores(); }
+function editarBorrador(id) {
+  const b = (estado.borradores || []).find(x => x.id === id); if (!b) return;
+  _borrEditId = id;
+  $('borrMonto').value = fmtInput(b.monto);
+  $('borrFecha').value = b.fecha || hoy();
+  if (![...$('borrMedio').options].some(o => o.value === b.medio)) $('borrMedio').add(new Option(b.medio, b.medio));
+  $('borrMedio').value = b.medio;
+  if (![...$('borrCat').options].some(o => o.value === b.categoria)) $('borrCat').add(new Option(b.categoria, b.categoria));
+  $('borrCat').value = b.categoria;
+  const n = _cuotasDeBorrador(b);
+  $('borrCuotas').value = n || '';
+  $('borrNota').value = String(b.nota || '').replace(_RE_CUOTAS_NOTA, '');
+  $('btnAnotarBorrador').textContent = 'Guardar cambios';
+  $('btnCancelarBorrador').hidden = false;
+  const det = $('det-borradores'); if (det) det.open = true;
+  renderBorradores();
+  $('formBorrador').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('borrMonto').focus();
+}
+
 function renderBorradores() {
   const lista = $('borrLista'); if (!lista) return;
+  if (_borrEditId && !(estado.borradores || []).some(b => b.id === _borrEditId)) _salirEdicionBorrador();
   const bs = [...(estado.borradores || [])].sort((a, b) => (b.creado || 0) - (a.creado || 0));
   const pill = $('borrContador');
   if (pill) { pill.hidden = !bs.length; pill.textContent = `${bs.length} sin cruzar`; }
@@ -1738,14 +1770,17 @@ function renderBorradores() {
     const dias = _diasEntre(b.fecha, h);
     const viejo = dias > 7;
     const titulo = (b.nota ? `${esc(b.nota)} · ${esc(b.categoria)}` : esc(b.categoria)) + esc(_sufijoCuotasBorr(b));
-    return `<div class="borr-row" data-id="${esc(b.id)}">
+    return `<div class="borr-row${b.id === _borrEditId ? ' borr-editando' : ''}" data-id="${esc(b.id)}">
       <div class="borr-izq">
         <div>${titulo}</div>
         <div class="meta" style="font-size:.75rem">${esc(b.medio)} · ${fechaCorta(b.fecha)}${viejo ? ` · <span class="borr-viejo borr-hace">hace ${dias} días sin cruzar</span>` : ''}</div>
       </div>
-      <div class="borr-der"><span class="neg amt borr-monto${viejo ? ' borr-viejo' : ''}">${fmt(b.monto)}</span><button type="button" class="mini danger borr-del" title="Borrar borrador">×</button></div>
+      <div class="borr-der"><span class="neg amt borr-monto${viejo ? ' borr-viejo' : ''}">${fmt(b.monto)}</span><button type="button" class="mini borr-edit" title="Editar borrador">✎</button><button type="button" class="mini danger borr-del" title="Borrar borrador">×</button></div>
     </div>`;
   }).join('');
+  lista.querySelectorAll('.borr-edit').forEach(btn => {
+    btn.onclick = () => editarBorrador(btn.closest('.borr-row').dataset.id);
+  });
   lista.querySelectorAll('.borr-del').forEach(btn => {
     btn.onclick = () => {
       const id = btn.closest('.borr-row').dataset.id;
@@ -1770,13 +1805,20 @@ function anotarBorrador(e) {
     if (!/^\d+$/.test(cuotasTxt) || cuotas < 2 || cuotas > 60) { alert('Las cuotas deben ser un entero entre 2 y 60 (o dejalo vacío si fue un pago único).'); return; }
   }
   estado.borradores ||= [];
-  const b = {
-    id: nuevoId(), creado: Date.now(), fecha, monto: Math.round(monto * 100) / 100,
+  const datos = {
+    fecha, monto: Math.round(monto * 100) / 100,
     medio: $('borrMedio').value, categoria: cat, nota: $('borrNota').value.trim().slice(0, 120),
   };
-  if (cuotas) b.cuotas = cuotas;
-  estado.borradores.push(b);
-  $('borrMonto').value = ''; $('borrNota').value = ''; $('borrCuotas').value = ''; $('borrFecha').value = hoy();
+  const orig = _borrEditId && estado.borradores.find(x => x.id === _borrEditId);
+  if (orig) {
+    Object.assign(orig, datos);           // mismo id y mismo `creado`
+    if (cuotas) orig.cuotas = cuotas; else delete orig.cuotas;
+  } else {
+    const b = { id: nuevoId(), creado: Date.now(), ...datos };
+    if (cuotas) b.cuotas = cuotas;
+    estado.borradores.push(b);
+  }
+  _salirEdicionBorrador();
   guardar(); renderBorradores();
 }
 
@@ -1785,6 +1827,7 @@ function initBorradores() {
   fillCatSelect('borrCat');
   $('borrFecha').value = hoy();
   $('formBorrador').onsubmit = anotarBorrador;
+  $('btnCancelarBorrador').onclick = cancelarEdicionBorrador;
   renderBorradores();
 }
 
