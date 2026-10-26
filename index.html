@@ -361,6 +361,10 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .voice-confirm .vc-row{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;margin-bottom:6px;}
 .voice-confirm .vc-row strong{color:var(--text);}
 .voice-confirm .vc-actions{display:flex;gap:8px;margin-top:10px;}
+.voice-confirm .vc-tipos{display:flex;gap:4px;margin-bottom:12px;}
+.voice-confirm .vc-tipos button{flex:1 1 0;min-width:0;padding:8px 2px;font-size:.78rem;white-space:nowrap;}
+.voice-confirm .vc-in{font:inherit;border:1px solid var(--border);border-radius:6px;padding:3px 7px;background:var(--bg);color:var(--text);max-width:62%;min-width:0;}
+.voice-confirm .vc-msg{color:var(--danger);font-size:.78rem;margin:4px 0 0;}
 /* ── FAB voz ────────────────────────────────────────────────── */
 #fabVoz{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:16px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
 .fab-voz-btn{width:56px;height:56px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:1.5rem;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);transition:background .2s;-webkit-tap-highlight-color:transparent;}
@@ -3566,7 +3570,7 @@ function _montoVoz(raw, transcript=''){
   return Math.round(m*100)/100;
 }
 async function parsearVoz(transcript, apiKey){
-  const prompt = `Analizá este texto y extraé: monto (número positivo con hasta 2 decimales: conservá los centavos si el texto los dice, ej. "treinta y tres mil trescientos treinta y tres con treinta y tres" → 33333.33; usá punto como separador decimal y NINGÚN separador de miles; si no hay centavos, entero), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve (solo el qué se compró; NO incluyas las palabras de la orden como "anotar", "borrador" o "en cuotas"), tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}), cuotas (número entero si el texto dice "en N cuotas"; si no, 0) y dias_atras (entero: 0 si es hoy o no se menciona fecha, 1 si dice "ayer", 2 si dice "anteayer", N si dice "hace N días"). Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":"","cuotas":0,"dias_atras":0}`;
+  const prompt = `Analizá este texto y extraé: monto (número positivo con hasta 2 decimales: conservá los centavos si el texto los dice, ej. "treinta y tres mil trescientos treinta y tres con treinta y tres" → 33333.33; usá punto como separador decimal y NINGÚN separador de miles; si no hay centavos, entero), medio de pago (exactamente uno de: ${MEDIOS.join(', ')}; si no se menciona usá "Efectivo"), descripción breve (solo el qué se compró; NO incluyas las palabras de la orden como "anotar", "borrador" o "en cuotas"), tipo ("ingreso" si dice me regalaron/cobré/me pagaron/me transfirieron/me devolvieron; si no, "gasto"), y categoria (la más aproximada al texto; si es gasto elegí exactamente una de las categorías de gasto: ${getCats().join(', ')}; si es ingreso elegí exactamente una de las categorías de ingreso: ${getCatsIncome().join(', ')}), cuotas (número entero si el texto dice "en N cuotas"; si no, 0) dias_atras (entero: 0 si es hoy o no se menciona fecha, 1 si dice "ayer", 2 si dice "anteayer", N si dice "hace N días") y fecha (YYYY-MM-DD, solo si el texto dice una fecha explícita como "el 22 de octubre", "el 22", "22/10", "el viernes pasado", "ayer", "anteayer" o "hace 3 días"; si no menciona fecha, cadena vacía). La fecha de hoy es ${hoy()}. Si dice solo el día ("el 22") usá el mes actual, y si esa fecha queda en el futuro, el mes anterior; si dice día y mes sin año usá el año actual, y si queda en el futuro, el año anterior. Texto: "${transcript}"\n\nRespondé SOLO con JSON válido sin explicaciones: {"monto":0,"medio":"","descripcion":"","tipo":"gasto","categoria":"","cuotas":0,"dias_atras":0,"fecha":""}`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -3588,105 +3592,118 @@ async function parsearVoz(transcript, apiKey){
     const match=text.match(/\{[\s\S]*\}/);
     if(!match) throw new Error('No JSON');
     const parsed=JSON.parse(match[0]);
-    const tipo=parsed.tipo||'gasto';
+    const tipo=parsed.tipo==='ingreso'?'ingreso':'gasto';
+    const ent=v=>{const n=Math.trunc(Number(v));return n>0?n:0;};
+    const fecha=_fechaVoz(parsed.fecha, ent(parsed.dias_atras));
     if(tipo!=='ingreso' && /\bborrador(es)?\b/i.test(transcript)){
       const monto=_montoVoz(parsed.monto, transcript);
       if(!(monto>0)) throw new Error('monto inválido');
-      const ent=v=>{const n=Math.trunc(Number(v));return n>0?n:0;};
-      mostrarConfirmBorradorVoz(monto, parsed.medio||'', parsed.descripcion||transcript, parsed.categoria||'', ent(parsed.cuotas), Math.min(ent(parsed.dias_atras),3650));
+      mostrarConfirmVoz(monto, parsed.medio||'', parsed.descripcion||transcript, 'borrador', parsed.categoria||'', {cuotas:ent(parsed.cuotas), fecha});
       return;
     }
-    mostrarConfirmVoz(_montoVoz(parsed.monto, transcript)||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, tipo, parsed.categoria||'');
+    mostrarConfirmVoz(_montoVoz(parsed.monto, transcript)||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, tipo, parsed.categoria||'', {fecha});
   } catch(err){
     $('voiceStatus').textContent='Error al procesar: '+err.message;
   }
 }
 
-function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA=''){
-  const isIng = tipo==='ingreso';
-  const lista = isIng ? getCatsIncome() : getCats();
-  const reglaCat = aplicarRegla(desc);
-  const catIAExacta = catIA ? (lista.find(c=>c.toLowerCase()===catIA.toLowerCase())||null) : null;
-  const catAuto = reglaCat || catIAExacta || lista.find(c=>c==='Otros/Varios') || lista[0];
-  const cont = $('voiceConfirm');
-  cont.hidden = false;
-  cont.innerHTML = `
-    <div class="voice-confirm">
-      <p style="font-weight:600;margin:0 0 10px">¿Confirmás este movimiento?</p>
-      <div class="vc-row"><span>Tipo</span><strong class="${isIng?'pos':'neg'}">${isIng?'💰 Ingreso':'💸 Gasto'}</strong></div>
-      <div class="vc-row"><span>Monto</span><strong class="num">$${fmtInput(Number(monto))}</strong></div>
-      <div class="vc-row"><span>Medio</span><strong>${esc(medio)}</strong></div>
-      <div class="vc-row"><span>Descripción</span><strong>${esc(desc)}</strong></div>
-      <div class="vc-row"><span>Categoría</span>
-        <select id="vozCat" style="font:inherit;border:1px solid var(--border);border-radius:6px;padding:3px 7px;background:var(--bg);color:var(--text)"></select>
-      </div>
-      <div class="vc-actions">
-        <button type="button" class="primary" id="btnVozOk">✓ Guardar</button>
-        <button type="button" id="btnVozCancel">Cancelar</button>
-      </div>
-    </div>`;
-  fillCatSelect('vozCat', catAuto, isIng);
-  $('voiceStatus').textContent='';
-  $('btnVozOk').onclick=()=>{
-    const cat=$('vozCat').value;
-    if(cat==='__nueva__') return;
-    estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:Math.round(Number(monto)*100)/100,fecha:hoy(),categoria:cat,medio,descripcion:desc,tipo,soloHistorial:false});
-    guardar(); cont.hidden=true; resetForm(); render();
-    $('voiceStatus').textContent='✅ Movimiento guardado.';
-    setTimeout(()=>$('voiceStatus').textContent='',3000);
+// Fecha del dictado: 'fecha' de la IA si es YYYY-MM-DD real, no futura y de los últimos 5 años; si no, dias_atras; si no, hoy.
+function _fechaVoz(f, diasAtras=0){
+  const h=hoy();
+  const [hy,hm,hd]=h.split('-').map(Number);
+  const iso=(y,m,d)=>new Date(y,m-1,d).toLocaleDateString('sv');
+  const min=iso(hy-5,hm,hd);
+  const ok=x=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(x)) return false;
+    const [y,m,d]=x.split('-').map(Number);
+    return iso(y,m,d)===x && x<=h && x>=min;
   };
-  $('btnVozCancel').onclick=()=>{ cont.hidden=true; $('voiceStatus').textContent=''; };
+  f=String(f||'').trim();
+  if(ok(f)) return f;
+  const dias=Math.min(Math.max(Math.trunc(Number(diasAtras))||0,0),3650);
+  if(dias>0){ const x=iso(hy,hm,hd-dias); if(ok(x)) return x; }
+  return h;
 }
-
 // Modo borrador del dictado: misma tarjeta de confirmación, pero guarda en estado.borradores (sin tocar saldos).
 function _medioValido(m){
   const t=String(m||'').trim().toLowerCase();
   if(!t) return MEDIOS[0];
   return MEDIOS.find(x=>x.toLowerCase()===t) || MEDIOS.find(x=>x.toLowerCase().includes(t)||t.includes(x.toLowerCase())) || MEDIOS[0];
 }
-function mostrarConfirmBorradorVoz(monto, medioIA, desc, catIA='', cuotas=0, diasAtras=0){
-  const lista = getCats();
-  const reglaCat = aplicarRegla(desc);
-  const catIAExacta = catIA ? (lista.find(c=>c.toLowerCase()===catIA.toLowerCase())||null) : null;
-  const catAuto = reglaCat || catIAExacta || lista.find(c=>c==='Otros/Varios') || lista[0];
-  const d=new Date(); d.setDate(d.getDate()-diasAtras);
-  const fecha=d.toLocaleDateString('sv');
-  const selSt='font:inherit;border:1px solid var(--border);border-radius:6px;padding:3px 7px;background:var(--bg);color:var(--text)';
-  const cont = $('voiceConfirm');
-  cont.hidden = false;
-  cont.innerHTML = `
+// Tarjeta única de confirmación del dictado: selector Gasto / Ingreso / Borrador. Cambiar de tipo redibuja conservando lo cargado.
+function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
+  const S={tipo:['gasto','ingreso','borrador'].includes(tipo)?tipo:'gasto', monto:Number(monto)||0, montoTxt:null,
+    medio:_medioValido(medio||'Efectivo'), fecha:opts.fecha||hoy(), desc:String(desc||''), cat:null, catIA:catIA||'', cuotas:opts.cuotas||0};
+  const cont=$('voiceConfirm');
+  const TIPOS=[['gasto','💸 Gasto'],['ingreso','💰 Ingreso'],['borrador','📝 Borrador']];
+  const NOTAS={gasto:'Descuenta del saldo de la cuenta.', ingreso:'Suma al saldo de la cuenta.', borrador:'No toca saldos: se cruza solo al importar el resumen.'};
+  const catPara=(t)=>{
+    const lista=t==='ingreso'?getCatsIncome():getCats();
+    if(S.cat && lista.includes(S.cat)) return S.cat;
+    const exacta=S.catIA?(lista.find(c=>c.toLowerCase()===S.catIA.toLowerCase())||null):null;
+    return aplicarRegla(S.desc)||exacta||lista.find(c=>c==='Otros/Varios')||lista[0];
+  };
+  const leer=()=>{
+    if(!$('vozBorrMonto')) return;
+    S.montoTxt=$('vozBorrMonto').value; S.monto=readMonto('vozBorrMonto');
+    S.medio=$('vozBorrMedio').value; S.fecha=$('vozFecha').value; S.desc=$('vozDesc').value;
+    const c=$('vozCat').value; if(c && c!=='__nueva__') S.cat=c;
+  };
+  const dibujar=()=>{
+    const bor=S.tipo==='borrador', ing=S.tipo==='ingreso';
+    S.cat=catPara(S.tipo);
+    cont.hidden=false;
+    cont.innerHTML=`
     <div class="voice-confirm">
-      <p style="font-weight:600;margin:0 0 10px">¿Confirmás este borrador?</p>
-      <div class="vc-row"><span>Tipo</span><strong style="color:var(--warn)">📝 Borrador (no toca saldos)</strong></div>
-      <div class="vc-row"><span>Monto</span><input id="vozBorrMonto" type="text" inputmode="decimal" value="${fmtInput(Number(monto))}" style="${selSt};width:9em;text-align:right"></div>
-      <div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" style="${selSt}">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
-      <div class="vc-row"><span>Fecha</span><strong>${fechaCorta(fecha)}</strong></div>
-      <div class="vc-row"><span>Nota</span><strong>${esc(desc)}</strong></div>
-      <div class="vc-row"><span>Categoría</span><select id="vozCat" style="${selSt}"></select></div>
-      ${cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Se cruza con la primera cuota del resumen (importe total ÷ cuotas). Las cuotas 2 y siguientes no se cruzan todavía.</p>':''}
+      <p style="font-weight:600;margin:0 0 10px">${bor?'¿Confirmás este borrador?':'¿Confirmás este movimiento?'}</p>
+      <div class="vc-tipos" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l}</button>`).join('')}</div>
+      <div class="vc-row"><span>Monto</span><input id="vozBorrMonto" class="vc-in" type="text" inputmode="decimal" value="${S.montoTxt!=null?esc(S.montoTxt):(S.monto>0?fmtInput(S.monto):'')}" style="width:9em;text-align:right"></div>
+      <div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" class="vc-in">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+      <div class="vc-row"><span>Fecha</span><input id="vozFecha" class="vc-in" type="date" value="${esc(S.fecha)}" max="${hoy()}"></div>
+      <div class="vc-row"><span>${bor?'Nota':'Descripción'}</span><input id="vozDesc" class="vc-in" type="text" value="${esc(S.desc)}"></div>
+      <div class="vc-row"><span>Categoría</span><select id="vozCat" class="vc-in"></select></div>
+      ${bor&&S.cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Se cruza con la primera cuota del resumen (importe total ÷ cuotas). Las cuotas 2 y siguientes no se cruzan todavía.</p>':''}
+      <p id="vozNota" style="font-size:.75rem;margin:4px 0 0;${bor?'color:var(--warn)':'color:var(--muted)'}">${NOTAS[S.tipo]}</p>
+      <p id="vozMsg" class="vc-msg" role="alert"></p>
       <div class="vc-actions">
-        <button type="button" class="primary" id="btnVozOk">✓ Guardar borrador</button>
+        <button type="button" class="primary" id="btnVozOk">${bor?'✓ Guardar borrador':'✓ Guardar'}</button>
         <button type="button" id="btnVozCancel">Cancelar</button>
       </div>
     </div>`;
-  $('vozBorrMedio').value=_medioValido(medioIA);
-  fillCatSelect('vozCat', catAuto, false);
-  $('voiceStatus').textContent='';
-  $('btnVozOk').onclick=()=>{
+    $('vozBorrMedio').value=S.medio;
+    fillCatSelect('vozCat', S.cat, ing);
+    $('voiceStatus').textContent='';
+    cont.querySelectorAll('.vc-tipos button').forEach(b=>{
+      b.onclick=()=>{ if(b.dataset.tipo===S.tipo) return; leer(); S.tipo=b.dataset.tipo; dibujar(); };
+    });
+    $('btnVozOk').onclick=guardarVoz;
+    $('btnVozCancel').onclick=()=>{ cont.hidden=true; $('voiceStatus').textContent=''; };
+  };
+  const guardarVoz=()=>{
+    leer();
+    const msg=t=>{ $('vozMsg').textContent=t; };
+    const m=Math.round(S.monto*100)/100;
+    if(!(m>0)) return msg('Ingresá un monto mayor a 0.');
+    const f=S.fecha;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(f) || isNaN(new Date(f+'T12:00:00'))) return msg('La fecha no es válida.');
+    if(f>hoy()) return msg('La fecha no puede ser futura.');
     const cat=$('vozCat').value;
-    if(cat==='__nueva__') return;
-    const m=Math.round(readMonto('vozBorrMonto')*100)/100;
-    if(!(m>0)){ $('voiceStatus').textContent='Error al procesar: monto inválido'; cont.hidden=true; return; }
-    const nota=String(desc).trim().slice(0,120);
-    estado.borradores ||= [];
-    const bor={id:nuevoId(),creado:Date.now(),fecha,monto:m,medio:$('vozBorrMedio').value,categoria:cat,nota};
-    if(cuotas>1 && cuotas<=60) bor.cuotas=cuotas;
-    estado.borradores.push(bor);
-    guardar(); renderBorradores(); cont.hidden=true;
-    $('voiceStatus').textContent='✅ Borrador guardado.';
+    if(cat==='__nueva__') return msg('Elegí una categoría.');
+    if(S.tipo==='borrador'){
+      estado.borradores ||= [];
+      const b={id:nuevoId(),creado:Date.now(),fecha:f,monto:m,medio:S.medio,categoria:cat,nota:String(S.desc).trim().slice(0,120)};
+      if(S.cuotas>1 && S.cuotas<=60) b.cuotas=S.cuotas;
+      estado.borradores.push(b);
+      guardar(); renderBorradores(); cont.hidden=true;
+      $('voiceStatus').textContent='✅ Borrador guardado.';
+    } else {
+      estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:m,fecha:f,categoria:cat,medio:S.medio,descripcion:S.desc,tipo:S.tipo,soloHistorial:false});
+      guardar(); cont.hidden=true; resetForm(); render();
+      $('voiceStatus').textContent='✅ Movimiento guardado.';
+    }
     setTimeout(()=>$('voiceStatus').textContent='',3000);
   };
-  $('btnVozCancel').onclick=()=>{ cont.hidden=true; $('voiceStatus').textContent=''; };
+  dibujar();
 }
 
 // ═══════════════════════════════════════════════════════

@@ -54,7 +54,7 @@ test('(a) con "borrador" aparece el panel y se guarda un borrador sin tocar gast
   const totAntes = await totalesDe(page);
   await dictar(page, 'anotar en borrador pizza 4500 con santander');
   await expect(page.locator('#voiceConfirm')).toContainText('¿Confirmás este borrador?');
-  await expect(page.locator('#voiceConfirm')).toContainText('📝 Borrador (no toca saldos)');
+  await expect(page.locator('#voiceConfirm')).toContainText('No toca saldos: se cruza solo al importar el resumen.');
   await page.click('#btnVozOk');
   const d = await estadoDe(page);
   expect(d.borradores).toHaveLength(1);
@@ -100,7 +100,7 @@ test('(c) cuotas=3 guarda b.cuotas (sin sufijo en la nota) y el aviso; cuotas 0/
 test('(d) dias_atras=1 pone la fecha de ayer', async ({ page }) => {
   await setup(page, base({ dias_atras: 1 }));
   await dictar(page, 'borrador pizza ayer');
-  await expect(page.locator('#voiceConfirm')).toContainText('19/10/2026');
+  await expect(page.locator('#vozFecha')).toHaveValue('2026-10-19');
   await page.click('#btnVozOk');
   expect((await estadoDe(page)).borradores[0].fecha).toBe('2026-10-19');
 });
@@ -224,7 +224,7 @@ test('(centavos) monto inválido editado no guarda', async ({ page }) => {
 test('(centavos) gasto normal por voz conserva 33333.33 de punta a punta', async ({ page }) => {
   await setup(page, base({ monto: '33333.33', medio: 'Efectivo' }));
   await dictar(page, 'gasté 33.333,33 en pizza');
-  await expect(page.locator('#voiceConfirm')).toContainText('$33.333,33');
+  await expect(page.locator('#vozBorrMonto')).toHaveValue('33.333,33');
   await page.click('#btnVozOk');
   const g = (await estadoDe(page)).gastos.find(x => x.id !== 'g1');
   expect(g.monto).toBe(33333.33);
