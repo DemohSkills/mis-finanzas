@@ -69,3 +69,5 @@
 
 ## Referencia de costo (Code, Sonnet 5.5 nivel medio)
 - Tarea 1 (Gastos): US$0,78. Tarea 2 + corrección (Evolución): US$2,03. El costo lo domina la relectura del contexto por paso, no el texto generado.
+
+- Cobro semanal, historial (en `trabajo-nocturno`, sin publicar): `cobradas[].historial:true` = semana informativa (sin `movId`, no toca cuentas, Total activos ni ganancia del mes; `neto`/`retencion` pueden ser null). Resumen plegable (clave `finanzas-v1-det-cw-res-<id>`). «A pagar» por vencimiento ahora proyecta cuotas y fijos (6+ meses, tope 48). Filas de semana en dos columnas. Suite: 1053 tests. Nota: «Pagué» de fijos sigue en los 3 primeros meses (el pedido decía también «actual y siguiente»; se mantuvo el comportamiento existente); una semana de historial debe haber terminado (hasta < hoy).

@@ -123,3 +123,9 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 ## Dictado de días trabajados (modo Trabajo)
 - `mostrarConfirmVoz` suma el tipo `trabajo` («🛠 Trabajo») solo si hay `estado.cobrosSemanales`. `parsearVoz` llama antes a `_trabajoVoz(transcript)`: si el texto (sin tildes) trae una palabra del `nombre`/`persona` de un cobro (≥3 letras, sin «extra/semanal/cobro…») y un verbo de trabajo (trabaj, labur, hice, gané, entreg, repart) abre este modo con ese cobro; «desafío» → Desafío. Sin coincidencia de nombre no abre (el botón queda a mano).
 - Tarjeta: Cobro, Es un (Día/Desafío), Monto, Fecha; sin Cuenta/Categoría/Descripción. Muestra «Semana dd/mm al dd/mm: hoy llevás $X → quedaría en $Y» de la semana de la fecha y aviso amarillo si ya hay entradas `dia` ese día (no bloquea). «Sumar a la semana» usa `cwValidarEntrada` + `cwNuevaEntrada` (las mismas que «+ Sumar»); no toca gastos ni saldos.
+
+## Cobro semanal: historial y resumen
+- `cobradas[]` admite `historial:true` (sin `movId`; `neto`/`retencion` pueden ser `null`): semana informativa cargada con «Cargar semanas anteriores». No crea ingreso ni toca cuentas, Total activos o ganancia del mes. «Deshacer último cobro» la ignora; se borra de a una desde la lista. «📊 Resumen» (`cwResumen`) suma pendientes + cobradas (con historial); el promedio de retención usa solo semanas con neto. Estado del resumen: `finanzas-v1-det-cw-res-<id>` (default plegado).
+
+## A pagar (orden por vencimiento)
+- Cuotas con `pendientes>1` se proyectan en cada mes siguiente (`_compProyHtml`, solo «Editar»); los fijos aparecen en todos los meses mostrados (desde el actual hasta el mayor entre la última cuota proyectada y +5 meses, tope 48). Desde el 4.º mes los grupos arrancan plegados y sin «Pagué». Vistas entidad/monto y `compromisosMes` no cambian.

@@ -183,8 +183,8 @@ test.describe('cobro semanal', () => {
     await page.locator('[role=tab]', { hasText: 'Vínculos' }).click();
     const card = page.locator('#vinculos details.persona');
     await expect(card).toHaveCount(1);
-    await expect(card.locator('summary')).toContainText('Meli Envíos');
-    await expect(card.locator('summary')).toContainText('Te debe');
+    await expect(card.locator('> summary')).toContainText('Meli Envíos');
+    await expect(card.locator('> summary')).toContainText('Te debe');
     await expect(card.locator('.cw-sem')).toHaveCount(1);
   });
 
