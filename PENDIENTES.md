@@ -26,6 +26,7 @@
 - Tarjeta «Ganancia bruta del mes» en Inicio (en `trabajo-nocturno`, sin publicar): ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
 
 - Cobro semanal (Meli Extra) (en `trabajo-nocturno`, sin publicar): `estado.cobrosSemanales`; ver CLAUDE.md. El ítem suelto viejo de Cobros pendientes lo borra el usuario a mano. Pendiente: sumarlo también al informe PDF (hoy solo entra en Total activos y Por cobrar).
+- Dictado de días trabajados (en `trabajo-nocturno`, sin publicar): modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.

@@ -225,6 +225,7 @@ details.pat-grp.pat-pers>summary h3{text-transform:none;letter-spacing:0;font-si
 .cw{margin-top:4px;}
 .cw-sem{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:8px 0;border-top:1px solid var(--border);}
 .cw>.cw-sem:first-child{border-top:0;}
+.cw-sem>.num{color:var(--ok);}
 .cw-inf{flex:1 1 150px;min-width:0;font-size:.85rem;color:var(--text);}
 .cw-inf .rng{font-weight:600;overflow-wrap:anywhere;}
 .cw .sub-label,.cw-sub{font-size:.76rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
@@ -408,6 +409,10 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .voice-confirm .vc-actions{display:flex;gap:8px;margin-top:10px;}
 .voice-confirm .vc-tipos{display:flex;gap:4px;margin-bottom:12px;}
 .voice-confirm .vc-tipos button{flex:1 1 0;min-width:0;padding:8px 2px;font-size:.78rem;white-space:nowrap;}
+.voice-confirm .vc-tipos.cuatro button{font-size:.7rem;padding:8px 1px;}
+.voice-confirm .vc-warn{color:var(--warn);font-size:.78rem;margin:4px 0;}
+.voice-confirm .vc-trab-info{font-size:.82rem;font-weight:600;margin:6px 0;overflow-wrap:anywhere;}
+.voice-confirm select.vc-in{max-width:60%;}
 .voice-confirm .vc-in{font:inherit;border:1px solid var(--border);border-radius:6px;padding:3px 7px;background:var(--bg);color:var(--text);max-width:62%;min-width:0;}
 .voice-confirm .vc-msg{color:var(--danger);font-size:.78rem;margin:4px 0 0;}
 /* ── FAB voz ────────────────────────────────────────────────── */
@@ -3098,17 +3103,22 @@ function _cwPintarSumar() {
     };
   });
 }
+// Validación común de una entrada (modal + Sumar y dictado): devuelve el mensaje de error o ''.
+function cwValidarEntrada(cs, fecha, monto) {
+  if (!(monto > 0)) return 'Ingresá un monto mayor a 0.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return 'Elegí una fecha.';
+  if (fecha > hoy()) return 'La fecha no puede ser futura.';
+  if ((cs.cobradas || []).some(c => c.desde === cwLunes(fecha))) return 'Esa semana ya está cobrada.';
+  return '';
+}
+function cwNuevaEntrada(cs, fecha, monto, tipo) { cs.entradas.push({ id: nuevoId(), fecha, monto, tipo }); }
 function cwGuardarEntrada() {
   const cs = _cwGet(_cwId); if (!cs) return;
   const monto = _r2(readMonto('cwSumMonto')), fecha = $('cwSumFecha').value, msg = $('cwSumMsg');
-  if (!(monto > 0)) { msg.textContent = 'Ingresá un monto mayor a 0.'; return; }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { msg.textContent = 'Elegí una fecha.'; return; }
-  if (fecha > hoy()) { msg.textContent = 'La fecha no puede ser futura.'; return; }
-  const lun = cwLunes(fecha);
-  if ((cs.cobradas || []).some(c => c.desde === lun)) { msg.textContent = 'Esa semana ya está cobrada.'; return; }
+  const err = cwValidarEntrada(cs, fecha, monto); if (err) { msg.textContent = err; return; }
   const ent = _cwEditEnt && cs.entradas.find(x => x.id === _cwEditEnt);
   if (ent) Object.assign(ent, { fecha, monto, tipo: _cwTipo });
-  else cs.entradas.push({ id: nuevoId(), fecha, monto, tipo: _cwTipo });
+  else cwNuevaEntrada(cs, fecha, monto, _cwTipo);
   _cwEditEnt = null; msg.textContent = ''; $('cwSumMonto').value = ''; $('btnCwSumGuardar').textContent = 'Agregar';
   guardar(); render(); _cwPintarSumar(); $('cwSumMonto').focus();
 }
@@ -3995,6 +4005,11 @@ async function parsearVoz(transcript, apiKey){
     const tipo=parsed.tipo==='ingreso'?'ingreso':'gasto';
     const ent=v=>{const n=Math.trunc(Number(v));return n>0?n:0;};
     const fecha=_fechaVoz(parsed.fecha, ent(parsed.dias_atras));
+    const trab=_trabajoVoz(transcript);
+    if(trab){
+      mostrarConfirmVoz(_montoVoz(parsed.monto, transcript)||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, 'trabajo', parsed.categoria||'', {fecha, cobroId:trab.cobroId, cwTipo:trab.cwTipo});
+      return;
+    }
     if(tipo!=='ingreso' && /\bborrador(es)?\b/i.test(transcript)){
       const monto=_montoVoz(parsed.monto, transcript);
       if(!(monto>0)) throw new Error('monto inválido');
@@ -4007,6 +4022,17 @@ async function parsearVoz(transcript, apiKey){
   }
 }
 
+// Dictado de un día de trabajo (determinístico): nombre/persona de un cobro semanal + verbo de trabajo → {cobroId, cwTipo}, si no null.
+const _normVoz=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function _trabajoVoz(transcript){
+  const t=_normVoz(transcript);
+  if(!/\b(trabaj|labur|hice|gan[eo]\b|ganad|entreg|repart)/.test(t)) return null;
+  const palabras=new Set(t.match(/[a-z0-9ñ]+/g)||[]);
+  const SKIP=new Set(['extra','extras','semanal','cobro','para','con','del','los','las']);
+  const cs=(estado.cobrosSemanales||[]).find(c=>[c.nombre,c.persona].some(n=>(_normVoz(n).match(/[a-z0-9ñ]+/g)||[]).some(w=>w.length>=3 && !SKIP.has(w) && palabras.has(w))));
+  if(!cs) return null;
+  return {cobroId:cs.id, cwTipo:/\bdesafio/.test(t)?'desafio':'dia'};
+}
 // Fecha del dictado: 'fecha' de la IA si es YYYY-MM-DD real, no futura y de los últimos 5 años; si no, dias_atras; si no, hoy.
 function _fechaVoz(f, diasAtras=0){
   const h=hoy();
@@ -4032,10 +4058,11 @@ function _medioValido(m){
 }
 // Tarjeta única de confirmación del dictado: selector Gasto / Ingreso / Borrador. Cambiar de tipo redibuja conservando lo cargado.
 function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
-  const S={tipo:['gasto','ingreso','borrador'].includes(tipo)?tipo:'gasto', monto:Number(monto)||0, montoTxt:null,
+  const hayCw=(estado.cobrosSemanales||[]).length>0;
+  const S={tipo:['gasto','ingreso','borrador',...(hayCw?['trabajo']:[])].includes(tipo)?tipo:'gasto', cobroId:opts.cobroId||(estado.cobrosSemanales||[])[0]?.id||null, cwTipo:opts.cwTipo==='desafio'?'desafio':'dia', monto:Number(monto)||0, montoTxt:null,
     medio:_medioValido(medio||'Efectivo'), fecha:opts.fecha||hoy(), desc:String(desc||''), cat:null, catIA:catIA||'', cuotas:opts.cuotas||0};
   const cont=$('voiceConfirm');
-  const TIPOS=[['gasto','💸 Gasto'],['ingreso','💰 Ingreso'],['borrador','📝 Borrador']];
+  const TIPOS=[['gasto','💸 Gasto'],['ingreso','💰 Ingreso'],['borrador','📝 Borrador'],...(hayCw?[['trabajo','🛠 Trabajo']]:[])];
   const NOTAS={gasto:'Descuenta del saldo de la cuenta.', ingreso:'Suma al saldo de la cuenta.', borrador:'No toca saldos: se cruza solo al importar el resumen.'};
   const catPara=(t)=>{
     const lista=t==='ingreso'?getCatsIncome():getCats();
@@ -4045,33 +4072,54 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
   };
   const leer=()=>{
     if(!$('vozBorrMonto')) return;
-    S.montoTxt=$('vozBorrMonto').value; S.monto=readMonto('vozBorrMonto');
-    S.medio=$('vozBorrMedio').value; S.fecha=$('vozFecha').value; S.desc=$('vozDesc').value;
+    S.montoTxt=$('vozBorrMonto').value; S.monto=readMonto('vozBorrMonto'); S.fecha=$('vozFecha').value;
+    if($('vozCobro')){ S.cobroId=$('vozCobro').value; S.cwTipo=$('vozCwTipo').value; return; }
+    S.medio=$('vozBorrMedio').value; S.desc=$('vozDesc').value;
     const c=$('vozCat').value; if(c && c!=='__nueva__') S.cat=c;
   };
+  // Modo trabajo: resumen de la semana de la fecha elegida y aviso de día repetido.
+  const pintarTrab=()=>{
+    const cs=_cwGet($('vozCobro').value), f=$('vozFecha').value, m=_r2(readMonto('vozBorrMonto'))||0;
+    if(!cs||!/^\d{4}-\d{2}-\d{2}$/.test(f)){ $('vozTrabInfo').textContent=''; $('vozTrabAviso').hidden=true; return; }
+    const lun=cwLunes(f), sem=cwSemanas(cs).find(x=>x.desde===lun), llevo=sem?sem.bruto:0;
+    $('vozTrabInfo').innerHTML=`Semana ${_fechaDM(lun)} al ${_fechaDM(cwSumarDias(lun,6))}: hoy llevás ${fmtV(llevo)} → quedaría en ${fmtV(_r2(llevo+(m>0?m:0)))}`;
+    const dia=(cs.entradas||[]).filter(e=>e.fecha===f && e.tipo!=='desafio').reduce((a,e)=>a+e.monto,0);
+    $('vozTrabAviso').hidden=!(dia>0);
+    if(dia>0) $('vozTrabAviso').innerHTML=`⚠️ Ya tenés ${fmtV(_r2(dia))} cargados el ${_fechaDM(f)}. Si sigue siendo otro día, confirmá igual.`;
+  };
   const dibujar=()=>{
-    const bor=S.tipo==='borrador', ing=S.tipo==='ingreso';
-    S.cat=catPara(S.tipo);
+    const bor=S.tipo==='borrador', ing=S.tipo==='ingreso', trab=S.tipo==='trabajo';
+    if(!trab) S.cat=catPara(S.tipo);
+    const csSel=trab?_cwGet(S.cobroId):null;
     cont.hidden=false;
     cont.innerHTML=`
     <div class="voice-confirm">
-      <p style="font-weight:600;margin:0 0 10px">${bor?'¿Confirmás este borrador?':'¿Confirmás este movimiento?'}</p>
-      <div class="vc-tipos" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l}</button>`).join('')}</div>
+      <p style="font-weight:600;margin:0 0 10px">${trab?'¿Confirmás este día de trabajo?':bor?'¿Confirmás este borrador?':'¿Confirmás este movimiento?'}</p>
+      <div class="vc-tipos${TIPOS.length>3?' cuatro':''}" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l}</button>`).join('')}</div>
       <div class="vc-row"><span>Monto</span><input id="vozBorrMonto" class="vc-in" type="text" inputmode="decimal" value="${S.montoTxt!=null?esc(S.montoTxt):(S.monto>0?fmtInput(S.monto):'')}" style="width:9em;text-align:right"></div>
-      <div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" class="vc-in">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+      ${trab?`<div class="vc-row"><span>Cobro</span><select id="vozCobro" class="vc-in">${(estado.cobrosSemanales||[]).map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</select></div>
+      <div class="vc-row"><span>Es un</span><select id="vozCwTipo" class="vc-in"><option value="dia">Día trabajado</option><option value="desafio">🏆 Desafío</option></select></div>`
+      :`<div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" class="vc-in">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>`}
       <div class="vc-row"><span>Fecha</span><input id="vozFecha" class="vc-in" type="date" value="${esc(S.fecha)}" max="${hoy()}"></div>
-      <div class="vc-row"><span>${bor?'Nota':'Descripción'}</span><input id="vozDesc" class="vc-in" type="text" value="${esc(S.desc)}"></div>
-      <div class="vc-row"><span>Categoría</span><select id="vozCat" class="vc-in"></select></div>
+      ${trab?'<div id="vozTrabInfo" class="vc-trab-info"></div><p id="vozTrabAviso" class="vc-warn" hidden></p>'
+      :`<div class="vc-row"><span>${bor?'Nota':'Descripción'}</span><input id="vozDesc" class="vc-in" type="text" value="${esc(S.desc)}"></div>
+      <div class="vc-row"><span>Categoría</span><select id="vozCat" class="vc-in"></select></div>`}
       ${bor&&S.cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Se cruza con la primera cuota del resumen (importe total ÷ cuotas). Las cuotas 2 y siguientes no se cruzan todavía.</p>':''}
-      <p id="vozNota" style="font-size:.75rem;margin:4px 0 0;${bor?'color:var(--warn)':'color:var(--muted)'}">${NOTAS[S.tipo]}</p>
+      <p id="vozNota" style="font-size:.75rem;margin:4px 0 0;${bor?'color:var(--warn)':'color:var(--muted)'}">${trab?`No toca cuentas ni saldos: suma a la semana de ${esc(csSel?csSel.nombre:'')}`:NOTAS[S.tipo]}</p>
       <p id="vozMsg" class="vc-msg" role="alert"></p>
       <div class="vc-actions">
-        <button type="button" class="primary" id="btnVozOk">${bor?'✓ Guardar borrador':'✓ Guardar'}</button>
+        <button type="button" class="primary" id="btnVozOk">${trab?'✓ Sumar a la semana':bor?'✓ Guardar borrador':'✓ Guardar'}</button>
         <button type="button" id="btnVozCancel">Cancelar</button>
       </div>
     </div>`;
-    $('vozBorrMedio').value=S.medio;
-    fillCatSelect('vozCat', S.cat, ing);
+    if(trab){
+      $('vozCobro').value=S.cobroId; $('vozCwTipo').value=S.cwTipo;
+      ['vozCobro','vozCwTipo','vozFecha'].forEach(i=>{ $(i).onchange=pintarTrab; });
+      $('vozFecha').oninput=pintarTrab; $('vozBorrMonto').oninput=pintarTrab; pintarTrab();
+    } else {
+      $('vozBorrMedio').value=S.medio;
+      fillCatSelect('vozCat', S.cat, ing);
+    }
     $('voiceStatus').textContent='';
     cont.querySelectorAll('.vc-tipos button').forEach(b=>{
       b.onclick=()=>{ if(b.dataset.tipo===S.tipo) return; leer(); S.tipo=b.dataset.tipo; dibujar(); };
@@ -4087,6 +4135,15 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
     const f=S.fecha;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(f) || isNaN(new Date(f+'T12:00:00'))) return msg('La fecha no es válida.');
     if(f>hoy()) return msg('La fecha no puede ser futura.');
+    if(S.tipo==='trabajo'){
+      const cs=_cwGet(S.cobroId); if(!cs) return msg('Elegí un cobro.');
+      const err=cwValidarEntrada(cs,f,m); if(err) return msg(err);
+      cwNuevaEntrada(cs,f,m,S.cwTipo);
+      guardar(); cont.hidden=true; render();
+      $('voiceStatus').textContent='✅ Sumado a la semana de '+cs.nombre+'.';
+      setTimeout(()=>$('voiceStatus').textContent='',3000);
+      return;
+    }
     const cat=$('vozCat').value;
     if(cat==='__nueva__') return msg('Elegí una categoría.');
     if(S.tipo==='borrador'){
