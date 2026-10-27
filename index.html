@@ -471,6 +471,16 @@ details.ev-card[open]>summary .det-arrow{transform:rotate(90deg);}
 .imp-recordar{display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--muted);margin-top:3px;flex-wrap:wrap;}
 .imp-recordar input[type=checkbox]{width:auto;flex-shrink:0;}
 .imp-recordar input[type=text]{flex:1;min-width:100px;font-size:.73rem;padding:2px 6px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text);}
+.transf-aviso{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 12px;border:1px solid color-mix(in srgb,var(--warn) 40%,var(--border));border-radius:10px;font-size:.82rem;background:color-mix(in srgb,var(--warn) 8%,transparent);}
+.transf-aviso.ok{border-color:var(--border);background:transparent;color:var(--muted);}
+.clasif-row{display:flex;flex-direction:column;gap:5px;padding:9px 0;border-top:1px solid var(--border);font-size:.82rem;}
+.clasif-sec{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:10px 0 0;}
+.clasif-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.prop-chip{font-size:.74rem;padding:6px 2px;border-radius:99px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;background:transparent;color:var(--muted);border:1px solid var(--border);}
+.prop-chip.sel{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.clasif-rec{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:6px;text-align:left;font-size:.75rem;color:var(--muted);}
+.clasif-rec input{width:auto;flex-shrink:0;margin:0;}
+.clasif-total{font-size:.85rem;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);}
 .imp-saldo-ok{color:var(--accent);font-size:.83rem;margin-top:4px;}
 .imp-saldo-diff{color:var(--warn);font-size:.83rem;margin-top:4px;}
 .imp-saldo-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
@@ -991,6 +1001,24 @@ try{
   </div>
 </div>
 
+<!-- ══════════════════ CLASIFICAR TRANSFERENCIAS RECIBIDAS ══════════════════ -->
+<div class="overlay" id="clasifModal" hidden>
+  <div class="wiz-box" style="max-width:540px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+      <h2 style="margin:0;font-size:1rem;">Clasificar transferencias recibidas</h2>
+      <button type="button" class="mini" id="btnCerrarClasif">✕</button>
+    </div>
+    <p class="meta" style="margin:0 0 10px;font-size:.78rem;">Elegí para qué fue cada transferencia. Lo sugerido no se guarda hasta tocar «Guardar».</p>
+    <button type="button" class="mini" id="btnClasifDelux">💼 Marcar todas las sin clasificar como Sueldo Delux</button>
+    <div id="clasifLista"></div>
+    <div class="clasif-total" id="clasifTotal"></div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnClasifGuardar">Guardar</button>
+      <button type="button" id="btnClasifDespues">Después</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ MAIN APP ══════════════════ -->
 <main id="app" hidden>
   <div class="app-hdr">
@@ -1130,6 +1158,8 @@ try{
         <div id="borrLista"></div>
       </details>
     </section>
+
+    <section class="no-print" id="avisoTransfSec" hidden style="padding-bottom:0"><div class="transf-aviso" id="avisoTransf"></div></section>
 
     <section class="no-print" style="padding-bottom:0">
       <div class="meta" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:0 2px 4px">BUSCAR EN MOVIMIENTOS</div>
@@ -1713,6 +1743,7 @@ function cargar() {
   for (const it of data.items) if (!it.historial) it.historial = [];
   data.importaciones ||= {};
   if (!Array.isArray(data.borradores)) data.borradores = [];
+  if (!Array.isArray(data.reglasRemitente)) data.reglasRemitente = [];
   // Migración única: ingresos 'Ingresos extras' con 'rendimiento' en descripción → 'Rendimientos'
   const _MIG_REND_K = 'finanzas-v1-mig-rend-1';
   if (!ls.get(_MIG_REND_K)) {
@@ -2945,6 +2976,7 @@ function render() {
   renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
   renderVinculos();
   renderTickerEvol();
+  renderAvisoTransf();
 }
 
 function renderResumen() {
@@ -3862,7 +3894,7 @@ function confirmarImport(rows){
 function buildBackupJson(){
   const backup={
     version:1, fecha:hoy(),
-    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}, borradores:[...(estado.borradores||[])]},
+    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}, borradores:[...(estado.borradores||[])], reglasRemitente:[...(estado.reglasRemitente||[])]},
     snaps:cargarSnaps(),
     cats:ls.get(CATS_KEY)||[],
     catsIncome:ls.get(CATS_INC_K)||[],
@@ -6095,6 +6127,7 @@ function _confirmarImpBanco(conAjuste) {
   const now = Date.now();
   let cnt = 0;
   const borrUsados = [];
+  const nuevasTR = [];
   // Ensure income categories exist
   addCatIncome('Ingresos extras');
   addCatIncome('Rendimientos');
@@ -6160,6 +6193,7 @@ function _confirmarImpBanco(conAjuste) {
     }
     estado.gastos.push(gasto);
     cnt++;
+    if (_esTransfRecibida(gasto)) nuevasTR.push(gasto.id);
     // Mark matching fijo as paid (first match per fijo+mes wins)
     if(!c._agrupado&&gasto.tipo==='gasto'){
       const mes=c.fecha.slice(0,7);
@@ -6212,6 +6246,7 @@ function _confirmarImpBanco(conAjuste) {
   _actualizarImpUltimaInfo();
   $('impModal').hidden = true;
   alert(`${cnt} movimientos importados correctamente (lote ${loteId.slice(0,8)}…).`);
+  if (nuevasTR.length) abrirClasifTransf(nuevasTR);
 }
 
 // ── Undo last import ───────────────────────────────────
@@ -6245,6 +6280,113 @@ function _deshacerUltimaImp(medio) {
   $('impModal').hidden = true;
   alert('Importación deshecha correctamente.');
 }
+
+// ── Propósito de las transferencias recibidas ──────────
+const PROPOSITOS = [
+  ['sueldo-delux','💼 Sueldo Delux'],['otro-trabajo','💼 Otro trabajo'],['reembolso','↩ Reembolso'],
+  ['prestamo','🤝 Préstamo'],['familia','👪 Familia'],['otro','🎁 Otro'],
+];
+const PROP_SIN_REGLA = ['sueldo-delux','otro-trabajo'];   // los terceros cambian cada mes
+const _esTransfRecibida = g => g.tipo === 'ingreso' && !g.transferencia && g.categoria === 'Transferencia recibida';
+function _remitenteClave(desc) {
+  return _normT(desc).replace(/^\s*(transferencia|transf\.?)\s+recibida\s*[:\-–]?\s*/, '').replace(/\s+/g, ' ').trim();
+}
+function _apellidoPropio() {
+  const t = _normT(localStorage.getItem(MY_NAME_K) || '').replace(/["']/g, '').trim().split(/\s+/);
+  const a = t[t.length - 1] || '';
+  return a.length >= 3 ? a : '';
+}
+// Sugerencia (nunca se guarda sola): regla del remitente → apellido propio → nada
+function _sugerirProposito(desc) {
+  const clave = _remitenteClave(desc);
+  const r = (estado.reglasRemitente || []).find(x => x.clave === clave);
+  const ap = _apellidoPropio();
+  const propio = !!(ap && _normT(desc).split(/[^a-z0-9ñ]+/).includes(ap));
+  if (r) return { sug: r.proposito, motivo: 'regla', propio, clave };
+  if (propio) return { sug: 'familia', motivo: 'apellido', propio, clave };
+  return { sug: null, motivo: null, propio, clave };
+}
+function _guardarReglaRemitente(clave, proposito) {
+  if (!clave || !PROPOSITOS.some(p => p[0] === proposito) || PROP_SIN_REGLA.includes(proposito)) return false;
+  estado.reglasRemitente ||= [];
+  const r = estado.reglasRemitente.find(x => x.clave === clave);
+  if (r) r.proposito = proposito; else estado.reglasRemitente.push({ clave, proposito });
+  return true;
+}
+const _transfRecibidas = () => estado.gastos.filter(_esTransfRecibida);
+function renderAvisoTransf() {
+  const sec = $('avisoTransfSec'), el = $('avisoTransf'); if (!sec || !el) return;
+  const todas = _transfRecibidas();
+  const n = todas.filter(g => !g.proposito).length;
+  sec.hidden = !todas.length;
+  if (!todas.length) return;
+  el.classList.toggle('ok', !n);
+  el.innerHTML = `<span>${n ? `${n} transferencia${n === 1 ? '' : 's'} sin clasificar` : 'Transferencias recibidas clasificadas'}</span><button type="button" class="mini" id="btnAbrirClasif">${n ? 'Clasificar' : 'Revisar'}</button>`;
+  $('btnAbrirClasif').onclick = () => abrirClasifTransf();
+}
+let _clasif = null;
+const _recDefault = p => p === 'familia' || p === 'prestamo';
+function abrirClasifTransf(ids) {
+  const pend = ids ? estado.gastos.filter(g => ids.includes(g.id) && !g.proposito)
+                   : _transfRecibidas().filter(g => !g.proposito);
+  const hechas = ids ? [] : _transfRecibidas().filter(g => g.proposito);
+  const mk = g => {
+    const s = _sugerirProposito(g.descripcion || '');
+    const sel = g.proposito || s.sug;
+    return { id: g.id, desc: g.descripcion || g.categoria, fecha: g.fecha, monto: g.monto, clave: s.clave,
+      orig: g.proposito || null, sug: g.proposito ? null : s.sug, motivo: g.proposito ? null : s.motivo,
+      sel, rec: _recDefault(sel) };
+  };
+  const ord = (a, b) => b.fecha.localeCompare(a.fecha);
+  _clasif = { pend: pend.sort(ord).map(mk), hechas: hechas.sort(ord).map(mk) };
+  if (!_clasif.pend.length && !_clasif.hechas.length) { _clasif = null; return; }
+  _renderClasif();
+  $('clasifModal').hidden = false;
+}
+function _renderClasif() {
+  if (!_clasif) return;
+  const todas = _clasif.pend.concat(_clasif.hechas);
+  const fila = r => {
+    const i = todas.indexOf(r);
+    const chips = PROPOSITOS.map(([k, l]) => `<button type="button" class="prop-chip${r.sel === k ? ' sel' : ''}" data-i="${i}" data-p="${k}">${l}</button>`).join('');
+    const nota = r.sug && r.sel === r.sug ? `<div class="imp-row-meta">Sugerido: ${r.motivo === 'regla' ? 'por regla guardada' : 'apellido propio'}</div>` : '';
+    const recVisible = r.sel && !PROP_SIN_REGLA.includes(r.sel);
+    return `<div class="clasif-row" data-i="${i}">
+      <div class="imp-row-top"><span class="imp-row-desc">${esc(r.desc)}</span><span class="imp-row-monto pos">${fmtV(r.monto)}</span></div>
+      <div class="imp-row-meta"><span>${fechaCorta(r.fecha)}</span></div>${nota}
+      <div class="clasif-chips">${chips}</div>
+      <label class="clasif-rec"${recVisible ? '' : ' hidden'}><input type="checkbox" class="clasif-rec-chk" data-i="${i}"${r.rec ? ' checked' : ''}> Recordar a esta persona</label>
+    </div>`;
+  };
+  $('clasifLista').innerHTML =
+    (_clasif.pend.length ? `<div class="clasif-sec">Sin clasificar (${_clasif.pend.length})</div>` + _clasif.pend.map(fila).join('') : '') +
+    (_clasif.hechas.length ? `<details class="clasif-hechas"${_clasif.pend.length ? '' : ' open'}><summary class="clasif-sec">Ya clasificadas (${_clasif.hechas.length})</summary>${_clasif.hechas.map(fila).join('')}</details>` : '');
+  const dx = todas.filter(r => r.sel === 'sueldo-delux');
+  $('clasifTotal').innerHTML = `Total Sueldo Delux: ${fmtV(dx.reduce((s, r) => s + r.monto, 0))} (${dx.length} transferencia${dx.length === 1 ? '' : 's'})`;
+  $('clasifLista').querySelectorAll('.prop-chip').forEach(b => b.onclick = () => {
+    const r = todas[+b.dataset.i];
+    r.sel = r.sel === b.dataset.p ? null : b.dataset.p;
+    r.rec = _recDefault(r.sel);
+    _renderClasif();
+  });
+  $('clasifLista').querySelectorAll('.clasif-rec-chk').forEach(c => c.onchange = () => { todas[+c.dataset.i].rec = c.checked; });
+}
+function _clasifDelux() {
+  if (!_clasif) return;
+  for (const r of _clasif.pend) if (!r.sug && !r.sel && !r.orig) { r.sel = 'sueldo-delux'; r.rec = false; }
+  _renderClasif();
+}
+function _clasifGuardar() {
+  if (!_clasif) return;
+  for (const r of _clasif.pend.concat(_clasif.hechas)) {
+    const g = estado.gastos.find(x => x.id === r.id); if (!g) continue;
+    if (r.sel) g.proposito = r.sel; else delete g.proposito;
+    if (r.sel && r.rec) _guardarReglaRemitente(r.clave, r.sel);
+  }
+  _clasif = null; $('clasifModal').hidden = true;
+  guardar(); render();
+}
+function _clasifCerrar() { _clasif = null; $('clasifModal').hidden = true; }
 
 function _actualizarImpUltimaInfo() {
   const el = $('impUltimaInfo'); if (!el) return;
@@ -7248,6 +7390,8 @@ function wireEvents(){
   $('btnImportarVisa').onclick=abrirImportVisaModal;
   $('btnImportarMC').onclick=abrirImportMCModal;
   $('btnCerrarImpModal').onclick=()=>{ $('impModal').hidden=true; };
+  $('btnCerrarClasif').onclick=_clasifCerrar; $('btnClasifDespues').onclick=_clasifCerrar;
+  $('btnClasifGuardar').onclick=_clasifGuardar; $('btnClasifDelux').onclick=_clasifDelux;
 }
 
 // ═══════════════════════════════════════════════════════
