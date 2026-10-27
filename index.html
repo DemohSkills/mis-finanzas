@@ -217,6 +217,11 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .persona li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);padding:4px 0;}
 .persona li>.vinc-hist{flex:1 1 100%;width:100%;}
 .persona li .vinc-nom{flex:1;min-width:0;overflow-wrap:break-word;}
+.nom-t,.nom-s{display:block;}
+.nom-s{font-size:.72rem;color:var(--muted);font-weight:400;margin-top:1px;}
+details.pat-pers{margin:4px 0 6px;border:1px solid var(--border);border-radius:8px;padding:0 8px;}
+details.pat-grp.pat-pers>summary{border-top:0;}
+details.pat-grp.pat-pers>summary h3{text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--text,inherit);}
 .persona .sub-label{font-size:.82rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
 details.persona>summary .nombre{flex:1;min-width:0;overflow-wrap:anywhere;}
 details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
@@ -278,6 +283,7 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .gan-card{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
 .gan-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
 .gan-hd h2{margin:0;font-size:1rem;}
+.gan-desc{font-size:.72rem;color:var(--muted);margin:-4px 0 8px;}
 .gan-hd select{max-width:50%;font-size:.8rem;}
 .gan-total{font-size:1.7rem;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums;}
 .gan-cmp{font-size:.78rem;color:var(--muted);margin:2px 0 10px;}
@@ -1078,7 +1084,8 @@ try{
       </div>
     </div>
     <section class="gan-card" id="ganCard">
-      <div class="gan-hd"><h2>💼 Ganancia del mes</h2><select id="ganMes" aria-label="Mes"></select></div>
+      <div class="gan-hd"><h2>💼 Ganancia bruta del mes</h2><select id="ganMes" aria-label="Mes"></select></div>
+      <div class="gan-desc">Ingresos que cuentan como ganancia, sin restar gastos.</div>
       <div id="ganBody"></div>
     </section>
     <div class="no-print" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
@@ -3380,10 +3387,10 @@ function renderLista(contId, tipo) {
     const smr=document.createElement('summary');
     smr.innerHTML=`<span class="det-arrow">▶</span><h3>${esc(g)}</h3><span class="pat-sub ${tipo==='activo'?'pos':'neg'}">${fmtV(grpTotal)}</span>`;
     det.appendChild(smr);
-    for(const it of items){
+    const agregarItem=(cont2,it,conPersona)=>{
       const esPrestamo=g==='Préstamos con personas'&&!!it.persona;
       const esCobro=g==='Cobros pendientes';
-      det.appendChild(filaItem(it.nombre,it.monto,it.persona,()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null,esCobro?()=>abrirCobreModal(it.id):null));
+      cont2.appendChild(filaItem(it.nombre,it.monto,conPersona?it.persona:'',()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null,esCobro?()=>abrirCobreModal(it.id):null));
       if((esPrestamo||esCobro)&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const hdet=document.createElement('details');
@@ -3391,9 +3398,29 @@ function renderLista(contId, tipo) {
         const etiqH={...etiqAjuste,cobre:'Cobré'};
         hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
         hdet.querySelector('.danger').onclick=()=>esCobro?deshacerUltimoCobre(it.id):deshacerUltimoAjuste(it.id);
-        det.appendChild(hdet);
+        cont2.appendChild(hdet);
       }
-    }
+    };
+    if(g==='Cobros pendientes'){
+      // sin persona: sueltos; con persona: un recuadro por persona (total en verde)
+      const porPers=new Map();
+      for(const it of items){
+        if(!it.persona){ agregarItem(det,it,false); continue; }
+        if(!porPers.has(it.persona)) porPers.set(it.persona,[]);
+        porPers.get(it.persona).push(it);
+      }
+      for(const[pers,its]of porPers){
+        const pd=document.createElement('details'); pd.className='pat-grp pat-pers';
+        const ps=document.createElement('summary');
+        const ptot=its.reduce((s,x)=>s+x.monto,0);
+        ps.innerHTML=`<span class="det-arrow">▶</span><h3>👤 ${esc(pers)}</h3><span class="pat-sub pos">${fmtV(ptot)}</span>`;
+        pd.appendChild(ps);
+        for(const it of its) agregarItem(pd,it,false);
+        initDetDyn(pd,'pat-cobros-'+pers.replace(/[^a-z0-9]/gi,'-').toLowerCase(),true);
+        if(hayEditandoItem&&its.some(x=>x.id===editandoItemId)) pd.open=true;
+        det.appendChild(pd);
+      }
+    } else for(const it of items) agregarItem(det,it,true);
     // Force open if editing an item inside this group
     const skSuffix=g.replace(/[^a-z0-9]/gi,'-').toLowerCase();
     initDetDyn(det,'pat-'+tipo+'-'+skSuffix,true);
@@ -3403,9 +3430,16 @@ function renderLista(contId, tipo) {
   cont.insertAdjacentHTML('beforeend',`<div class="subtotal"><span>Total ${tipo==='activo'?'activos':'deudas'}</span><span class="num ${tipo==='activo'?'pos':'neg'}">${fmtV(total)}</span></div>`);
 }
 
+// Nombre de ítem: lo anterior al primer « · » es el título; lo posterior va debajo, chico y atenuado (solo presentación)
+function nombreItemHtml(nombre){
+  const s=String(nombre==null?'':nombre), i=s.indexOf(' · ');
+  if(i<0) return esc(s);
+  return `<span class="nom-t">${esc(s.slice(0,i))}</span><span class="nom-s">${esc(s.slice(i+3))}</span>`;
+}
+
 function filaItem(nombre,monto,persona,onEdit,editando,onAjustar,onCobre){
   const div=document.createElement('div'); div.className='item'+(editando?' editando':'');
-  div.innerHTML=`<span class="nom">${esc(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}`;
+  div.innerHTML=`<span class="nom">${nombreItemHtml(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}`;
   div.querySelector('.edit').onclick=onEdit;
   const extraBtns=div.querySelectorAll('button.mini');
   let idx=0;
@@ -3473,7 +3507,7 @@ function renderVinculos(){
       const esPrestamo=it.grupo==='Préstamos con personas';
       const esCobro=it.grupo==='Cobros pendientes'&&it.tipo==='activo';
       const btn=esPrestamo?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':esCobro?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':'';
-      li.innerHTML=`<span class="vinc-nom">${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span>${btn}`;
+      li.innerHTML=`<span class="vinc-nom">${nombreItemHtml(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span>${btn}`;
       const b=li.querySelector('button');
       if(b) b.onclick=()=>esPrestamo?abrirAjusteModal(it.id):abrirCobreModal(it.id);
       if((esPrestamo||esCobro)&&it.historial?.length){

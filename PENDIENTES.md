@@ -23,7 +23,7 @@
 - Temas «Neón azul», «Neón turquesa» y «Neón violeta» (`neon-azul`/`neon-turquesa`/`neon-violeta`, en `trabajo-nocturno`, sin publicar): solo estilo (variables + `html[data-theme^="neon"]`), botones en Configuración, ciclo con «Pulse» (toast con nombre legible), `theme-color` `#060914`, tema guardado desconocido → auto. Tests en `tests/temas-neon.spec.js`.
 
 - Propósito de las transferencias recibidas (en `trabajo-nocturno`, sin publicar): campo `proposito`, `reglasRemitente`, modal «Clasificar transferencias recibidas» tras importar y aviso en Movimientos. Solo etiqueta: no cambia saldos ni totales. Ver CLAUDE.md. 
-- Tarjeta «Ganancia del mes» en Inicio (en `trabajo-nocturno`, sin publicar): ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
+- Tarjeta «Ganancia bruta del mes» en Inicio (en `trabajo-nocturno`, sin publicar): ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.
@@ -40,7 +40,7 @@
 3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
 5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
-6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes).
+6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes). 2026-10-27: regla del « · » en nombres de ítem (título + detalle chico) en Vínculos y Patrimonio; Patrimonio → Cobros pendientes agrupa por persona (`pat-cobros-<persona>`); suite en 1003 verdes.
 7. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
 8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
 9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
