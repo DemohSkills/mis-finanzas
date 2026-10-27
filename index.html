@@ -6425,7 +6425,7 @@ function abrirClasifTransf(ids) {
   const mk = g => {
     const s = _sugerirProposito(g.descripcion || '');
     const sel = g.proposito || s.sug;
-    return { id: g.id, desc: g.descripcion || g.categoria, fecha: g.fecha, monto: g.monto, clave: s.clave,
+    return { id: g.id, desc: g.descripcion || g.categoria, fecha: g.fecha, medio: g.medio || '', monto: g.monto, clave: s.clave,
       orig: g.proposito || null, sug: g.proposito ? null : s.sug, motivo: g.proposito ? null : s.motivo,
       sel, rec: _recDefault(sel) };
   };
@@ -6445,7 +6445,7 @@ function _renderClasif() {
     const recVisible = r.sel && !PROP_SIN_REGLA.includes(r.sel);
     return `<div class="clasif-row" data-i="${i}">
       <div class="imp-row-top"><span class="imp-row-desc">${esc(r.desc)}</span><span class="imp-row-monto pos">${fmtV(r.monto)}</span></div>
-      <div class="imp-row-meta"><span>${fechaCorta(r.fecha)}</span></div>${nota}
+      <div class="imp-row-meta"><span>${fechaCorta(r.fecha)}${r.medio ? ' · ' + esc(r.medio) : ''}</span></div>${nota}
       <div class="clasif-chips">${chips}</div>
       <label class="clasif-rec"${recVisible ? '' : ' hidden'}><input type="checkbox" class="clasif-rec-chk" data-i="${i}"${r.rec ? ' checked' : ''}> Recordar a esta persona</label>
     </div>`;

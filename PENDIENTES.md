@@ -40,7 +40,7 @@
 3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
 5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
-6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes). 2026-10-27: regla del « · » en nombres de ítem (título + detalle chico) en Vínculos y Patrimonio; Patrimonio → Cobros pendientes agrupa por persona (`pat-cobros-<persona>`); suite en 1003 verdes.
+6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes). 2026-10-27: regla del « · » en nombres de ítem (título + detalle chico) en Vínculos y Patrimonio; Patrimonio → Cobros pendientes agrupa por persona (`pat-cobros-<persona>`); suite en 1003 verdes. 2026-10-27: el modal de clasificar transferencias muestra la cuenta (medio) junto a la fecha; suite en 1005 verdes.
 7. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
 8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
 9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
