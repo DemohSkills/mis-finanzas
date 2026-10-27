@@ -149,7 +149,7 @@ test.describe('clasificar transferencias recibidas', () => {
     const total = page.locator('#clasifTotal');
     await expect(total).toContainText('2 transferencias');
     const txt = (await total.innerText()).replace(/\./g, '').replace(',', '.');
-    expect(parseFloat(txt.match(/[\d.]+/)[0])).toBeCloseTo(350000.5, 2);
+    expect(parseFloat(txt.split(':')[1].match(/[\d.]+/)[0])).toBeCloseTo(350000.5, 2);
     // El total se recalcula al tocar chips
     await fila(page, 'Pedro Ruiz').locator('.prop-chip[data-p="otro"]').click();
     await expect(total).toContainText('1 transferencia)');

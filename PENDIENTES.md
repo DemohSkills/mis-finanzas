@@ -22,7 +22,8 @@
 - Color de la barra de estado (meta `theme-color`) aplicado al arrancar según el tema guardado y, con tema auto, siguiendo `prefers-color-scheme`; función única `_themeColorPara` en el script inline del `<head>`. Tests en `tests/theme-color.spec.js` (en `trabajo-nocturno`, sin publicar).
 - Temas «Neón azul», «Neón turquesa» y «Neón violeta» (`neon-azul`/`neon-turquesa`/`neon-violeta`, en `trabajo-nocturno`, sin publicar): solo estilo (variables + `html[data-theme^="neon"]`), botones en Configuración, ciclo con «Pulse» (toast con nombre legible), `theme-color` `#060914`, tema guardado desconocido → auto. Tests en `tests/temas-neon.spec.js`.
 
-- Propósito de las transferencias recibidas (en `trabajo-nocturno`, sin publicar): campo `proposito`, `reglasRemitente`, modal «Clasificar transferencias recibidas» tras importar y aviso en Movimientos. Solo etiqueta: no cambia saldos ni totales. Ver CLAUDE.md. Siguiente tarea: tarjeta «Ganancia del mes» (usa `proposito`).
+- Propósito de las transferencias recibidas (en `trabajo-nocturno`, sin publicar): campo `proposito`, `reglasRemitente`, modal «Clasificar transferencias recibidas» tras importar y aviso en Movimientos. Solo etiqueta: no cambia saldos ni totales. Ver CLAUDE.md. 
+- Tarjeta «Ganancia del mes» en Inicio (en `trabajo-nocturno`, sin publicar): ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.

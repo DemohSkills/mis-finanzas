@@ -275,6 +275,19 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .gm-bar i{display:block;height:100%;border-radius:3px;}
 .gm-amt,.gm-dif{white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;}
 .gm-dif{min-width:4.6em;font-weight:600;}
+.gan-card{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+.gan-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.gan-hd h2{margin:0;font-size:1rem;}
+.gan-hd select{max-width:50%;font-size:.8rem;}
+.gan-total{font-size:1.7rem;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums;}
+.gan-cmp{font-size:.78rem;color:var(--muted);margin:2px 0 10px;}
+.gan-cmp .up{color:var(--ok);font-weight:600;}.gan-cmp .dn{color:var(--danger);font-weight:600;}
+.gan-row{display:grid;grid-template-columns:minmax(0,30%) minmax(0,1fr) auto;gap:6px;align-items:center;font-size:.74rem;margin-bottom:6px;}
+.gan-row .gm-bar i{background:var(--ok);}
+.gan-aviso{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--border));border-radius:10px;font-size:.8rem;background:color-mix(in srgb,var(--warn) 10%,transparent);}
+.gan-nocuenta{margin-top:8px;font-size:.74rem;color:var(--muted);}
+.cfg-gan{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:.82rem;}
+.cfg-gan label{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);}
 body.ocultar .gm-amt,body.ocultar .gm-dif{visibility:hidden;}
 .ev-sep{height:7px;border-radius:99px;margin:22px 0 14px;background:linear-gradient(90deg,#ef4444,#fb923c,#38bdf8);}
 .ev-gas-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
@@ -1064,6 +1077,10 @@ try{
         </div>
       </div>
     </div>
+    <section class="gan-card" id="ganCard">
+      <div class="gan-hd"><h2>💼 Ganancia del mes</h2><select id="ganMes" aria-label="Mes"></select></div>
+      <div id="ganBody"></div>
+    </section>
     <div class="no-print" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
       <button type="button" class="mini" id="btnTransferirInicio">⇄ Transferir</button>
       <button type="button" class="mini" id="btnPagarTarjetaInicio">💳 Pagar tarjeta</button>
@@ -1394,6 +1411,8 @@ try{
     <details class="cfg-section" id="cfg-cats-ingresos" data-cfg="cfg-cats-ingresos">
       <summary><span class="det-arrow">▶</span><h2>🏷 Categorías de ingresos</h2></summary>
       <div class="cat-chips" id="catIngresoChips"></div>
+      <p class="meta" style="margin-top:10px">Cuenta como ganancia (tarjeta de Inicio). Un propósito de transferencia (sueldo / otro trabajo) tiene prioridad sobre la categoría.</p>
+      <div class="cfg-gan" id="catGananciaList"></div>
       <button type="button" class="mini" id="btnNuevaCatIngreso">+ Crear categoría</button>
     </details>
 
@@ -1513,6 +1532,7 @@ const SK         = 'finanzas-v1';
 const PIN_KEY    = 'finanzas-v1-pin';
 const CATS_KEY   = 'finanzas-v1-cats';
 const CATS_INC_K = 'finanzas-v1-cats-income';
+const CATS_GAN_K = 'finanzas-v1-cats-ganancia';
 const RULES_KEY  = 'finanzas-v1-rules';
 const SNAP_KEY   = 'finanzas-v1-snaps';
 const APIKEY_K   = 'finanzas-v1-apikey';
@@ -1579,6 +1599,18 @@ function getCats() {
 function getCatsIncome() {
   const custom = ls.get(CATS_INC_K) || [];
   return [...CATS_INCOME_DEFAULT, ...custom.filter(c => !CATS_INCOME_DEFAULT.includes(c))];
+}
+// Ganancia: overrides {categoria: bool}; sin override rige el default
+const CATS_GANANCIA_DEFAULT = ['Sueldo/Honorarios','Rendimientos','Ingresos extras','Otros ingresos'];
+function getCatsGanancia() { const o = ls.get(CATS_GAN_K); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; }
+function catCuentaGanancia(cat) {
+  const o = getCatsGanancia();
+  return typeof o[cat] === 'boolean' ? o[cat] : CATS_GANANCIA_DEFAULT.includes(cat);
+}
+function cuentaGanancia(g) {
+  if (g.tipo !== 'ingreso' || g.transferencia) return false;
+  if (g.proposito) return g.proposito === 'sueldo-delux' || g.proposito === 'otro-trabajo';
+  return catCuentaGanancia(g.categoria);
 }
 function addCat(nombre) {
   const custom = ls.get(CATS_KEY) || [];
@@ -1648,6 +1680,13 @@ function renderCfgCats() {
   contI.innerHTML = catsI.map(c =>
     `<span class="cat-chip${customI.includes(c)?' custom':''}">${esc(c)}</span>`
   ).join('');
+  const lg = $('catGananciaList');
+  if (lg) {
+    lg.innerHTML = catsI.map((c, i) => `<label><span>${esc(c)}</span><input type="checkbox" class="gan-chk" data-i="${i}"${catCuentaGanancia(c) ? ' checked' : ''}></label>`).join('');
+    lg.querySelectorAll('.gan-chk').forEach(ch => ch.onchange = () => {
+      const o = getCatsGanancia(); o[catsI[+ch.dataset.i]] = ch.checked; ls.set(CATS_GAN_K, o); render();
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2977,6 +3016,7 @@ function render() {
   renderVinculos();
   renderTickerEvol();
   renderAvisoTransf();
+  renderGanancia();
 }
 
 function renderResumen() {
@@ -3898,6 +3938,7 @@ function buildBackupJson(){
     snaps:cargarSnaps(),
     cats:ls.get(CATS_KEY)||[],
     catsIncome:ls.get(CATS_INC_K)||[],
+    catsGanancia:getCatsGanancia(),
     reglas:getReglas(),
     usdRef:getUsdRef(),
   };
@@ -3963,6 +4004,7 @@ function restaurarBackup(file){
       if(data.snaps) ls.set(SNAP_KEY,data.snaps);
       if(data.cats) ls.set(CATS_KEY,data.cats);
       if(data.catsIncome) ls.set(CATS_INC_K,data.catsIncome);
+      if(data.catsGanancia&&typeof data.catsGanancia==='object') ls.set(CATS_GAN_K,data.catsGanancia);
       if(data.reglas) ls.set(RULES_KEY,data.reglas);
       if(data.usdRef&&data.usdRef.cotizacion>0) ls.set(USD_REF_K,data.usdRef);
       estado=cargar(); guardar(); render();
@@ -6314,6 +6356,47 @@ function _guardarReglaRemitente(clave, proposito) {
   return true;
 }
 const _transfRecibidas = () => estado.gastos.filter(_esTransfRecibida);
+let _ganMes = null;
+const _mesAnt = ym => { const [y, m] = ym.split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; };
+function gananciaMes(ym) {
+  const fuentes = {}; let total = 0; const noCuenta = {};
+  const sinClas = [];
+  for (const g of estado.gastos) {
+    if (g.tipo !== 'ingreso' || g.transferencia || !g.fecha || !g.fecha.startsWith(ym)) continue;
+    if (_esTransfRecibida(g) && !g.proposito) sinClas.push(g);
+    if (cuentaGanancia(g)) {
+      const k = g.proposito ? PROPOSITOS.find(p => p[0] === g.proposito)[1].replace(/^\S+\s/, '') : g.categoria;
+      fuentes[k] = (fuentes[k] || 0) + g.monto; total += g.monto;
+    } else if (['prestamo', 'reembolso', 'familia', 'otro'].includes(g.proposito)) {
+      noCuenta[g.proposito] = (noCuenta[g.proposito] || 0) + g.monto;
+    }
+  }
+  return { total, fuentes: Object.entries(fuentes).sort((a, b) => b[1] - a[1]), noCuenta,
+    sinClas: { n: sinClas.length, monto: sinClas.reduce((s, g) => s + g.monto, 0), ids: sinClas.map(g => g.id) } };
+}
+function renderGanancia() {
+  const sel = $('ganMes'), body = $('ganBody'); if (!sel || !body) return;
+  const hoyYm = hoy().slice(0, 7);
+  const meses = new Set([hoyYm]);
+  for (const g of estado.gastos) if (g.tipo === 'ingreso' && g.fecha) meses.add(g.fecha.slice(0, 7));
+  const lista = [...meses].sort().reverse();
+  if (!_ganMes || !lista.includes(_ganMes)) _ganMes = hoyYm;
+  sel.innerHTML = lista.map(m => `<option value="${m}"${m === _ganMes ? ' selected' : ''}>${_mesLabel(m)}</option>`).join('');
+  sel.onchange = () => { _ganMes = sel.value; renderGanancia(); };
+  const d = gananciaMes(_ganMes), a = gananciaMes(_mesAnt(_ganMes));
+  const dif = d.total - a.total;
+  const cmp = dif === 0 ? `Igual que ${_mesLabel(_mesAnt(_ganMes))}`
+    : `<span class="${dif > 0 ? 'up' : 'dn'}">${dif > 0 ? '▲' : '▼'} ${fmtV(Math.abs(dif))}</span> vs ${_mesLabel(_mesAnt(_ganMes))}`;
+  const max = d.fuentes.reduce((m, f) => Math.max(m, f[1]), 0) || 1;
+  const barras = d.fuentes.map(([k, v]) => `<div class="gan-row"><span class="gm-nom" title="${esc(k)}">${esc(k)}</span><span class="gm-bar"><i style="width:${Math.max(2, v / max * 100)}%"></i></span><span>${fmtV(v)}</span></div>`).join('');
+  const aviso = d.sinClas.n ? `<div class="gan-aviso"><span>${fmtV(d.sinClas.monto)} sin clasificar (${d.sinClas.n} transferencia${d.sinClas.n === 1 ? '' : 's'})</span><button type="button" class="mini" id="btnGanClasif">Clasificar ahora</button></div>` : '';
+  const NC = [['prestamo', 'préstamos'], ['reembolso', 'reembolsos'], ['familia', 'familia'], ['otro', 'otros']];
+  const nc = NC.filter(([k]) => d.noCuenta[k]).map(([k, l]) => `${l} ${fmtV(d.noCuenta[k])}`).join(' · ');
+  const ncTot = Object.values(d.noCuenta).reduce((s, v) => s + v, 0);
+  body.innerHTML = `<div class="gan-total">${fmtV(d.total)}</div><div class="gan-cmp">${cmp}</div>${barras}${aviso}` +
+    `<div class="gan-nocuenta" id="ganNoCuenta">No cuenta: ${ncTot ? `${fmtV(ncTot)} (${nc})` : fmtV(0)}</div>`;
+  const b = $('btnGanClasif'); if (b) b.onclick = () => abrirClasifTransf(d.sinClas.ids);
+}
 function renderAvisoTransf() {
   const sec = $('avisoTransfSec'), el = $('avisoTransf'); if (!sec || !el) return;
   const todas = _transfRecibidas();
@@ -6361,8 +6444,9 @@ function _renderClasif() {
   $('clasifLista').innerHTML =
     (_clasif.pend.length ? `<div class="clasif-sec">Sin clasificar (${_clasif.pend.length})</div>` + _clasif.pend.map(fila).join('') : '') +
     (_clasif.hechas.length ? `<details class="clasif-hechas"${_clasif.pend.length ? '' : ' open'}><summary class="clasif-sec">Ya clasificadas (${_clasif.hechas.length})</summary>${_clasif.hechas.map(fila).join('')}</details>` : '');
-  const dx = todas.filter(r => r.sel === 'sueldo-delux');
-  $('clasifTotal').innerHTML = `Total Sueldo Delux: ${fmtV(dx.reduce((s, r) => s + r.monto, 0))} (${dx.length} transferencia${dx.length === 1 ? '' : 's'})`;
+  const mesRec = todas.reduce((m, r) => r.fecha > m ? r.fecha : m, '').slice(0, 7);
+  const dx = todas.filter(r => r.sel === 'sueldo-delux' && r.fecha.startsWith(mesRec));
+  $('clasifTotal').innerHTML = `Total Sueldo Delux${mesRec ? ' de ' + _mesLabel(mesRec) : ''}: ${fmtV(dx.reduce((s, r) => s + r.monto, 0))} (${dx.length} transferencia${dx.length === 1 ? '' : 's'})`;
   $('clasifLista').querySelectorAll('.prop-chip').forEach(b => b.onclick = () => {
     const r = todas[+b.dataset.i];
     r.sel = r.sel === b.dataset.p ? null : b.dataset.p;

@@ -18,6 +18,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-snaps` | snapshots diarios de patrimonio |
 | `finanzas-v1-cats` | categorías de gasto personalizadas |
 | `finanzas-v1-cats-income` | categorías de ingreso personalizadas |
+| `finanzas-v1-cats-ganancia` | `{ categoría: boolean }` — overrides de «Cuenta como ganancia»; sin override rigen las 4 por defecto (Sueldo/Honorarios, Rendimientos, Ingresos extras, Otros ingresos). `proposito` sueldo-delux/otro-trabajo cuenta siempre y el resto de propósitos nunca. Backup: `catsGanancia` |
 | `finanzas-v1-rules` | reglas de auto-categorización |
 | `finanzas-v1-apikey` | API key de Claude Haiku (solo en el dispositivo) |
 | `finanzas-v1-backup-date` | fecha ISO del último backup exportado |
