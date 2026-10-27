@@ -39,7 +39,7 @@ test.describe('1b: Orden en Compromisos', () => {
   test('por defecto ordena por fecha de vencimiento (más próxima primero)', async ({ page }) => {
     await seedAndUnlock(page, estadoConCompromisos());
     await page.locator('nav.tabs button[data-vista="compromisos"]').click();
-    const rows = await page.locator('.comp-row').all();
+    const rows = await page.locator('.comp-row:not(.comp-row--proy)').all();
     expect(rows.length).toBe(3);
     // c2 (oct-25) < c1 (nov-15) < c3 (sin fecha)
     const first = await rows[0].locator('.comp-ent').textContent();
@@ -51,7 +51,7 @@ test.describe('1b: Orden en Compromisos', () => {
   test('ordenar por monto pone el mayor primero', async ({ page }) => {
     await seedAndUnlock(page, estadoConCompromisos(), 'monto');
     await page.locator('nav.tabs button[data-vista="compromisos"]').click();
-    const rows = await page.locator('.comp-row').all();
+    const rows = await page.locator('.comp-row:not(.comp-row--proy)').all();
     const first = await rows[0].locator('.comp-ent').textContent();
     expect(first.trim()).toBe('Astropay'); // monto 80000
   });
@@ -59,7 +59,7 @@ test.describe('1b: Orden en Compromisos', () => {
   test('ordenar por entidad agrupa alfabéticamente', async ({ page }) => {
     await seedAndUnlock(page, estadoConCompromisos(), 'entidad');
     await page.locator('nav.tabs button[data-vista="compromisos"]').click();
-    const rows = await page.locator('.comp-row').all();
+    const rows = await page.locator('.comp-row:not(.comp-row--proy)').all();
     const names = await Promise.all(rows.map(r => r.locator('.comp-ent').textContent()));
     const sorted = [...names].sort((a, b) => a.trim().localeCompare(b.trim(), 'es'));
     expect(names.map(n => n.trim())).toEqual(sorted.map(n => n.trim()));

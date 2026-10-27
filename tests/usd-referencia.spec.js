@@ -48,6 +48,7 @@ async function goToConfig(page) {
 }
 async function abrirModal(page) {
   await goToCompromisos(page);
+  await page.locator('#compromisosList details.comp-mes').evaluateAll(ds => ds.forEach(d => { d.open = true; })); // meses lejanos van plegados
   await page.locator(`${ROW} button:has-text("Ya compré los USD")`).click();
   await expect(page.locator('#compraUsdModal')).toBeVisible();
 }

@@ -107,15 +107,15 @@ test('bimestral: mesBase un mes atrás NO corresponde al mes actual', async ({ p
 
 // ─── Integración en renderCompromisos ────────────────────────────────────────
 
-test('bimestral: fijo cadaMeses=2 con mesBase=mesActual aparece una sola vez en los 3 meses', async ({ page }) => {
+test('bimestral: fijo cadaMeses=2 con mesBase=mesActual aparece en meses alternos (3 de los 6 mostrados)', async ({ page }) => {
   await seedAndUnlock(page, buildEstado([mkFijoBimestral(mesActual())]));
   await goToCompromisos(page);
   // Aparece en mes actual y mes+2, NO en mes+1 → 2 filas de las 3 posibles
   const count = await page.locator('.comp-row--fijo').count();
-  expect(count).toBe(2);
+  expect(count).toBe(3);
 });
 
-test('bimestral: fijo cadaMeses=2 con mesBase=mes+1 aparece en mes+1 pero NO en mesActual', async ({ page }) => {
+test('bimestral: fijo cadaMeses=2 con mesBase=mes+1 aparece en mes+1, mes+3 y mes+5 pero NO en mesActual', async ({ page }) => {
   const base = mesSig(1);
   await seedAndUnlock(page, buildEstado([mkFijoBimestral(base)]));
   await goToCompromisos(page);
@@ -123,17 +123,17 @@ test('bimestral: fijo cadaMeses=2 con mesBase=mes+1 aparece en mes+1 pero NO en 
   // Ventana: mesActual, mes+1, mes+2
   // base=mes+1 → mes+1 corresponde (diff=0), mesActual (diff=-1 no múltiplo), mes+2 (diff=1 no múltiplo)
   const count = await page.locator('.comp-row--fijo').count();
-  expect(count).toBe(1);
+  expect(count).toBe(3);
 });
 
-test('bimestral: fijo sin cadaMeses (mensual, backup viejo) sigue apareciendo en 3 meses', async ({ page }) => {
+test('bimestral: fijo sin cadaMeses (mensual, backup viejo) sigue apareciendo en los 6 meses mostrados', async ({ page }) => {
   const fijo = mkFijoBimestral(mesActual());
   delete fijo.cadaMeses;
   delete fijo.mesBase;
   await seedAndUnlock(page, buildEstado([fijo]));
   await goToCompromisos(page);
   const count = await page.locator('.comp-row--fijo').count();
-  expect(count).toBe(3);
+  expect(count).toBe(6);
 });
 
 test('bimestral: la fila muestra "cada 2 meses" en la meta', async ({ page }) => {

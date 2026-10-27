@@ -223,6 +223,8 @@ details.pat-pers{margin:4px 0 6px;border:1px solid var(--border);border-radius:8
 details.pat-grp.pat-pers>summary{border-top:0;}
 details.pat-grp.pat-pers>summary h3{text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--text,inherit);}
 .cw{margin-top:4px;}
+.comp-row--proy{opacity:.85;}
+.comp-proy-tag{font-size:.68rem;color:var(--muted);margin-left:4px;}
 .cw-sem{display:grid;grid-template-columns:1fr auto;align-items:start;gap:4px 10px;padding:8px 0;border-top:1px solid var(--border);}
 .cw>.cw-sem:first-child{border-top:0;}
 .cw-der{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
@@ -2160,6 +2162,22 @@ function sortCompromisos(cs,orden){
   }
   return arr;
 }
+function _compProyHtml(c,fecha){
+  return `<div class="comp-row comp-row--proy" data-id="${esc(c.id)}" data-proy="${esc(fecha.slice(0,7))}">
+      <div class="comp-info">
+        <span class="comp-nombre">${esc(c.nombre)}</span>
+        <span class="comp-ent">${esc(c.entidad)}</span>
+        <span class="comp-proy-tag">cuota proyectada</span>
+      </div>
+      <div class="comp-det">
+        <span class="neg">${fmtV(c.monto)}</span>
+        <span class="comp-meta">${fechaCorta(fecha)}</span>
+      </div>
+      <div class="comp-btns">
+        <button type="button" class="mini" onclick="editarCompromiso('${esc(c.id)}')">Editar</button>
+      </div>
+    </div>`;
+}
 function _compRowHtml(c){
   const fin=c.pendientes===0;
   const hoyStr=hoy();
@@ -2286,17 +2304,38 @@ function renderCompromisos(){
     else if(c.pendientes===0) key='__fin__';
     else if(!c.proxVenc) key='__sf__';
     else key=c.proxVenc.slice(0,7);
-    if(!grupos.has(key)) grupos.set(key,{cuotas:[],fijos:[]});
+    if(!grupos.has(key)) grupos.set(key,{cuotas:[],fijos:[],proy:[]});
     grupos.get(key).cuotas.push(c);
+  }
+  let mesesVenc=fijoMeses;
+  if(orden==='venc'){
+    // Cuotas con más de una pendiente: una fila proyectada en cada mes siguiente (la 1.ª ocurrencia es la fila real).
+    const MAX_MESES=48;
+    const ultimoPermitido=addMeses(todayYM+'-01',MAX_MESES-1).slice(0,7);
+    let ultimoProy=todayYM;
+    for(const c of cs){
+      if(c.tipo!=='cuota'||!(c.pendientes>1)||!c.proxVenc) continue;
+      for(let k=1;k<c.pendientes;k++){
+        const f=addMeses(c.proxVenc,k), ym=f.slice(0,7);
+        if(ym>ultimoPermitido) break;
+        if(!grupos.has(ym)) grupos.set(ym,{cuotas:[],fijos:[],proy:[]});
+        grupos.get(ym).proy.push({c,fecha:f});
+        if(ym>ultimoProy) ultimoProy=ym;
+      }
+    }
+    const minUlt=addMeses(todayYM+'-01',5).slice(0,7);
+    const ult=ultimoProy>minUlt?ultimoProy:minUlt;
+    mesesVenc=[];
+    for(let k=0;k<MAX_MESES;k++){const ym=addMeses(todayYM+'-01',k).slice(0,7);mesesVenc.push(ym);if(ym>=ult)break;}
   }
   if(fijosList.length){
     if(orden==='venc'){
-      fijoMeses.forEach(mes=>{
+      mesesVenc.forEach(mes=>{
         const ff=fijosList.filter(f=>_fijoMesCorresponde(f,mes));
-        if(ff.length){if(!grupos.has(mes))grupos.set(mes,{cuotas:[],fijos:[]});grupos.get(mes).fijos=ff;}
+        if(ff.length){if(!grupos.has(mes))grupos.set(mes,{cuotas:[],fijos:[],proy:[]});grupos.get(mes).fijos=ff;}
       });
     } else {
-      grupos.set('__fijos__',{cuotas:[],fijos:fijosList.filter(f=>_fijoMesCorresponde(f,todayYM))});
+      grupos.set('__fijos__',{cuotas:[],fijos:fijosList.filter(f=>_fijoMesCorresponde(f,todayYM)),proy:[]});
     }
   }
   const ordKeys=[...grupos.keys()].sort((a,b)=>{
@@ -2319,9 +2358,10 @@ function renderCompromisos(){
         cont.appendChild(divHoy);
       }
     }
-    const {cuotas,fijos}=grupos.get(key);
+    const {cuotas,fijos,proy=[]}=grupos.get(key);
     const mesPara=(key==='__fijos__')?todayYM:key;
-    const cuotaTotal=cuotas.reduce((s,c)=>{
+    const proyTotal=proy.reduce((s,x)=>s+x.c.monto,0);
+    const cuotaTotal=proyTotal+cuotas.reduce((s,c)=>{
       if(c.tipo==='resumen') return s+Math.max(0,c.monto-_sumaPagadoCiclo(c));
       return s+c.monto;
     },0);
@@ -2343,10 +2383,13 @@ function renderCompromisos(){
     }
     det.innerHTML=`<summary><span class="comp-mes-lbl"><span class="det-arrow">▶</span>${esc(lbl)}</span><span class="comp-mes-sub neg">${subHtml}</span></summary>`;
     if(cuotas.length) det.insertAdjacentHTML('beforeend',cuotas.map(_compRowHtml).join(''));
+    if(proy.length) det.insertAdjacentHTML('beforeend',proy.map(x=>_compProyHtml(x.c,x.fecha)).join(''));
+    // Pagué solo en los 3 primeros meses (actual y 2 siguientes); más allá es una proyección.
+    const sinPagar=orden==='venc'&&/^\d{4}-\d{2}$/.test(key)&&key>fijoMeses[2];
     if(fijos.length){
-      fijos.forEach(f=>det.insertAdjacentHTML('beforeend',_fijoRowHtml(f,mesPara)));
+      fijos.forEach(f=>det.insertAdjacentHTML('beforeend',_fijoRowHtml(f,mesPara,sinPagar)));
     }
-    initDetDyn(det,'comp-'+sk,true);
+    initDetDyn(det,'comp-'+sk,!sinPagar);
     cont.appendChild(det);
   }
   if(_todayYM&&!_hoyInserted){
@@ -2677,7 +2720,7 @@ function _fijoCoincide(fijo,descripcion){
   }
   return false;
 }
-function _fijoRowHtml(fijo,mesStr){
+function _fijoRowHtml(fijo,mesStr,sinPagar){
   const est=_fijoEstadoMes(fijo,mesStr);
   const pagado=est==='pagado',vencido=est==='vencido';
   const fechaPago=fijoFechaEnMes(fijo.diaMes,mesStr);
@@ -2700,7 +2743,7 @@ function _fijoRowHtml(fijo,mesStr){
     <div class="comp-btns">
       ${pagado
         ?`<button type="button" class="mini" onclick="deshacerFijoPago('${idE}','${mesE}')">↩ Deshacer</button>`
-        :`<button type="button" class="mini" onclick="abrirFijoPagoModal('${idE}','${mesE}')">Pagué</button>`}
+        :(sinPagar?'':`<button type="button" class="mini" onclick="abrirFijoPagoModal('${idE}','${mesE}')">Pagué</button>`)}
       <button type="button" class="mini" onclick="abrirFijoModal('${idE}')">Editar</button>
       <button type="button" class="mini" onclick="pausarFijo('${idE}')">${fijo.activo===false?'▶ Activar':'⏸ Pausar'}</button>
       <button type="button" class="mini danger" onclick="borrarFijo('${idE}')">×</button>

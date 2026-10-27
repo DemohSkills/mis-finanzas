@@ -156,11 +156,11 @@ test('fijo: borrar elimina el fijo de estado.compromisos', async ({ page }) => {
 
 // ─── 5. Derivación de meses ───────────────────────────────────────────────────
 
-test('fijo: aparece en mes actual, mes+1 y mes+2 (sort venc)', async ({ page }) => {
+test('fijo: aparece en los 6 meses mostrados (sort venc)', async ({ page }) => {
   await seedAndUnlock(page, buildEstado([mkFijo()]));
   await goToCompromisos(page);
   const filaCount = await page.locator('.comp-row--fijo').count();
-  expect(filaCount).toBe(3);
+  expect(filaCount).toBe(6);
 });
 
 test('fijo: fijoFechaEnMes devuelve la fecha correcta', async ({ page }) => {
