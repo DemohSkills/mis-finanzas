@@ -33,39 +33,15 @@ async function seedAndUnlock(page, estado) {
 }
 
 test.describe('vinculos-standalone', () => {
-  test('título (.nombre) precede al subtítulo (.sub-label) en el DOM', async ({ page }) => {
+  test('ítem suelto: tarjeta de la persona con el ítem como fila, sin ± Ajustar', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await page.locator('[role=tab]', { hasText: 'Vínculos' }).click();
     await page.waitForSelector('#vinculos');
 
-    const meliCard = page.locator('#vinculos .persona').filter({ hasText: 'Meli Envíos extra' }).first();
-    const nombreEl = meliCard.locator('.nombre');
-    await expect(nombreEl).toBeVisible();
-
-    // El subtítulo está dentro de .nombre y muestra la persona
-    const subLabel = nombreEl.locator('.sub-label');
-    await expect(subLabel).toHaveText('Semana 11/10 al 18/10');
-
-    // El texto del nombre aparece ANTES del .sub-label en el DOM
-    const subtitleComesAfterTitle = await nombreEl.evaluate(el => {
-      const nodes = Array.from(el.childNodes);
-      let foundTitleText = false;
-      for (const n of nodes) {
-        if (n.nodeType === Node.TEXT_NODE && n.textContent.includes('Meli Envíos extra')) foundTitleText = true;
-        if (foundTitleText && n.nodeType === Node.ELEMENT_NODE && n.classList.contains('sub-label')) return true;
-      }
-      return false;
-    });
-    expect(subtitleComesAfterTitle).toBe(true);
-  });
-
-  test('item standalone no muestra botón ± Ajustar', async ({ page }) => {
-    await seedAndUnlock(page, buildEstado());
-    await page.locator('[role=tab]', { hasText: 'Vínculos' }).click();
-    await page.waitForSelector('#vinculos');
-
-    const meliCard = page.locator('#vinculos .persona').filter({ hasText: 'Meli Envíos extra' }).first();
-    await expect(meliCard.locator('button', { hasText: '± Ajustar' })).toHaveCount(0);
+    const card = page.locator('#vinculos .persona').filter({ has: page.locator('summary .nombre', { hasText: 'Semana 11/10 al 18/10' }) });
+    await expect(card).toHaveCount(1);
+    await expect(card.locator('li .vinc-nom')).toHaveText('Meli Envíos extra');
+    await expect(card.locator('button', { hasText: '± Ajustar' })).toHaveCount(0);
   });
 
   test('Préstamos con personas (Boris) sigue mostrando ± Ajustar', async ({ page }) => {

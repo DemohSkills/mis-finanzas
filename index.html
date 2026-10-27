@@ -3455,14 +3455,12 @@ $('btnItemCancelar').onclick=()=>{ resetFormItem(); render(); };
 // ─── Vínculos ────────────────────────────────────────────────
 function renderVinculos(){
   const porPersona=new Map();
-  for(const it of estado.items){ if(!it.persona||it.grupo!=='Préstamos con personas') continue; if(!porPersona.has(it.persona)) porPersona.set(it.persona,[]); porPersona.get(it.persona).push(it); }
-  const todasPersonas=new Set(estado.items.filter(it=>!!it.persona).map(it=>it.persona));
-  $('personasList').innerHTML=[...todasPersonas].map(p=>`<option value="${esc(p)}">`).join('');
+  for(const it of estado.items){ if(!it.persona) continue; if(!porPersona.has(it.persona)) porPersona.set(it.persona,[]); porPersona.get(it.persona).push(it); }
+  $('personasList').innerHTML=[...porPersona.keys()].map(p=>`<option value="${esc(p)}">`).join('');
   const cont=$('vinculos'); cont.innerHTML='';
-  const standalone=estado.items.filter(it=>!!it.persona&&it.grupo!=='Préstamos con personas');
-  if(!porPersona.size&&!standalone.length){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
+  if(!porPersona.size){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
   const personas=[...porPersona].map(([nombre,items])=>({nombre,items,neto:items.reduce((s,it)=>s+(it.tipo==='activo'?it.monto:-it.monto),0)})).sort((a,b)=>Math.abs(b.neto)-Math.abs(a.neto));
-  const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
+  const etiqH={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',cobre:'Cobré'};
   for(const p of personas){
     const txt=p.neto>0?`Te debe ${fmtV(p.neto)}`:p.neto<0?`Le debés ${fmtV(-p.neto)}`:'Sin saldo pendiente';
     const card=document.createElement('details'); card.className='persona';
@@ -3472,47 +3470,24 @@ function renderVinculos(){
     const ul=document.createElement('ul');
     for(const it of p.items){
       const li=document.createElement('li');
-      li.innerHTML=`<span class="vinc-nom">${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span><button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>`;
-      li.querySelector('button').onclick=()=>abrirAjusteModal(it.id);
-      if(it.historial?.length){
+      const esPrestamo=it.grupo==='Préstamos con personas';
+      const esCobro=it.grupo==='Cobros pendientes'&&it.tipo==='activo';
+      const btn=esPrestamo?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':esCobro?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':'';
+      li.innerHTML=`<span class="vinc-nom">${esc(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span>${btn}`;
+      const b=li.querySelector('button');
+      if(b) b.onclick=()=>esPrestamo?abrirAjusteModal(it.id):abrirCobreModal(it.id);
+      if((esPrestamo||esCobro)&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const det=document.createElement('details');
         det.className='vinc-hist';
-        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqAjuste[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
-        det.querySelector('.danger').onclick=()=>deshacerUltimoAjuste(it.id);
+        det.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
+        det.querySelector('.danger').onclick=()=>esPrestamo?deshacerUltimoAjuste(it.id):deshacerUltimoCobre(it.id);
         li.appendChild(det);
       }
       ul.appendChild(li);
     }
     card.appendChild(ul);
     const sk='vinc-'+p.nombre.replace(/[^a-z0-9]/gi,'-').toLowerCase();
-    initDetDyn(card,sk,true);
-    cont.appendChild(card);
-  }
-  const etiqH={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',cobre:'Cobré'};
-  for(const it of standalone){
-    const neto=it.tipo==='activo'?it.monto:-it.monto;
-    const txt=neto>0?`Te debe ${fmtV(neto)}`:neto<0?`Le debés ${fmtV(-neto)}`:'Sin saldo pendiente';
-    const card=document.createElement('details'); card.className='persona';
-    const smr=document.createElement('summary');
-    smr.innerHTML=`<span class="nombre">${esc(it.nombre)}<span class="sub-label">${esc(it.persona)}</span></span><span class="estado num ${neto>0?'pos':neto<0?'neg':'meta'}">${txt}</span><span class="det-arrow">▶</span>`;
-    card.appendChild(smr);
-    const esCobro=it.grupo==='Cobros pendientes'&&it.tipo==='activo';
-    if(esCobro){
-      const bCobre=document.createElement('button');
-      bCobre.type='button'; bCobre.className='mini'; bCobre.style='font-size:.75rem;padding:3px 8px;margin:6px 0 2px 0;';
-      bCobre.textContent='Cobré'; bCobre.onclick=()=>abrirCobreModal(it.id);
-      card.appendChild(bCobre);
-      if(it.historial?.length){
-        const ultimos=[...it.historial].reverse().slice(0,5);
-        const hdet=document.createElement('details');
-        hdet.className='vinc-hist';
-        hdet.innerHTML=`<summary style="color:var(--muted);cursor:pointer;padding:2px 0;">Historial (${it.historial.length})</summary><ul>${ultimos.map(h=>`<li><span class="vinc-hist-txt">${fechaCorta(h.fecha)} · ${etiqH[h.accion]||h.accion} · ${esc(h.medio)}</span><span class="vinc-hist-num num">${fmtV(h.monto)}</span></li>`).join('')}</ul><button type="button" class="mini danger vinc-hist-undo">↩ Deshacer último</button>`;
-        hdet.querySelector('.danger').onclick=()=>deshacerUltimoCobre(it.id);
-        card.appendChild(hdet);
-      }
-    }
-    const sk='vinc-sa-'+it.id.replace(/[^a-z0-9]/gi,'-').toLowerCase();
     initDetDyn(card,sk,true);
     cont.appendChild(card);
   }
