@@ -138,7 +138,7 @@ test.describe('dictado de días de trabajo', () => {
     await page.locator('[role=tab]', { hasText: 'Patrimonio' }).click();
     await page.waitForSelector('#listaActivos');
     const verde = await page.evaluate(() => {
-      const n = document.querySelector('.cw-sem > .num');
+      const n = document.querySelector('.cw-sem .num');
       return n ? [getComputedStyle(n).color, getComputedStyle(document.documentElement).getPropertyValue('--ok')] : null;
     });
     expect(verde).not.toBeNull();

@@ -232,3 +232,41 @@ test.describe('cobro semanal', () => {
     expect(r).toEqual([true, false]); // dedupe: mismo importe, mismo medio, ±3 días (el segundo consume el único existente)
   });
 });
+
+const TEMAS = ['auto', 'claro', 'oscuro', 'negro', 'neon-azul', 'neon-turquesa', 'neon-violeta'];
+test.describe('cobro semanal: filas de semana, un dato por renglón', () => {
+  test('cada dato en su propio elemento; desafío solo si existe; botones funcionan', async ({ page }) => {
+    const cs = cobro({ entradas: [ent('e1', '2026-10-12', 60000), ent('e2', '2026-10-13', 5000, 'desafio'), ent('e3', '2026-10-27', 1000)] });
+    await abrir(page, '2026-10-27', estadoBase(cs));
+    await irPatrimonio(page);
+    const cerrada = page.locator('#listaActivos .cw-sem[data-desde="2026-10-12"]');
+    await expect(cerrada.locator('.cw-tit .rng')).toHaveText('12/10 al 18/10');
+    await expect(cerrada.locator('.cw-d-est')).toHaveText('cobro estimado 21/10/26');
+    await expect(cerrada.locator('.cw-d-dias')).toHaveText('1 día cargado');
+    await expect(cerrada.locator('.cw-d-desafio')).toContainText('incluye desafío');
+    expect(await cerrada.locator('.cw-inf').innerText()).not.toContain(' · ');
+    await expect(cerrada.locator('.cw-der .num')).toBeVisible();
+    await expect(cerrada.locator('.cw-der button')).toHaveText('Cobré');
+    const curso = page.locator('#listaActivos .cw-sem[data-desde="2026-10-26"]');
+    await expect(curso.locator('.cw-d-desafio')).toHaveCount(0);
+    await expect(curso.locator('.cw-der button')).toHaveText('+ Sumar');
+    await curso.locator('button').click();
+    await expect(page.locator('#cwSumarModal')).toBeVisible();
+    await page.click('#btnCwSumCerrar');
+    await cerrada.locator('button').click();
+    await expect(page.locator('#cwCobreModal')).toBeVisible();
+  });
+
+  test('390 px sin scroll horizontal en los 7 temas', async ({ page }) => {
+    const cs = cobro({ nombre: 'Meli Extra con un nombre larguísimo', entradas: [ent('e1', '2026-10-12', 99999999), ent('e2', '2026-10-13', 5000, 'desafio'), ent('e3', '2026-10-27', 1000)] });
+    await page.setViewportSize({ width: 390, height: 800 });
+    await abrir(page, '2026-10-27', estadoBase(cs));
+    await irPatrimonio(page);
+    for (const t of TEMAS) {
+      await page.evaluate(x => aplicarTema(x), t);
+      await expect(page.locator('#listaActivos .cw-sem').first()).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), t).toBe(true);
+      if (t === 'neon-azul' || t === 'claro') await page.locator('#listaActivos details[data-cw-id="cs1"]').screenshot({ path: 'capturas-tmp/cw-renglones-' + t + '.png' });
+    }
+  });
+});

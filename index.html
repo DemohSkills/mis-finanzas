@@ -223,12 +223,15 @@ details.pat-pers{margin:4px 0 6px;border:1px solid var(--border);border-radius:8
 details.pat-grp.pat-pers>summary{border-top:0;}
 details.pat-grp.pat-pers>summary h3{text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--text,inherit);}
 .cw{margin-top:4px;}
-.cw-sem{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:8px 0;border-top:1px solid var(--border);}
+.cw-sem{display:grid;grid-template-columns:1fr auto;align-items:start;gap:4px 10px;padding:8px 0;border-top:1px solid var(--border);}
 .cw>.cw-sem:first-child{border-top:0;}
-.cw-sem>.num{color:var(--ok);}
-.cw-inf{flex:1 1 150px;min-width:0;font-size:.85rem;color:var(--text);}
-.cw-inf .rng{font-weight:600;overflow-wrap:anywhere;}
+.cw-der{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.cw-der .num{color:var(--ok);font-weight:600;}
+.cw-inf{min-width:0;font-size:.85rem;color:var(--text);}
+.cw-tit{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;}
+.cw-inf .rng{font-weight:700;overflow-wrap:anywhere;}
 .cw .sub-label,.cw-sub{font-size:.76rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
+.cw-inf .cw-dato{font-size:.74rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
 .cw-chip-atr{color:var(--danger);border-color:var(--danger);}
 .cw-chip-cur{color:var(--accent);border-color:var(--accent);}
 .cw-acc{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
@@ -3013,7 +3016,7 @@ function cwBody(cs) {
     const row = document.createElement('div'); row.className = 'cw-sem'; row.dataset.desde = s.desde;
     const chip = s.estado === 'en curso' ? '<span class="chip cw-chip-cur">en curso</span>' : '<span class="chip">cerrada</span>';
     const atr = s.atrasada ? '<span class="chip cw-chip-atr">atrasada</span>' : '';
-    row.innerHTML = `<span class="cw-inf"><span class="rng">${_cwRango(s)}</span>${chip}${atr}<span class="sub-label">cobro estimado ${_fechaAA(s.estimado)} · ${s.dias} ${s.dias === 1 ? 'día cargado' : 'días cargados'}${s.desafio > 0 ? ` · incluye desafío ${fmtV(s.desafio)}` : ''}</span></span><span class="num">${fmtV(s.bruto)}</span><button type="button" class="mini ${s.estado === 'en curso' ? 'cw-sumar' : 'cw-cobre'}" style="font-size:.75rem;padding:3px 8px">${s.estado === 'en curso' ? '+ Sumar' : 'Cobré'}</button>`;
+    row.innerHTML = `<span class="cw-inf"><span class="cw-tit"><span class="rng">${_cwRango(s)}</span>${chip}${atr}</span><span class="cw-dato cw-d-est">cobro estimado ${_fechaAA(s.estimado)}</span><span class="cw-dato cw-d-dias">${s.dias} ${s.dias === 1 ? 'día cargado' : 'días cargados'}</span>${s.desafio > 0 ? `<span class="cw-dato cw-d-desafio">incluye desafío ${fmtV(s.desafio)}</span>` : ''}</span><span class="cw-der"><span class="num">${fmtV(s.bruto)}</span><button type="button" class="mini ${s.estado === 'en curso' ? 'cw-sumar' : 'cw-cobre'}" style="font-size:.75rem;padding:3px 8px">${s.estado === 'en curso' ? '+ Sumar' : 'Cobré'}</button></span>`;
     row.querySelector('button').onclick = () => s.estado === 'en curso' ? cwAbrirSumar(cs.id) : cwAbrirCobre(cs.id, s.desde);
     wrap.appendChild(row);
   }
