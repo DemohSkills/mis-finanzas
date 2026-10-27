@@ -79,6 +79,13 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - 12 secciones `<details class="cfg-section" id="cfg-…" data-cfg="cfg-…">` (fotos: `id="detFotos"`, `data-cfg="cfg-fotos"`) en este orden: apariencia, informe, importar (título «🏦 Importar resúmenes»), backup, usdref, reglas, cats-gastos, cats-ingresos, pin, nombre, apikey, fotos. Todas plegadas cada vez que se ENTRA a la vista (`mostrarVista`), estado no persistido; `renderConfig` nunca cambia `open`.
 - Para llevar al usuario a un ajuste: `abrirCfg('cfg-xxx',{foco:'idInput'})` (abre la sección, scroll y foco); nunca solo `mostrarVista('config')`.
 
+## Cobro semanal (Meli Extra)
+- `estado.cobrosSemanales = [{id, nombre, persona, medioCobro, entradas:[{id,fecha,monto,tipo:'dia'|'desafio'}], cobradas:[{desde,hasta,bruto,neto,retencion,fechaCobro,movId}]}]` (dentro de `finanzas-v1`, va en el backup, `cargar()` lo migra a []). Las semanas se calculan (`cwSemanas`, lunes a domingo); no se guardan semanas vacías.
+- Estado: en curso (hoy ≤ domingo), cerrada (pasó el domingo, no cobrada), cobrada (está en `cobradas`); cobro estimado = domingo + 3; chip «atrasada» si hoy > estimado. Bruto = suma de entradas (días + desafíos).
+- «Te debe» = brutos de semanas no cobradas (`cwDebeTotal`): suma a `totales()` (Total activos), a Cobros pendientes de Patrimonio (grupo siempre visible, tarjeta `details[data-cw-id]` + botón «+ Cobro semanal») y a la tarjeta de persona en Vínculos (persona = `persona` o `nombre`).
+- «Cobré»: UN ingreso en `medioCobro` por lo DEPOSITADO (categoría Sueldo/Honorarios, campos `retencion` y `bruto`); sin gasto por la retención ni otra cuenta. Deshacer último cobro borra ese ingreso (por `movId`). Ganancia bruta del mes cuenta monto + `retencion` (línea «incluye $X de retenciones»); los saldos solo ven lo depositado.
+- Importar luego el resumen de Mercado Pago no duplica el depósito: `_deduplicarImp` empareja por medio, tipo, importe y ±3 días.
+
 ## Reglas fijas
 - Nunca poner datos reales (saldos, nombres, claves) en el código
 - No tocar la API key ni el PIN salvo que se pida explícitamente

@@ -222,6 +222,27 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 details.pat-pers{margin:4px 0 6px;border:1px solid var(--border);border-radius:8px;padding:0 8px;}
 details.pat-grp.pat-pers>summary{border-top:0;}
 details.pat-grp.pat-pers>summary h3{text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--text,inherit);}
+.cw{margin-top:4px;}
+.cw-sem{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:8px 0;border-top:1px solid var(--border);}
+.cw>.cw-sem:first-child{border-top:0;}
+.cw-inf{flex:1 1 150px;min-width:0;font-size:.85rem;color:var(--text);}
+.cw-inf .rng{font-weight:600;overflow-wrap:anywhere;}
+.cw .sub-label,.cw-sub{font-size:.76rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
+.cw-chip-atr{color:var(--danger);border-color:var(--danger);}
+.cw-chip-cur{color:var(--accent);border-color:var(--accent);}
+.cw-acc{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+details.cw-cob{margin-top:6px;font-size:.82rem;color:var(--muted);}
+details.cw-cob>summary{cursor:pointer;padding:2px 0;}
+.cw-cobrow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;flex-wrap:wrap;}
+.cw-tipos{display:flex;gap:6px;margin-bottom:12px;}
+.cw-tipos button{flex:1 1 0;padding:8px 4px;}
+.cw-modal select{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 10px;width:100%;}
+.cw-msg{color:var(--danger);font-size:.82rem;min-height:1em;}
+.cw-ret{font-size:.85rem;font-weight:600;padding:2px 0;}
+.cw-semtot{font-weight:700;margin:8px 0 4px;}
+.cw-ents{list-style:none;margin:0;padding:0;font-size:.85rem;}
+.cw-ents li{display:flex;align-items:center;gap:8px;padding:3px 0;}
+.cw-ents li .t{flex:1;min-width:0;}
 .persona .sub-label{font-size:.82rem;font-weight:400;color:var(--muted);display:block;margin-top:2px;}
 details.persona>summary .nombre{flex:1;min-width:0;overflow-wrap:anywhere;}
 details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
@@ -969,6 +990,56 @@ try{
     <div class="wiz-actions">
       <button type="button" class="primary" id="btnGuardarCobre">Cobré</button>
       <button type="button" onclick="cerrarCobreModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ COBRO SEMANAL (modales) ══════════════════ -->
+<div class="overlay" id="cwSumarModal" hidden>
+  <div class="wiz-box cw-modal" style="max-width:380px;">
+    <h2 id="cwSumarTit" style="margin:0 0 12px;font-size:1rem;"></h2>
+    <div class="cw-tipos">
+      <button type="button" class="mini primary" id="cwTipoDia" data-tipo="dia">Día trabajado</button>
+      <button type="button" class="mini" id="cwTipoDesafio" data-tipo="desafio">🏆 Desafío</button>
+    </div>
+    <div class="wiz-field"><label>Fecha</label><input type="date" id="cwSumFecha"></div>
+    <div class="wiz-field"><label>Monto bruto</label><input type="text" class="input-monto" inputmode="decimal" id="cwSumMonto" placeholder="0"></div>
+    <div class="cw-msg" id="cwSumMsg" role="alert"></div>
+    <div class="cw-semtot" id="cwSumTot"></div>
+    <ul class="cw-ents" id="cwSumLista"></ul>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnCwSumGuardar">Agregar</button>
+      <button type="button" id="btnCwSumCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="cwCobreModal" hidden>
+  <div class="wiz-box cw-modal" style="max-width:380px;">
+    <h2 id="cwCobreTit" style="margin:0 0 4px;font-size:1rem;">¿Cuánto te depositaron?</h2>
+    <div class="cw-sub" id="cwCobreSub"></div>
+    <div class="wiz-field"><label>Depositado</label><input type="text" class="input-monto" inputmode="decimal" id="cwCobDep" placeholder="0"></div>
+    <div class="wiz-field"><label>Cuenta</label><select id="cwCobMedio"></select></div>
+    <div class="wiz-field"><label>Fecha</label><input type="date" id="cwCobFecha"></div>
+    <div class="cw-ret" id="cwCobRet"></div>
+    <div class="cw-sub" id="cwCobProm"></div>
+    <div class="cw-msg" id="cwCobMsg" role="alert"></div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnCwCobGuardar">Cobré</button>
+      <button type="button" id="btnCwCobCerrar">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="cwAltaModal" hidden>
+  <div class="wiz-box cw-modal" style="max-width:380px;">
+    <h2 id="cwAltaTit" style="margin:0 0 12px;font-size:1rem;">Cobro semanal</h2>
+    <div class="wiz-field"><label>Nombre</label><input type="text" id="cwAltaNombre" maxlength="40" placeholder="Meli Extra"></div>
+    <div class="wiz-field"><label>Persona</label><input type="text" id="cwAltaPersona" maxlength="40" list="personasList" placeholder="Ej: Meli Envíos"></div>
+    <div class="wiz-field"><label>Cuenta de cobro</label><select id="cwAltaMedio"></select></div>
+    <div class="cw-msg" id="cwAltaMsg" role="alert"></div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnCwAltaGuardar">Guardar</button>
+      <button type="button" class="danger" id="btnCwAltaBorrar" hidden>Borrar</button>
+      <button type="button" id="btnCwAltaCerrar">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1790,6 +1861,8 @@ function cargar() {
   data.importaciones ||= {};
   if (!Array.isArray(data.borradores)) data.borradores = [];
   if (!Array.isArray(data.reglasRemitente)) data.reglasRemitente = [];
+  if (!Array.isArray(data.cobrosSemanales)) data.cobrosSemanales = [];
+  for (const cs of data.cobrosSemanales) { if (!Array.isArray(cs.entradas)) cs.entradas = []; if (!Array.isArray(cs.cobradas)) cs.cobradas = []; }
   // Migración única: ingresos 'Ingresos extras' con 'rendimiento' en descripción → 'Rendimientos'
   const _MIG_REND_K = 'finanzas-v1-mig-rend-1';
   if (!ls.get(_MIG_REND_K)) {
@@ -2896,6 +2969,206 @@ function deshacerUltimoCobre(itId) {
 
 $('btnGuardarCobre').onclick = guardarCobre;
 
+// ── COBRO SEMANAL (p. ej. Meli Extra: lunes a domingo, se cobra el miércoles siguiente) ──
+const _r2 = n => Math.round(n * 100) / 100;
+const _cwDt = s => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+const cwSumarDias = (s, n) => { const dt = _cwDt(s); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10); };
+const cwLunes = s => cwSumarDias(s, -((_cwDt(s).getUTCDay() + 6) % 7));
+const _fechaAA = f => { const [y, m, d] = f.split('-'); return `${d}/${m}/${y.slice(2)}`; };
+const _fechaDM = f => f.slice(8, 10) + '/' + f.slice(5, 7);
+const _cwRango = s => `${_fechaDM(s.desde)} al ${_fechaDM(s.hasta)}`;
+const _pct = (r, b) => (b > 0 ? (r / b * 100) : 0).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+const CW_MEDIOS = ['Mercado Pago', 'Banco Santander', 'Efectivo'];
+
+function cwSemanas(cs, hoyStr) {
+  hoyStr = hoyStr || hoy();
+  const mapa = new Map();
+  for (const e of cs.entradas || []) { const d = cwLunes(e.fecha); if (!mapa.has(d)) mapa.set(d, []); mapa.get(d).push(e); }
+  const cob = new Map((cs.cobradas || []).map(c => [c.desde, c]));
+  return [...mapa].map(([desde, ents]) => {
+    const hasta = cwSumarDias(desde, 6), estimado = cwSumarDias(hasta, 3);
+    const cobrada = cob.get(desde);
+    const est = cobrada ? 'cobrada' : hoyStr <= hasta ? 'en curso' : 'cerrada';
+    return { desde, hasta, estimado, estado: est, cobrada,
+      entradas: [...ents].sort((a, b) => a.fecha.localeCompare(b.fecha)),
+      bruto: _r2(ents.reduce((s, e) => s + e.monto, 0)),
+      desafio: _r2(ents.filter(e => e.tipo === 'desafio').reduce((s, e) => s + e.monto, 0)),
+      dias: ents.filter(e => e.tipo !== 'desafio').length,
+      atrasada: est === 'cerrada' && hoyStr > estimado };
+  }).sort((a, b) => b.desde.localeCompare(a.desde));
+}
+const cwDebe = cs => _r2(cwSemanas(cs).filter(s => s.estado !== 'cobrada').reduce((s, x) => s + x.bruto, 0));
+const cwDebeTotal = () => _r2((estado.cobrosSemanales || []).reduce((s, cs) => s + cwDebe(cs), 0));
+const cwPersona = cs => cs.persona || cs.nombre;
+
+function cwBody(cs) {
+  const wrap = document.createElement('div'); wrap.className = 'cw'; wrap.dataset.cw = cs.id;
+  const sem = cwSemanas(cs), pend = sem.filter(s => s.estado !== 'cobrada');
+  for (const s of pend) {
+    const row = document.createElement('div'); row.className = 'cw-sem'; row.dataset.desde = s.desde;
+    const chip = s.estado === 'en curso' ? '<span class="chip cw-chip-cur">en curso</span>' : '<span class="chip">cerrada</span>';
+    const atr = s.atrasada ? '<span class="chip cw-chip-atr">atrasada</span>' : '';
+    row.innerHTML = `<span class="cw-inf"><span class="rng">${_cwRango(s)}</span>${chip}${atr}<span class="sub-label">cobro estimado ${_fechaAA(s.estimado)} · ${s.dias} ${s.dias === 1 ? 'día cargado' : 'días cargados'}${s.desafio > 0 ? ` · incluye desafío ${fmtV(s.desafio)}` : ''}</span></span><span class="num">${fmtV(s.bruto)}</span><button type="button" class="mini ${s.estado === 'en curso' ? 'cw-sumar' : 'cw-cobre'}" style="font-size:.75rem;padding:3px 8px">${s.estado === 'en curso' ? '+ Sumar' : 'Cobré'}</button>`;
+    row.querySelector('button').onclick = () => s.estado === 'en curso' ? cwAbrirSumar(cs.id) : cwAbrirCobre(cs.id, s.desde);
+    wrap.appendChild(row);
+  }
+  const acc = document.createElement('div'); acc.className = 'cw-acc';
+  if (!pend.some(s => s.estado === 'en curso')) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'mini cw-sumar'; b.textContent = '+ Sumar';
+    b.onclick = () => cwAbrirSumar(cs.id); acc.appendChild(b);
+  }
+  const e = document.createElement('button'); e.type = 'button'; e.className = 'mini cw-edit'; e.textContent = '✎ Editar cobro'; e.onclick = () => cwAbrirAlta(cs.id);
+  acc.appendChild(e); wrap.appendChild(acc);
+  const cobs = [...(cs.cobradas || [])].sort((a, b) => b.desde.localeCompare(a.desde));
+  if (cobs.length) {
+    const det = document.createElement('details'); det.className = 'cw-cob';
+    let todas = false;
+    const pintar = () => {
+      const lista = todas ? cobs : cobs.slice(0, 6);
+      det.innerHTML = `<summary>Semanas cobradas (${cobs.length})</summary>` + lista.map(c =>
+        `<div class="cw-cobrow"><span>${_fechaDM(c.desde)} al ${_fechaDM(c.hasta)}</span><span class="num">${fmtV(c.bruto)} → ${fmtV(c.neto)} · ${_pct(c.retencion, c.bruto)}</span></div>`).join('') +
+        `<div class="cw-acc">${cobs.length > 6 && !todas ? '<button type="button" class="mini cw-todas">Ver todas</button>' : ''}<button type="button" class="mini danger cw-undo">↩ Deshacer último cobro</button></div>`;
+      const t = det.querySelector('.cw-todas'); if (t) t.onclick = ev => { ev.preventDefault(); todas = true; pintar(); det.open = true; };
+      det.querySelector('.cw-undo').onclick = () => cwDeshacerCobro(cs.id);
+    };
+    pintar(); wrap.appendChild(det);
+  }
+  return wrap;
+}
+
+let _cwId = null, _cwTipo = 'dia', _cwEditEnt = null, _cwDesde = null;
+const _cwGet = id => (estado.cobrosSemanales || []).find(x => x.id === id);
+const _cwRender = () => { guardar(); render(); };
+
+// Alta / edición del cobro semanal
+function cwAbrirAlta(id) {
+  const cs = id ? _cwGet(id) : null; _cwId = cs ? cs.id : null;
+  $('cwAltaTit').textContent = cs ? 'Editar cobro semanal' : 'Nuevo cobro semanal';
+  $('cwAltaNombre').value = cs ? cs.nombre : 'Meli Extra';
+  $('cwAltaPersona').value = cs ? (cs.persona || '') : '';
+  $('cwAltaMedio').innerHTML = CW_MEDIOS.map(m => `<option>${esc(m)}</option>`).join('');
+  $('cwAltaMedio').value = cs ? cs.medioCobro : 'Mercado Pago';
+  $('btnCwAltaBorrar').hidden = !cs; $('cwAltaMsg').textContent = '';
+  $('cwAltaModal').removeAttribute('hidden'); $('cwAltaNombre').focus();
+}
+function cwGuardarAlta() {
+  const nombre = $('cwAltaNombre').value.trim();
+  if (!nombre) { $('cwAltaMsg').textContent = 'Poné un nombre.'; return; }
+  const datos = { nombre, persona: $('cwAltaPersona').value.trim(), medioCobro: $('cwAltaMedio').value };
+  estado.cobrosSemanales ||= [];
+  const cs = _cwGet(_cwId);
+  if (cs) Object.assign(cs, datos); else estado.cobrosSemanales.push({ id: nuevoId(), ...datos, entradas: [], cobradas: [] });
+  $('cwAltaModal').setAttribute('hidden', ''); _cwId = null; _cwRender();
+}
+function cwBorrarCobro() {
+  const cs = _cwGet(_cwId); if (!cs) return;
+  if (!confirm(`¿Borrar "${cs.nombre}" con sus semanas cargadas? Los ingresos ya registrados no se tocan.`)) return;
+  estado.cobrosSemanales = estado.cobrosSemanales.filter(x => x.id !== cs.id);
+  $('cwAltaModal').setAttribute('hidden', ''); _cwId = null; _cwRender();
+}
+
+// + Sumar
+function cwAbrirSumar(id, fecha) {
+  const cs = _cwGet(id); if (!cs) return;
+  _cwId = id; _cwEditEnt = null; _cwTipo = 'dia';
+  $('cwSumarTit').textContent = 'Sumar a ' + cs.nombre;
+  $('cwSumFecha').max = hoy(); $('cwSumFecha').value = fecha || hoy();
+  $('cwSumMonto').value = ''; $('cwSumMsg').textContent = '';
+  $('btnCwSumGuardar').textContent = 'Agregar';
+  _cwPintarSumar(); $('cwSumarModal').removeAttribute('hidden'); $('cwSumMonto').focus();
+}
+function _cwPintarSumar() {
+  const cs = _cwGet(_cwId); if (!cs) return;
+  $('cwTipoDia').classList.toggle('primary', _cwTipo === 'dia');
+  $('cwTipoDesafio').classList.toggle('primary', _cwTipo === 'desafio');
+  const f = $('cwSumFecha').value || hoy();
+  const lun = cwLunes(f), sem = cwSemanas(cs).find(s => s.desde === lun);
+  $('cwSumTot').innerHTML = sem ? `Semana ${_fechaDM(sem.desde)} al ${_fechaDM(sem.hasta)}: ${fmtV(sem.bruto)}` : `Nueva semana: ${fmtV(0)}`;
+  const ents = sem ? sem.entradas : [], bloq = sem && sem.estado === 'cobrada';
+  $('cwSumLista').innerHTML = ents.map(e => `<li data-eid="${esc(e.id)}"><span class="t">${fechaCorta(e.fecha)} · ${e.tipo === 'desafio' ? '🏆 Desafío' : 'Día'}</span><span class="num">${fmtV(e.monto)}</span>${bloq ? '' : '<button type="button" class="edit cw-e-ed" title="Editar">✎</button><button type="button" class="edit cw-e-del" title="Borrar">✕</button>'}</li>`).join('');
+  $('cwSumLista').querySelectorAll('li').forEach(li => {
+    const e = ents.find(x => x.id === li.dataset.eid);
+    const ed = li.querySelector('.cw-e-ed'), del = li.querySelector('.cw-e-del');
+    if (ed) ed.onclick = () => { _cwEditEnt = e.id; _cwTipo = e.tipo === 'desafio' ? 'desafio' : 'dia'; $('cwSumFecha').value = e.fecha; $('cwSumMonto').value = fmtInput(e.monto); $('btnCwSumGuardar').textContent = 'Guardar cambios'; $('cwSumMsg').textContent = ''; _cwPintarSumar(); };
+    if (del) del.onclick = () => {
+      if (!confirm('¿Borrar esta entrada?')) return;
+      cs.entradas = cs.entradas.filter(x => x.id !== e.id);
+      if (_cwEditEnt === e.id) { _cwEditEnt = null; $('cwSumMonto').value = ''; $('btnCwSumGuardar').textContent = 'Agregar'; }
+      guardar(); render(); _cwPintarSumar();
+    };
+  });
+}
+function cwGuardarEntrada() {
+  const cs = _cwGet(_cwId); if (!cs) return;
+  const monto = _r2(readMonto('cwSumMonto')), fecha = $('cwSumFecha').value, msg = $('cwSumMsg');
+  if (!(monto > 0)) { msg.textContent = 'Ingresá un monto mayor a 0.'; return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { msg.textContent = 'Elegí una fecha.'; return; }
+  if (fecha > hoy()) { msg.textContent = 'La fecha no puede ser futura.'; return; }
+  const lun = cwLunes(fecha);
+  if ((cs.cobradas || []).some(c => c.desde === lun)) { msg.textContent = 'Esa semana ya está cobrada.'; return; }
+  const ent = _cwEditEnt && cs.entradas.find(x => x.id === _cwEditEnt);
+  if (ent) Object.assign(ent, { fecha, monto, tipo: _cwTipo });
+  else cs.entradas.push({ id: nuevoId(), fecha, monto, tipo: _cwTipo });
+  _cwEditEnt = null; msg.textContent = ''; $('cwSumMonto').value = ''; $('btnCwSumGuardar').textContent = 'Agregar';
+  guardar(); render(); _cwPintarSumar(); $('cwSumMonto').focus();
+}
+
+// Cobré
+function cwAbrirCobre(id, desde) {
+  const cs = _cwGet(id), s = cs && cwSemanas(cs).find(x => x.desde === desde); if (!s) return;
+  _cwId = id; _cwDesde = desde;
+  $('cwCobreSub').innerHTML = `${esc(cs.nombre)} · semana ${_cwRango(s)} · bruto ${fmtV(s.bruto)}`;
+  $('cwCobDep').value = fmtInput(s.bruto);
+  $('cwCobMedio').innerHTML = CW_MEDIOS.map(m => `<option>${esc(m)}</option>`).join('');
+  $('cwCobMedio').value = CW_MEDIOS.includes(cs.medioCobro) ? cs.medioCobro : 'Mercado Pago';
+  $('cwCobFecha').value = s.estimado; $('cwCobMsg').textContent = '';
+  const hist = (cs.cobradas || []).filter(c => c.bruto > 0);
+  $('cwCobProm').textContent = hist.length ? `Promedio de tus semanas cobradas: ${_pct(hist.reduce((a, c) => a + c.retencion / c.bruto, 0) / hist.length * 100, 100)}` : '';
+  _cwRetVivo(); $('cwCobreModal').removeAttribute('hidden'); $('cwCobDep').focus();
+}
+function _cwRetVivo() {
+  const cs = _cwGet(_cwId), s = cs && cwSemanas(cs).find(x => x.desde === _cwDesde), el = $('cwCobRet'); if (!s) return;
+  const dep = readMonto('cwCobDep');
+  if (isNaN(dep)) { el.innerHTML = ''; return; }
+  const ret = _r2(s.bruto - dep);
+  el.innerHTML = ret < 0 ? '<span class="neg">El depositado no puede ser mayor al bruto</span>' : `Retención: ${fmtV(ret)} (${_pct(ret, s.bruto)})`;
+}
+function cwConfirmarCobro() {
+  const cs = _cwGet(_cwId), s = cs && cwSemanas(cs).find(x => x.desde === _cwDesde); if (!s || s.estado === 'cobrada') return;
+  const dep = _r2(readMonto('cwCobDep')), msg = $('cwCobMsg'), fecha = $('cwCobFecha').value, medio = $('cwCobMedio').value;
+  if (!(dep > 0)) { msg.textContent = 'Ingresá cuánto te depositaron.'; return; }
+  if (dep > s.bruto) { msg.textContent = 'El depositado no puede ser mayor al bruto.'; return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { msg.textContent = 'Elegí una fecha.'; return; }
+  const ret = _r2(s.bruto - dep), movId = nuevoId();
+  estado.gastos.push({ id: movId, creado: Date.now(), monto: dep, fecha, categoria: 'Sueldo/Honorarios', medio,
+    descripcion: `${cs.nombre} semana ${_cwRango(s)}`, tipo: 'ingreso', soloHistorial: false, retencion: ret, bruto: s.bruto });
+  (cs.cobradas ||= []).push({ desde: s.desde, hasta: s.hasta, bruto: s.bruto, neto: dep, retencion: ret, fechaCobro: fecha, movId });
+  $('cwCobreModal').setAttribute('hidden', ''); _cwId = _cwDesde = null;
+  guardar(); guardarSnap(); render();
+}
+function cwDeshacerCobro(id) {
+  const cs = _cwGet(id); if (!cs || !cs.cobradas?.length) return;
+  const c = cs.cobradas[cs.cobradas.length - 1];
+  if (!confirm(`¿Deshacer el cobro de la semana ${_fechaDM(c.desde)} al ${_fechaDM(c.hasta)}?`)) return;
+  estado.gastos = estado.gastos.filter(g => g.id !== c.movId);
+  cs.cobradas.pop();
+  guardar(); guardarSnap(); render();
+}
+(function () {
+  const cerrar = (m, f) => { $(m).setAttribute('hidden', ''); if (f) f(); };
+  $('cwTipoDia').onclick = () => { _cwTipo = 'dia'; _cwPintarSumar(); };
+  $('cwTipoDesafio').onclick = () => { _cwTipo = 'desafio'; _cwPintarSumar(); };
+  $('cwSumFecha').onchange = $('cwSumFecha').oninput = () => _cwPintarSumar();
+  $('btnCwSumGuardar').onclick = cwGuardarEntrada;
+  $('btnCwSumCerrar').onclick = () => cerrar('cwSumarModal', () => { _cwId = _cwEditEnt = null; });
+  $('cwCobDep').addEventListener('input', _cwRetVivo);
+  $('btnCwCobGuardar').onclick = cwConfirmarCobro;
+  $('btnCwCobCerrar').onclick = () => cerrar('cwCobreModal', () => { _cwId = _cwDesde = null; });
+  $('btnCwAltaGuardar').onclick = cwGuardarAlta;
+  $('btnCwAltaBorrar').onclick = cwBorrarCobro;
+  $('btnCwAltaCerrar').onclick = () => cerrar('cwAltaModal', () => { _cwId = null; });
+})();
+
 // ── FIN COMPROMISOS ──────────────────────────────────────
 
 function saldoDe(medio) {
@@ -2908,6 +3181,7 @@ function totales() {
   let a=0, d=0;
   for (const m of MEDIOS) { const s=saldoDe(m); s>=0 ? a+=s : d-=s; }
   for (const it of estado.items) it.tipo==='activo' ? a+=it.monto : d+=it.monto;
+  a += cwDebeTotal();
   return { activos:a, deudas:d, neto:a-d };
 }
 
@@ -3360,7 +3634,8 @@ $('btnCancelar').onclick = () => { resetForm(); renderHistorial(); };
 function renderLista(contId, tipo) {
   const cont=$(contId); cont.innerHTML='';
   const medios=MEDIOS.map(m=>({m,s:saldoDe(m)})).filter(({s})=>tipo==='activo'?s>0:s<0);
-  const grupos=GRUPOS.map(g=>[g,estado.items.filter(it=>it.tipo===tipo&&it.grupo===g)]).filter(([,items])=>items.length);
+  const csList=tipo==='activo'?(estado.cobrosSemanales||[]):[];
+  const grupos=GRUPOS.map(g=>[g,estado.items.filter(it=>it.tipo===tipo&&it.grupo===g)]).filter(([g,items])=>items.length||(tipo==='activo'&&g==='Cobros pendientes'));
   let total=0;
   const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
   const hayEditandoItem=!!editandoItemId;
@@ -3380,6 +3655,7 @@ function renderLista(contId, tipo) {
 
   for(const[g,items]of grupos){
     let grpTotal=0; for(const it of items) grpTotal+=it.monto;
+    if(g==='Cobros pendientes') for(const cs of csList) grpTotal+=cwDebe(cs);
     total+=grpTotal;
     const hasEditing=hayEditandoItem&&items.some(it=>it.id===editandoItemId);
     const det=document.createElement('details');
@@ -3420,6 +3696,16 @@ function renderLista(contId, tipo) {
         if(hayEditandoItem&&its.some(x=>x.id===editandoItemId)) pd.open=true;
         det.appendChild(pd);
       }
+      for(const cs of csList){
+        const pd=document.createElement('details'); pd.className='pat-grp pat-pers'; pd.dataset.cwId=cs.id;
+        const ps=document.createElement('summary');
+        ps.innerHTML=`<span class="det-arrow">▶</span><h3>👤 ${esc(cs.nombre)}</h3><span class="pat-sub pos">Te debe ${fmtV(cwDebe(cs))}</span>`;
+        pd.appendChild(ps); pd.appendChild(cwBody(cs));
+        initDetDyn(pd,'pat-cobros-cw-'+cs.nombre.replace(/[^a-z0-9]/gi,'-').toLowerCase(),true);
+        det.appendChild(pd);
+      }
+      const bnew=document.createElement('button'); bnew.type='button'; bnew.className='mini'; bnew.id='btnCobroSemanal'; bnew.style.margin='6px 0 8px'; bnew.textContent='+ Cobro semanal';
+      bnew.onclick=()=>cwAbrirAlta(); det.appendChild(bnew);
     } else for(const it of items) agregarItem(det,it,true);
     // Force open if editing an item inside this group
     const skSuffix=g.replace(/[^a-z0-9]/gi,'-').toLowerCase();
@@ -3491,9 +3777,12 @@ function renderVinculos(){
   const porPersona=new Map();
   for(const it of estado.items){ if(!it.persona) continue; if(!porPersona.has(it.persona)) porPersona.set(it.persona,[]); porPersona.get(it.persona).push(it); }
   $('personasList').innerHTML=[...porPersona.keys()].map(p=>`<option value="${esc(p)}">`).join('');
+  const csPorPersona=new Map();
+  for(const cs of (estado.cobrosSemanales||[])){ const p=cwPersona(cs); if(!csPorPersona.has(p)) csPorPersona.set(p,[]); csPorPersona.get(p).push(cs); if(!porPersona.has(p)) porPersona.set(p,[]); }
+  $('personasList').innerHTML=[...porPersona.keys()].map(p=>`<option value="${esc(p)}">`).join('');
   const cont=$('vinculos'); cont.innerHTML='';
   if(!porPersona.size){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
-  const personas=[...porPersona].map(([nombre,items])=>({nombre,items,neto:items.reduce((s,it)=>s+(it.tipo==='activo'?it.monto:-it.monto),0)})).sort((a,b)=>Math.abs(b.neto)-Math.abs(a.neto));
+  const personas=[...porPersona].map(([nombre,items])=>({nombre,items,neto:_r2(items.reduce((s,it)=>s+(it.tipo==='activo'?it.monto:-it.monto),0)+(csPorPersona.get(nombre)||[]).reduce((s,cs)=>s+cwDebe(cs),0)),cws:csPorPersona.get(nombre)||[]})).sort((a,b)=>Math.abs(b.neto)-Math.abs(a.neto));
   const etiqH={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',cobre:'Cobré'};
   for(const p of personas){
     const txt=p.neto>0?`Te debe ${fmtV(p.neto)}`:p.neto<0?`Le debés ${fmtV(-p.neto)}`:'Sin saldo pendiente';
@@ -3521,6 +3810,7 @@ function renderVinculos(){
       ul.appendChild(li);
     }
     card.appendChild(ul);
+    for(const cs of p.cws){ const w=cwBody(cs); if(p.cws.length>1||cs.nombre!==p.nombre){ const t=document.createElement('div'); t.className='sub-label'; t.textContent=cs.nombre; w.prepend(t); } card.appendChild(w); }
     const sk='vinc-'+p.nombre.replace(/[^a-z0-9]/gi,'-').toLowerCase();
     initDetDyn(card,sk,true);
     cont.appendChild(card);
@@ -3943,7 +4233,7 @@ function confirmarImport(rows){
 function buildBackupJson(){
   const backup={
     version:1, fecha:hoy(),
-    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}, borradores:[...(estado.borradores||[])], reglasRemitente:[...(estado.reglasRemitente||[])]},
+    estado:{iniciales:{...estado.iniciales}, gastos:[...estado.gastos], items:[...estado.items], patrimonioCargado:estado.patrimonioCargado, compromisos:[...(estado.compromisos||[])], importaciones:{...(estado.importaciones||{})}, borradores:[...(estado.borradores||[])], reglasRemitente:[...(estado.reglasRemitente||[])], cobrosSemanales:[...(estado.cobrosSemanales||[])]},
     snaps:cargarSnaps(),
     cats:ls.get(CATS_KEY)||[],
     catsIncome:ls.get(CATS_INC_K)||[],
@@ -4941,7 +5231,7 @@ function rChartIC(s=''){
   // Ingresos cobrados del mes (incluye soloHistorial)
   const ingresosMes=estado.gastos.filter(g=>g.tipo==='ingreso'&&g.fecha&&g.fecha.slice(0,7)===mesActual&&!g.transferencia).reduce((s,g)=>s+g.monto,0);
   // Por cobrar: items activos de 'Cobros pendientes'
-  const porCobrar=estado.items.filter(it=>it.tipo==='activo'&&it.grupo==='Cobros pendientes').reduce((s,it)=>s+it.monto,0);
+  const porCobrar=estado.items.filter(it=>it.tipo==='activo'&&it.grupo==='Cobros pendientes').reduce((s,it)=>s+it.monto,0)+cwDebeTotal();
   // Compromisos del mes
   const cmpsMes=compromisosMes(mesActual);
   const totalCmpBase=cmpsMes.reduce((s,c)=>s+c.monto,0);
@@ -6368,19 +6658,20 @@ const _transfRecibidas = () => estado.gastos.filter(_esTransfRecibida);
 let _ganMes = null;
 const _mesAnt = ym => { const [y, m] = ym.split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; };
 function gananciaMes(ym) {
-  const fuentes = {}; let total = 0; const noCuenta = {};
+  const fuentes = {}; let total = 0, ret = 0; const noCuenta = {};
   const sinClas = [];
   for (const g of estado.gastos) {
     if (g.tipo !== 'ingreso' || g.transferencia || !g.fecha || !g.fecha.startsWith(ym)) continue;
     if (_esTransfRecibida(g) && !g.proposito) sinClas.push(g);
     if (cuentaGanancia(g)) {
       const k = g.proposito ? PROPOSITOS.find(p => p[0] === g.proposito)[1].replace(/^\S+\s/, '') : g.categoria;
-      fuentes[k] = (fuentes[k] || 0) + g.monto; total += g.monto;
+      const m = g.monto + (g.retencion || 0);
+      fuentes[k] = (fuentes[k] || 0) + m; total += m; ret += g.retencion || 0;
     } else if (['prestamo', 'reembolso', 'familia', 'otro'].includes(g.proposito)) {
       noCuenta[g.proposito] = (noCuenta[g.proposito] || 0) + g.monto;
     }
   }
-  return { total, fuentes: Object.entries(fuentes).sort((a, b) => b[1] - a[1]), noCuenta,
+  return { total, retenciones: Math.round(ret * 100) / 100, fuentes: Object.entries(fuentes).sort((a, b) => b[1] - a[1]), noCuenta,
     sinClas: { n: sinClas.length, monto: sinClas.reduce((s, g) => s + g.monto, 0), ids: sinClas.map(g => g.id) } };
 }
 function renderGanancia() {
@@ -6402,7 +6693,7 @@ function renderGanancia() {
   const NC = [['prestamo', 'préstamos'], ['reembolso', 'reembolsos'], ['familia', 'familia'], ['otro', 'otros']];
   const nc = NC.filter(([k]) => d.noCuenta[k]).map(([k, l]) => `${l} ${fmtV(d.noCuenta[k])}`).join(' · ');
   const ncTot = Object.values(d.noCuenta).reduce((s, v) => s + v, 0);
-  body.innerHTML = `<div class="gan-total">${fmtV(d.total)}</div><div class="gan-cmp">${cmp}</div>${barras}${aviso}` +
+  body.innerHTML = `<div class="gan-total">${fmtV(d.total)}</div>${d.retenciones > 0 ? `<div class="gan-cmp" id="ganRet">incluye ${fmtV(d.retenciones)} de retenciones</div>` : ''}<div class="gan-cmp">${cmp}</div>${barras}${aviso}` +
     `<div class="gan-nocuenta" id="ganNoCuenta">No cuenta: ${ncTot ? `${fmtV(ncTot)} (${nc})` : fmtV(0)}</div>`;
   const b = $('btnGanClasif'); if (b) b.onclick = () => abrirClasifTransf(d.sinClas.ids);
 }
