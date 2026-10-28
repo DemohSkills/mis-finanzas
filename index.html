@@ -241,6 +241,12 @@ details.cw-cob{margin-top:6px;font-size:.82rem;color:var(--muted);}
 details.cw-cob>summary{cursor:pointer;padding:2px 0;}
 .cw-cobrow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;flex-wrap:wrap;}
 .cw-tipos{display:flex;gap:6px;margin-bottom:12px;}
+.rep-fila label{display:block;overflow-wrap:anywhere;}
+.rep-debia{font-weight:400;color:var(--muted);font-size:.78rem;}
+.rep-res{font-size:.78rem;color:var(--muted);margin-top:2px;}
+.rep-res.pos{color:var(--ok);}
+.rep-res.neg{color:var(--danger);}
+.rep-nota{font-size:.76rem;color:var(--muted);padding:2px 0 6px;}
 details.cw-res{margin-top:6px;font-size:.82rem;color:var(--muted);}
 details.cw-res>summary{cursor:pointer;padding:2px 0;}
 .cw-resrow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;flex-wrap:wrap;}
@@ -974,6 +980,23 @@ try{
     <div class="wiz-actions">
       <button type="button" class="primary" id="btnGuardarAjuste">Guardar</button>
       <button type="button" onclick="cerrarAjusteModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ REPARTO DE COBRO ══════════════════ -->
+<div class="overlay" id="repartoModal" hidden>
+  <div class="wiz-box" style="max-width:380px;">
+    <h2 id="repartoTit" style="margin:0 0 8px;font-size:1rem;"></h2>
+    <div id="repartoSub" style="font-size:.85rem;margin-bottom:10px;"></div>
+    <div id="repartoFilas"></div>
+    <div id="repartoTot" style="font-size:.85rem;font-weight:600;padding:4px 0;"></div>
+    <div class="rep-nota">Peajes no se tocan. Podés cambiar los montos; el total tiene que dar el monto cobrado.</div>
+    <div class="cw-msg" id="repartoMsg" role="alert"></div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnRepartoOk">Confirmar reparto</button>
+      <button type="button" id="btnRepartoTodo">Todo a sueldo adeudado</button>
+      <button type="button" id="btnRepartoCerrar">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3011,24 +3034,105 @@ function guardarCobre() {
   const medio = $('cobreMedio').value;
   const fecha = $('cobreFecha').value;
   const nota  = $('cobreNota').value.trim();
-  const ret   = Math.round((bruto - neto) * 100) / 100;
+  const ctx = { it, bruto, neto, medio, fecha, nota };
+  const otros = _repartoHermanos(it);
+  if (bruto > it.monto && otros.length) { abrirReparto(ctx, otros); return; }
+  _aplicarCobro(ctx, [{ it, parte: bruto }]);
+}
+
+// Ítems de cobro de la misma persona con saldo pendiente, en el orden de su tarjeta (sin peajes).
+function _repartoHermanos(it) {
+  if (!it.persona) return [];
+  return estado.items.filter(x => x.id !== it.id && x.persona === it.persona && x.tipo === 'activo' && x.grupo === 'Cobros pendientes' && x.monto > 0 && !/peaje/i.test(x.nombre));
+}
+
+// Un solo ingreso (neto) y cada ítem baja según su parte. Con más de una parte comparten gastoId y repartoId.
+function _aplicarCobro(ctx, partes) {
+  const { it, bruto, neto, medio, fecha, nota } = ctx;
+  const ret = Math.round((bruto - neto) * 100) / 100;
   let desc = 'Cobro: ' + it.nombre;
   if (ret > 0) desc += ` (bruto ${fmt(bruto).replace(/ /g,' ')}, retención ${fmt(ret).replace(/ /g,' ')})`;
   const gastoId = nuevoId();
+  const repartoId = partes.length > 1 ? nuevoId() : null;
   estado.gastos.push({ id:gastoId, creado:Date.now(), monto:neto, fecha, categoria:'Sueldo/Honorarios', medio, descripcion:nota||desc, tipo:'ingreso', soloHistorial:false });
-  it.monto = Math.max(0, Math.round((it.monto - bruto) * 100) / 100);
-  if (!it.historial) it.historial = [];
-  it.historial.push({ id:nuevoId(), fecha, accion:'cobre', monto:bruto, neto, medio, gastoId });
-  cerrarCobreModal();
+  let netoRest = neto;
+  partes.forEach((pt, n) => {
+    const x = pt.it;
+    x.monto = Math.max(0, Math.round((x.monto - pt.parte) * 100) / 100);
+    const netoParte = n === partes.length - 1 ? netoRest : Math.round(neto * pt.parte / bruto * 100) / 100;
+    netoRest = Math.round((netoRest - netoParte) * 100) / 100;
+    if (!x.historial) x.historial = [];
+    const h = { id:nuevoId(), fecha, accion:'cobre', monto:pt.parte, neto:netoParte, medio, gastoId };
+    if (repartoId) h.repartoId = repartoId;
+    x.historial.push(h);
+  });
+  cerrarCobreModal(); $('repartoModal').setAttribute('hidden', ''); _repCtx = null;
   guardar(); guardarSnap();
   renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
   renderVinculos(); renderResumen(); renderHistorial();
 }
 
+// ── Reparto de un cobro entre ítems de la misma persona ──
+let _repCtx = null;
+function abrirReparto(ctx, otros) {
+  const items = [ctx.it, ...otros];
+  let resto = ctx.bruto;
+  const partes = items.map(x => { const v = Math.min(resto, x.monto); resto = Math.round((resto - v) * 100) / 100; return v; });
+  _repCtx = { ...ctx, items };
+  $('repartoTit').textContent = 'Repartir cobro de ' + ctx.it.persona;
+  $('repartoSub').innerHTML = `Entraron ${fmtV(ctx.neto)} a ${esc(ctx.medio)}. Se registra como un solo ingreso y se reparte así:`;
+  $('repartoFilas').innerHTML = items.map((x, n) => `<div class="wiz-field rep-fila" data-id="${esc(x.id)}"><label>${esc(x.nombre)} <span class="rep-debia">(debía ${fmtV(x.monto)})</span></label><input type="text" class="input-monto rep-in" inputmode="decimal" value="${fmtInput(partes[n])}"><div class="rep-res"></div></div>`).join('');
+  $('repartoFilas').querySelectorAll('.rep-in').forEach(inp => inp.addEventListener('input', _repartoPintar));
+  $('repartoMsg').textContent = '';
+  $('cobreModal').setAttribute('hidden', '');
+  $('repartoModal').removeAttribute('hidden');
+  _repartoPintar();
+}
+function _repartoLeer() {
+  return [...$('repartoFilas').querySelectorAll('.rep-in')].map(inp => { const v = readMonto(inp); return isNaN(v) ? 0 : Math.round(v * 100) / 100; });
+}
+function _repartoPintar() {
+  if (!_repCtx) return;
+  const partes = _repartoLeer();
+  _repCtx.items.forEach((x, n) => {
+    const el = $('repartoFilas').querySelectorAll('.rep-res')[n], v = partes[n];
+    if (v > x.monto) { el.className = 'rep-res neg'; el.textContent = 'Supera lo que debía'; }
+    else if (v === x.monto) { el.className = 'rep-res pos'; el.textContent = '✓ queda cancelado'; }
+    else { el.className = 'rep-res'; el.innerHTML = 'queda en ' + fmtV(Math.round((x.monto - v) * 100) / 100); }
+  });
+  const suma = Math.round(partes.reduce((a, b) => a + b, 0) * 100) / 100, dif = Math.round((_repCtx.bruto - suma) * 100) / 100;
+  $('repartoTot').innerHTML = dif === 0 ? `Total: ${fmtV(suma)} ✓` : `Total: ${fmtV(suma)} de ${fmtV(_repCtx.bruto)} (${dif > 0 ? 'faltan ' : 'sobran '}${fmtV(Math.abs(dif))})`;
+}
+function confirmarReparto() {
+  if (!_repCtx) return;
+  const partes = _repartoLeer(), msg = $('repartoMsg');
+  const suma = Math.round(partes.reduce((a, b) => a + b, 0) * 100) / 100;
+  if (partes.some(v => v < 0)) { msg.textContent = 'Ninguna parte puede ser negativa.'; return; }
+  const sup = _repCtx.items.findIndex((x, n) => partes[n] > x.monto);
+  if (sup >= 0) { msg.textContent = 'La parte de "' + _repCtx.items[sup].nombre + '" supera lo que debía.'; return; }
+  if (suma !== _repCtx.bruto) { msg.textContent = 'El total tiene que dar ' + fmt(_repCtx.bruto).replace(/ /g,' ') + '.'; return; }
+  const lista = _repCtx.items.map((x, n) => ({ it: x, parte: partes[n] })).filter(pt => pt.parte > 0);
+  _aplicarCobro(_repCtx, lista);
+}
+function cerrarReparto() { $('repartoModal').setAttribute('hidden', ''); _repCtx = null; _cobreItemId = null; }
+
 function deshacerUltimoCobre(itId) {
   const it = estado.items.find(x => x.id === itId); if (!it || !it.historial?.length) return;
   const entrada = it.historial[it.historial.length - 1];
   if (entrada.accion !== 'cobre') return alert('El último movimiento no es un cobro');
+  if (entrada.repartoId) {
+    if (!confirm('Este cobro se repartió entre varios ítems de ' + (it.persona || 'la persona') + '. ¿Deshacer todas las partes y el ingreso?')) return;
+    for (const x of estado.items) {
+      const partes = (x.historial || []).filter(h => h.repartoId === entrada.repartoId);
+      for (const h of partes) x.monto = Math.round((x.monto + h.monto) * 100) / 100;
+      if (partes.length) x.historial = x.historial.filter(h => h.repartoId !== entrada.repartoId);
+    }
+    estado.gastos = estado.gastos.filter(x => x.id !== entrada.gastoId);
+    guardar(); guardarSnap();
+    renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+    renderVinculos(); renderResumen(); renderHistorial();
+    return;
+  }
   if (!confirm('¿Deshacer el último cobro de ' + it.nombre + '?')) return;
   estado.gastos = estado.gastos.filter(x => x.id !== entrada.gastoId);
   it.monto = Math.round((it.monto + entrada.monto) * 100) / 100;
@@ -3039,6 +3143,12 @@ function deshacerUltimoCobre(itId) {
 }
 
 $('btnGuardarCobre').onclick = guardarCobre;
+$('btnRepartoOk').onclick = confirmarReparto;
+$('btnRepartoCerrar').onclick = cerrarReparto;
+$('btnRepartoTodo').onclick = () => {
+  if (!_repCtx) return;
+  const c = _repCtx; _aplicarCobro(c, [{ it: c.it, parte: c.bruto }]);
+};
 
 // ── COBRO SEMANAL (p. ej. Meli Extra: lunes a domingo, se cobra el miércoles siguiente) ──
 const _r2 = n => Math.round(n * 100) / 100;

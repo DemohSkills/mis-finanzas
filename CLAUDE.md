@@ -129,3 +129,6 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 
 ## A pagar (orden por vencimiento)
 - Cuotas con `pendientes>1` se proyectan en cada mes siguiente (`_compProyHtml`, solo «Editar»); los fijos aparecen en todos los meses mostrados (desde el actual hasta el mayor entre la última cuota proyectada y +5 meses, tope 48). Desde el 4.º mes los grupos arrancan plegados y sin «Pagué». Vistas entidad/monto y `compromisosMes` no cambian.
+
+## Reparto de cobro
+- En `guardarCobre`, si bruto > `it.monto` y hay otros ítems de la misma `persona` (grupo Cobros pendientes, activo, monto>0, nombre sin «peaje») se abre `#repartoModal` (`abrirReparto`/`confirmarReparto`). Reparto por defecto: primero el ítem cobrado, el sobrante a los siguientes en orden de tarjeta. `_aplicarCobro` crea UN ingreso y una entrada `historial` por ítem con `repartoId` común; `deshacerUltimoCobre` con `repartoId` revierte todas las partes. Pendiente: importación (no hecha).
