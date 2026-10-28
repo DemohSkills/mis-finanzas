@@ -132,3 +132,8 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 
 ## Reparto de cobro
 - En `guardarCobre`, si bruto > `it.monto` y hay otros ítems de la misma `persona` (grupo Cobros pendientes, activo, monto>0, nombre sin «peaje») se abre `#repartoModal` (`abrirReparto`/`confirmarReparto`). Reparto por defecto: primero el ítem cobrado, el sobrante a los siguientes en orden de tarjeta. `_aplicarCobro` crea UN ingreso y una entrada `historial` por ítem con `repartoId` común; `deshacerUltimoCobre` con `repartoId` revierte todas las partes. Pendiente: importación (no hecha).
+
+## Reparto desde la clasificación (Sueldo Delux)
+- Al guardar en `#clasifModal` una transferencia que pasa a `sueldo-delux` (solo si antes no lo era) y sin `g.repartido`, `_clasifGuardar` arma una cola (`_clasifCola`, por fecha asc) y `_clasifSiguiente` abre el cuadro de `abrirReparto` con `deImport:true` (ítems de `_repartoDelux()`: persona /delux/, Cobros pendientes, monto>0, sin peaje). Monto y cuenta = los del movimiento; NO se crea ingreso.
+- `_aplicarRepartoImport`: baja cada ítem y agrega historial `{accion:'cobre', monto, gastoId, deImport:true, repartoId?}`; marca `g.repartido=true`. Botones: Confirmar / «No repartir» (sigue sin tocar ítems) / Cancelar (revierte ítems y flags de la sesión y vuelve a la clasificación sin guardar; nada se persiste hasta `_clasifFinalizar`).
+- `deshacerUltimoCobre` con `deImport`: restaura montos, NO borra el movimiento y quita `repartido`. Reclasificar a otro propósito no toca ítems; la fila avisa que el reparto sigue vigente.

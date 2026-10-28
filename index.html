@@ -996,6 +996,7 @@ try{
     <div class="wiz-actions">
       <button type="button" class="primary" id="btnRepartoOk">Confirmar reparto</button>
       <button type="button" id="btnRepartoTodo">Todo a sueldo adeudado</button>
+      <button type="button" id="btnRepartoNo" style="display:none">No repartir</button>
       <button type="button" id="btnRepartoCerrar">Cancelar</button>
     </div>
   </div>
@@ -3048,6 +3049,7 @@ function _repartoHermanos(it) {
 
 // Un solo ingreso (neto) y cada ítem baja según su parte. Con más de una parte comparten gastoId y repartoId.
 function _aplicarCobro(ctx, partes) {
+  if (ctx.deImport) { _aplicarRepartoImport(ctx, partes); return; }
   const { it, bruto, neto, medio, fecha, nota } = ctx;
   const ret = Math.round((bruto - neto) * 100) / 100;
   let desc = 'Cobro: ' + it.nombre;
@@ -3080,7 +3082,11 @@ function abrirReparto(ctx, otros) {
   const partes = items.map(x => { const v = Math.min(resto, x.monto); resto = Math.round((resto - v) * 100) / 100; return v; });
   _repCtx = { ...ctx, items };
   $('repartoTit').textContent = 'Repartir cobro de ' + ctx.it.persona;
-  $('repartoSub').innerHTML = `Entraron ${fmtV(ctx.neto)} a ${esc(ctx.medio)}. Se registra como un solo ingreso y se reparte así:`;
+  $('repartoSub').innerHTML = ctx.deImport
+    ? `Entraron ${fmtV(ctx.neto)} a ${esc(ctx.medio)} (movimiento ya importado). No se crea otro ingreso; se reparte así:`
+    : `Entraron ${fmtV(ctx.neto)} a ${esc(ctx.medio)}. Se registra como un solo ingreso y se reparte así:`;
+  $('btnRepartoTodo').style.display = ctx.deImport ? 'none' : '';
+  $('btnRepartoNo').style.display = ctx.deImport ? '' : 'none';
   $('repartoFilas').innerHTML = items.map((x, n) => `<div class="wiz-field rep-fila" data-id="${esc(x.id)}"><label>${esc(x.nombre)} <span class="rep-debia">(debía ${fmtV(x.monto)})</span></label><input type="text" class="input-monto rep-in" inputmode="decimal" value="${fmtInput(partes[n])}"><div class="rep-res"></div></div>`).join('');
   $('repartoFilas').querySelectorAll('.rep-in').forEach(inp => inp.addEventListener('input', _repartoPintar));
   $('repartoMsg').textContent = '';
@@ -3114,12 +3120,70 @@ function confirmarReparto() {
   const lista = _repCtx.items.map((x, n) => ({ it: x, parte: partes[n] })).filter(pt => pt.parte > 0);
   _aplicarCobro(_repCtx, lista);
 }
-function cerrarReparto() { $('repartoModal').setAttribute('hidden', ''); _repCtx = null; _cobreItemId = null; }
+function cerrarReparto() {
+  $('repartoModal').setAttribute('hidden', ''); _repCtx = null; _cobreItemId = null;
+  if (_clasifCola) _clasifCancelarCola();
+}
+
+// ── Reparto de una transferencia ya importada (desde la clasificación como Sueldo Delux) ──
+let _clasifCola = null;
+// Ítems de la persona Delux con saldo pendiente, en el orden de su tarjeta (sin peajes).
+function _repartoDelux() {
+  const first = estado.items.find(x => x.tipo === 'activo' && x.grupo === 'Cobros pendientes' && x.monto > 0 && !/peaje/i.test(x.nombre) && /delux/i.test(x.persona || ''));
+  return first ? [first, ..._repartoHermanos(first)] : [];
+}
+// Sin ingreso nuevo: cada ítem baja su parte y registra una entrada 'cobre' ligada al movimiento importado.
+function _aplicarRepartoImport(ctx, partes) {
+  const repartoId = partes.length > 1 ? nuevoId() : null;
+  for (const pt of partes) {
+    const x = pt.it;
+    x.monto = Math.max(0, Math.round((x.monto - pt.parte) * 100) / 100);
+    if (!x.historial) x.historial = [];
+    const h = { id:nuevoId(), fecha:ctx.fecha, accion:'cobre', monto:pt.parte, neto:pt.parte, medio:ctx.medio, gastoId:ctx.gastoId, deImport:true };
+    if (repartoId) h.repartoId = repartoId;
+    x.historial.push(h);
+  }
+  const g = estado.gastos.find(x => x.id === ctx.gastoId); if (g) g.repartido = true;
+  $('repartoModal').setAttribute('hidden', ''); _repCtx = null;
+  _clasifSiguiente();
+}
+function _clasifSiguiente() {
+  const c = _clasifCola; if (!c) return;
+  while (c.ids.length) {
+    const gid = c.ids.shift(), g = estado.gastos.find(x => x.id === gid);
+    if (!g || g.repartido) continue;
+    const cand = _repartoDelux(); if (!cand.length) continue;
+    $('clasifModal').hidden = true;
+    abrirReparto({ it: cand[0], bruto: g.monto, neto: g.monto, medio: g.medio, fecha: g.fecha, gastoId: g.id, deImport: true }, cand.slice(1));
+    return;
+  }
+  _clasifCola = null;
+  _clasifFinalizar();
+}
+function _clasifCancelarCola() {
+  const c = _clasifCola; _clasifCola = null;
+  estado.items.length = 0; estado.items.push(...JSON.parse(c.snap));
+  for (const g of estado.gastos) if (c.sinMarca.includes(g.id)) delete g.repartido;
+  $('clasifModal').hidden = false; _renderClasif();
+}
 
 function deshacerUltimoCobre(itId) {
   const it = estado.items.find(x => x.id === itId); if (!it || !it.historial?.length) return;
   const entrada = it.historial[it.historial.length - 1];
   if (entrada.accion !== 'cobre') return alert('El último movimiento no es un cobro');
+  if (entrada.deImport) {
+    if (!confirm('Se restauran los montos pendientes. El movimiento importado no se borra.')) return;
+    for (const x of estado.items) {
+      const partes = (x.historial || []).filter(h => h.deImport && h.gastoId === entrada.gastoId && (entrada.repartoId ? h.repartoId === entrada.repartoId : h === entrada));
+      for (const h of partes) x.monto = Math.round((x.monto + h.monto) * 100) / 100;
+      if (partes.length) x.historial = x.historial.filter(h => !partes.includes(h));
+    }
+    const g = estado.gastos.find(x => x.id === entrada.gastoId); if (g) delete g.repartido;
+    guardar(); guardarSnap();
+    renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+    renderVinculos(); renderResumen(); renderHistorial();
+    return;
+  }
   if (entrada.repartoId) {
     if (!confirm('Este cobro se repartió entre varios ítems de ' + (it.persona || 'la persona') + '. ¿Deshacer todas las partes y el ingreso?')) return;
     for (const x of estado.items) {
@@ -3145,6 +3209,7 @@ function deshacerUltimoCobre(itId) {
 $('btnGuardarCobre').onclick = guardarCobre;
 $('btnRepartoOk').onclick = confirmarReparto;
 $('btnRepartoCerrar').onclick = cerrarReparto;
+$('btnRepartoNo').onclick = () => { $('repartoModal').setAttribute('hidden', ''); _repCtx = null; _clasifSiguiente(); };
 $('btnRepartoTodo').onclick = () => {
   if (!_repCtx) return;
   const c = _repCtx; _aplicarCobro(c, [{ it: c.it, parte: c.bruto }]);
@@ -7033,7 +7098,7 @@ function abrirClasifTransf(ids) {
     const s = _sugerirProposito(g.descripcion || '');
     const sel = g.proposito || s.sug;
     return { id: g.id, desc: g.descripcion || g.categoria, fecha: g.fecha, medio: g.medio || '', monto: g.monto, clave: s.clave,
-      orig: g.proposito || null, sug: g.proposito ? null : s.sug, motivo: g.proposito ? null : s.motivo,
+      rep: !!g.repartido, orig: g.proposito || null, sug: g.proposito ? null : s.sug, motivo: g.proposito ? null : s.motivo,
       sel, rec: _recDefault(sel) };
   };
   const ord = (a, b) => b.fecha.localeCompare(a.fecha);
@@ -7049,10 +7114,11 @@ function _renderClasif() {
     const i = todas.indexOf(r);
     const chips = PROPOSITOS.map(([k, l]) => `<button type="button" class="prop-chip${r.sel === k ? ' sel' : ''}" data-i="${i}" data-p="${k}">${l}</button>`).join('');
     const nota = r.sug && r.sel === r.sug ? `<div class="imp-row-meta">Sugerido: ${r.motivo === 'regla' ? 'por regla guardada' : 'apellido propio'}</div>` : '';
+    const repNota = r.rep && r.sel !== 'sueldo-delux' ? '<div class="imp-row-meta clasif-rep-nota">El reparto ya aplicado sigue vigente; se deshace desde Vínculos.</div>' : '';
     const recVisible = r.sel && !PROP_SIN_REGLA.includes(r.sel);
     return `<div class="clasif-row" data-i="${i}">
       <div class="imp-row-top"><span class="imp-row-desc">${esc(r.desc)}</span><span class="imp-row-monto pos">${fmtV(r.monto)}</span></div>
-      <div class="imp-row-meta"><span>${fechaCorta(r.fecha)}${r.medio ? ' · ' + esc(r.medio) : ''}</span></div>${nota}
+      <div class="imp-row-meta"><span>${fechaCorta(r.fecha)}${r.medio ? ' · ' + esc(r.medio) : ''}</span></div>${nota}${repNota}
       <div class="clasif-chips">${chips}</div>
       <label class="clasif-rec"${recVisible ? '' : ' hidden'}><input type="checkbox" class="clasif-rec-chk" data-i="${i}"${r.rec ? ' checked' : ''}> Recordar a esta persona</label>
     </div>`;
@@ -7078,13 +7144,20 @@ function _clasifDelux() {
 }
 function _clasifGuardar() {
   if (!_clasif) return;
+  const ids = _clasif.pend.concat(_clasif.hechas).filter(r => r.sel === 'sueldo-delux' && r.orig !== 'sueldo-delux').sort((a, b) => a.fecha.localeCompare(b.fecha)).map(r => r.id);
+  const sinMarca = estado.gastos.filter(g => !g.repartido).map(g => g.id);
+  _clasifCola = { ids, snap: JSON.stringify(estado.items), sinMarca };
+  _clasifSiguiente();
+}
+function _clasifFinalizar() {
+  if (!_clasif) return;
   for (const r of _clasif.pend.concat(_clasif.hechas)) {
     const g = estado.gastos.find(x => x.id === r.id); if (!g) continue;
     if (r.sel) g.proposito = r.sel; else delete g.proposito;
     if (r.sel && r.rec) _guardarReglaRemitente(r.clave, r.sel);
   }
   _clasif = null; $('clasifModal').hidden = true;
-  guardar(); render();
+  guardar(); guardarSnap(); render();
 }
 function _clasifCerrar() { _clasif = null; $('clasifModal').hidden = true; }
 
