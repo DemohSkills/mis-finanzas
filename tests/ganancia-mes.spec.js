@@ -110,6 +110,21 @@ test.describe('Ganancia del mes', () => {
     expect(txt).toContain('(1 transferencia)');
   });
 
+  // _ganCmpValida: caso límite del día 7 del mes anterior (el más antiguo del día 7 → se muestra; del día 8 → se oculta)
+  test('comparación: movimiento más antiguo el día 7 del mes anterior → se muestra', async ({ page }) => {
+    await abrir(page, [ing('l7', '2026-05-07', 50000, 'Sueldo/Honorarios'), ...JUNIO]);
+    await page.selectOption('#ganMes', '2026-06');
+    await expect(page.locator('#ganCmp')).toBeVisible();
+    await expect(page.locator('#ganCmp')).toContainText('vs Mayo 2026');
+  });
+
+  test('comparación: movimiento más antiguo el día 8 del mes anterior → no se muestra', async ({ page }) => {
+    await abrir(page, [ing('l8', '2026-05-08', 50000, 'Sueldo/Honorarios'), ...JUNIO]);
+    await page.selectOption('#ganMes', '2026-06');
+    await expect(page.locator('#ganCmp')).toHaveCount(0);
+    await expect(page.locator('#ganBody')).not.toContainText('vs ');
+  });
+
   for (const tema of ['claro', 'negro', 'neon-azul']) {
     test(`captura 390px ${tema}`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 800 });
