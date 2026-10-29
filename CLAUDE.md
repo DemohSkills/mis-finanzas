@@ -137,3 +137,6 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Al guardar en `#clasifModal` una transferencia que pasa a `sueldo-delux` (solo si antes no lo era) y sin `g.repartido`, `_clasifGuardar` arma una cola (`_clasifCola`, por fecha asc) y `_clasifSiguiente` abre el cuadro de `abrirReparto` con `deImport:true` (ítems de `_repartoDelux()`: persona /delux/, Cobros pendientes, monto>0, sin peaje). Monto y cuenta = los del movimiento; NO se crea ingreso.
 - `_aplicarRepartoImport`: baja cada ítem y agrega historial `{accion:'cobre', monto, gastoId, deImport:true, repartoId?}`; marca `g.repartido=true`. Botones: Confirmar / «No repartir» (sigue sin tocar ítems) / Cancelar (revierte ítems y flags de la sesión y vuelve a la clasificación sin guardar; nada se persiste hasta `_clasifFinalizar`).
 - `deshacerUltimoCobre` con `deImport`: restaura montos, NO borra el movimiento y quita `repartido`. Reclasificar a otro propósito no toca ítems; la fila avisa que el reparto sigue vigente.
+
+## Botones ✕/✎ compactos del Cobro semanal
+- `.cw-h-del`, `.cw-h-quitar`, `.cw-e-del`, `.cw-e-ed` (y `.cw-h-ed`): 22 px de alto, borde fino; el área tocable de 36 px es un `::after` transparente. En `.cw-cobrow` la fecha va arriba y el dato (`.cw-dato-t`) debajo.
