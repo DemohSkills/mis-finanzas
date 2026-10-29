@@ -144,3 +144,6 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 
 ## Micrófono flotante y padding inferior
 - `main` lleva `padding-bottom: calc(96px + env(safe-area-inset-bottom))` (alto del micrófono + margen + 24 px) para que el final de cada pestaña quede sobre `#fabVoz`. Excepción: Inicio (90 px) por su presupuesto de altura en `inicio-compacto.spec.js`.
+
+## Ganancia del mes: comparación «vs mes anterior»
+- `_ganCmpValida(ym)`: solo se dibuja `#ganCmp` si el movimiento más antiguo de `estado.gastos` es ≤ día 7 del mes anterior (si no, el mes anterior está incompleto: se oculta sin mensaje).

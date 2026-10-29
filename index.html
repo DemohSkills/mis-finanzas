@@ -7116,6 +7116,13 @@ function gananciaMes(ym) {
   return { total, retenciones: Math.round(ret * 100) / 100, fuentes: Object.entries(fuentes).sort((a, b) => b[1] - a[1]), noCuenta,
     sinClas: { n: sinClas.length, monto: sinClas.reduce((s, g) => s + g.monto, 0), ids: sinClas.map(g => g.id) } };
 }
+// La comparación «vs mes anterior» solo vale si ese mes quedó cubierto desde el principio: el movimiento más antiguo
+// de la app tiene que ser del día 7 del mes anterior o antes (si no, el mes anterior está incompleto).
+function _ganCmpValida(ym) {
+  let min = null;
+  for (const g of estado.gastos) if (g.fecha && (min === null || g.fecha < min)) min = g.fecha;
+  return min !== null && min <= _mesAnt(ym) + '-07';
+}
 function renderGanancia() {
   const sel = $('ganMes'), body = $('ganBody'); if (!sel || !body) return;
   const hoyYm = hoy().slice(0, 7);
@@ -7135,7 +7142,7 @@ function renderGanancia() {
   const NC = [['prestamo', 'préstamos'], ['reembolso', 'reembolsos'], ['familia', 'familia'], ['otro', 'otros']];
   const nc = NC.filter(([k]) => d.noCuenta[k]).map(([k, l]) => `${l} ${fmtV(d.noCuenta[k])}`).join(' · ');
   const ncTot = Object.values(d.noCuenta).reduce((s, v) => s + v, 0);
-  body.innerHTML = `<div class="gan-total">${fmtV(d.total)}</div>${d.retenciones > 0 ? `<div class="gan-cmp" id="ganRet">incluye ${fmtV(d.retenciones)} de retenciones</div>` : ''}<div class="gan-cmp">${cmp}</div>${barras}${aviso}` +
+  body.innerHTML = `<div class="gan-total">${fmtV(d.total)}</div>${d.retenciones > 0 ? `<div class="gan-cmp" id="ganRet">incluye ${fmtV(d.retenciones)} de retenciones</div>` : ''}${_ganCmpValida(_ganMes) ? `<div class="gan-cmp" id="ganCmp">${cmp}</div>` : ''}${barras}${aviso}` +
     `<div class="gan-nocuenta" id="ganNoCuenta">No cuenta: ${ncTot ? `${fmtV(ncTot)} (${nc})` : fmtV(0)}</div>`;
   const b = $('btnGanClasif'); if (b) b.onclick = () => abrirClasifTransf(d.sinClas.ids);
 }

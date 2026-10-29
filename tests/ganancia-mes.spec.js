@@ -17,7 +17,7 @@ function estadoBase(gastos) {
     gastos, items: [], compromisos: [], patrimonioCargado: true,
   };
 }
-const MAYO = [ing('m1', '2026-05-10', 50000, 'Sueldo/Honorarios')];
+const MAYO = [ing('m1', '2026-05-03', 50000, 'Sueldo/Honorarios')];
 const JUNIO = [
   ing('a', '2026-06-05', 300000, 'Transferencia recibida', { proposito: 'sueldo-delux', descripcion: 'Transferencia recibida X' }),
   ing('b', '2026-06-06', 100000, 'Transferencia recibida', { proposito: 'otro-trabajo' }),
