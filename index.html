@@ -339,6 +339,7 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .gan-cmp{font-size:.78rem;color:var(--muted);margin:2px 0 10px;}
 .gan-cmp .up{color:var(--ok);font-weight:600;}.gan-cmp .dn{color:var(--danger);font-weight:600;}
 .gan-row{display:grid;grid-template-columns:minmax(0,30%) minmax(0,1fr) auto;gap:6px;align-items:center;font-size:.74rem;margin-bottom:6px;}
+.gan-row .gm-nom{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15;overflow-wrap:break-word;}
 .gan-row .gm-bar i{background:var(--ok);}
 .gan-aviso{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--border));border-radius:10px;font-size:.8rem;background:color-mix(in srgb,var(--warn) 10%,transparent);}
 .gan-nocuenta{margin-top:8px;font-size:.74rem;color:var(--muted);}
@@ -7129,7 +7130,7 @@ function renderGanancia() {
   const cmp = dif === 0 ? `Igual que ${_mesLabel(_mesAnt(_ganMes))}`
     : `<span class="${dif > 0 ? 'up' : 'dn'}">${dif > 0 ? '▲' : '▼'} ${fmtV(Math.abs(dif))}</span> vs ${_mesLabel(_mesAnt(_ganMes))}`;
   const max = d.fuentes.reduce((m, f) => Math.max(m, f[1]), 0) || 1;
-  const barras = d.fuentes.map(([k, v]) => `<div class="gan-row"><span class="gm-nom" title="${esc(k)}">${esc(k)}</span><span class="gm-bar"><i style="width:${Math.max(2, v / max * 100)}%"></i></span><span>${fmtV(v)}</span></div>`).join('');
+  const barras = d.fuentes.map(([k, v]) => `<div class="gan-row"><span class="gm-nom" title="${esc(k)}">${esc(k).replace(/\//g, '/<wbr>')}</span><span class="gm-bar"><i style="width:${Math.max(2, v / max * 100)}%"></i></span><span>${fmtV(v)}</span></div>`).join('');
   const aviso = d.sinClas.n ? `<div class="gan-aviso"><span>${fmtV(d.sinClas.monto)} sin clasificar (${d.sinClas.n} transferencia${d.sinClas.n === 1 ? '' : 's'})</span><button type="button" class="mini" id="btnGanClasif">Clasificar ahora</button></div>` : '';
   const NC = [['prestamo', 'préstamos'], ['reembolso', 'reembolsos'], ['familia', 'familia'], ['otro', 'otros']];
   const nc = NC.filter(([k]) => d.noCuenta[k]).map(([k, l]) => `${l} ${fmtV(d.noCuenta[k])}`).join(' · ');
