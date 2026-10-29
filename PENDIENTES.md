@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-10-25)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `44b9f4d`.
-- Tests: 1076 (Playwright). Todo en verde en trabajo-nocturno (2026-10-29).
+- Tests: 1081 (Playwright). Todo en verde en trabajo-nocturno (2026-10-29).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)

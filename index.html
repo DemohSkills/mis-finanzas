@@ -257,7 +257,12 @@ details.cw-res>summary{cursor:pointer;padding:2px 0;}
 .cw-resrow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;flex-wrap:wrap;}
 .cw-hhead,.cw-hrow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 28px;gap:6px;align-items:center;margin:4px 0;}
 .cw-hhead{font-size:.72rem;color:var(--muted);}
-.cw-hrow input{min-width:0;width:100%;font:inherit;font-size:.82rem;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 6px;}
+.cw-h-est-l{grid-column:1/-1;flex-direction:row;font-size:.74rem;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.cw-estnota{font-size:.72rem;color:var(--muted);padding:2px 0;}
+.cw-edlab{display:block;font-size:.8rem;color:var(--muted);margin:8px 0;}
+.cw-edlab input[type=text]{display:block;width:100%;box-sizing:border-box;margin-top:3px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;}
+.cw-edchk{display:flex;flex-direction:row;align-items:center;gap:6px;}
+.cw-hrow input:not([type=checkbox]){min-width:0;width:100%;font:inherit;font-size:.82rem;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 6px;}
 .cw-tipos button{flex:1 1 0;padding:8px 4px;}
 .cw-modal select{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 10px;width:100%;}
 .cw-msg{color:var(--danger);font-size:.82rem;min-height:1em;}
@@ -1085,6 +1090,20 @@ try{
     <div class="wiz-actions">
       <button type="button" class="primary" id="btnCwHistGuardar">Guardar</button>
       <button type="button" id="btnCwHistCerrar">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="cwHistEdModal" hidden>
+  <div class="wiz-box cw-modal" style="max-width:420px;">
+    <h2 style="margin:0 0 6px;font-size:1rem;" id="cwHistEdTit">Editar semana</h2>
+    <div class="cw-sub">Si cargás el depositado real, la semana deja de figurar como estimada.</div>
+    <label class="cw-edlab">Bruto<input type="text" class="input-monto" id="cwHistEdBruto" inputmode="decimal"></label>
+    <label class="cw-edlab">Depositado (opcional)<input type="text" class="input-monto" id="cwHistEdDep" inputmode="decimal"></label>
+    <label class="cw-edlab cw-edchk"><input type="checkbox" id="cwHistEdEst"> Sigue siendo estimado</label>
+    <div class="cw-msg" id="cwHistEdMsg" role="alert"></div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnCwHistEdGuardar">Guardar</button>
+      <button type="button" id="btnCwHistEdCerrar">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3279,8 +3298,8 @@ function cwBody(cs) {
     rd.innerHTML = `<summary>📊 Resumen ${esc(cs.nombre)}</summary>
       <div class="cw-resrow"><span>Total bruto generado</span><span class="num cw-r-bruto">${fmtV(r.bruto)}</span></div>
       <div class="cw-resrow"><span>Semanas</span><span class="cw-r-sem">${r.semanas}</span></div>
-      <div class="cw-resrow"><span>Total depositado</span><span class="num cw-r-dep">${fmtV(r.depositado)}</span></div>
-      <div class="cw-resrow"><span>Retención promedio</span><span class="cw-r-ret">${r.conDato ? _pct(r.retProm, 100) + ' (' + r.conDato + (r.conDato === 1 ? ' semana con dato)' : ' semanas con dato)') : 'sin datos'}</span></div>`;
+      <div class="cw-resrow"><span>Total depositado</span><span class="num cw-r-dep">${r.estimadas ? '~' : ''}${fmtV(r.depositado)}</span></div>
+      <div class="cw-resrow"><span>Retención promedio</span><span class="cw-r-ret">${r.conDato ? _pct(r.retProm, 100) + ' (' + r.conDato + (r.conDato === 1 ? ' semana con dato' : ' semanas con dato') + (r.estimadas ? ', ' + r.estimadas + (r.estimadas === 1 ? ' estimada' : ' estimadas') : '') + ')' : 'sin datos'}</span></div>`;
     initDetDyn(rd, 'cw-res-' + cs.id.replace(/[^a-z0-9]/gi, '-'), false);
     wrap.appendChild(rd);
   }
@@ -3291,12 +3310,14 @@ function cwBody(cs) {
       const lista = todas ? cobs : cobs.slice(0, 6);
       const hayReal = cobs.some(c => !c.historial);
       det.innerHTML = `<summary>Semanas cobradas (${cobs.length})</summary>` + lista.map(c => {
-        const dato = c.neto != null ? `${fmtV(c.bruto)} → ${fmtV(c.neto)} · ${_pct(c.retencion != null ? c.retencion : c.bruto - c.neto, c.bruto)}` : `${fmtV(c.bruto)} · sin dato`;
-        return `<div class="cw-cobrow${c.historial ? ' cw-hist' : ''}" data-desde="${esc(c.desde)}"><span>${_fechaDM(c.desde)} al ${_fechaDM(c.hasta)}</span><span class="num"><span class="cw-dato-t">${dato}</span>${c.historial ? '<button type="button" class="edit cw-h-del" title="Borrar semana">✕</button>' : ''}</span></div>`;
+        const dato = c.neto != null ? `${fmtV(c.bruto)} → ${c.estimado ? '~' : ''}${fmtV(c.neto)} · ${_pct(c.retencion != null ? c.retencion : c.bruto - c.neto, c.bruto)}` : `${fmtV(c.bruto)} · sin dato`;
+        return `<div class="cw-cobrow${c.historial ? ' cw-hist' : ''}" data-desde="${esc(c.desde)}"><span>${_fechaDM(c.desde)} al ${_fechaDM(c.hasta)}</span><span class="num"><span class="cw-dato-t">${dato}</span>${c.historial ? '<button type="button" class="edit cw-h-ed" title="Editar semana">✎</button><button type="button" class="edit cw-h-del" title="Borrar semana">✕</button>' : ''}</span></div>`;
       }).join('') +
+        (lista.some(c => c.estimado) ? '<div class="cw-estnota">~ = depositado estimado</div>' : '') +
         `<div class="cw-acc">${cobs.length > 6 && !todas ? '<button type="button" class="mini cw-todas">Ver todas</button>' : ''}${hayReal ? '<button type="button" class="mini danger cw-undo">↩ Deshacer último cobro</button>' : ''}</div>`;
       const t = det.querySelector('.cw-todas'); if (t) t.onclick = ev => { ev.preventDefault(); todas = true; pintar(); det.open = true; };
       const u = det.querySelector('.cw-undo'); if (u) u.onclick = () => cwDeshacerCobro(cs.id);
+      det.querySelectorAll('.cw-h-ed').forEach(b => { b.onclick = () => cwEditarHistorial(cs.id, b.closest('.cw-cobrow').dataset.desde); });
       det.querySelectorAll('.cw-h-del').forEach(b => { b.onclick = () => cwBorrarHistorial(cs.id, b.closest('.cw-cobrow').dataset.desde); });
     };
     pintar(); wrap.appendChild(det);
@@ -3314,6 +3335,7 @@ function cwResumen(cs) {
     semanas: pend.length + cobs.length,
     depositado: _r2(conNeto.reduce((a, c) => a + c.neto, 0)),
     conDato: conNeto.length,
+    estimadas: conNeto.filter(c => c.estimado).length,
     retProm: ratios.length ? ratios.reduce((a, x) => a + x, 0) / ratios.length * 100 : 0,
   };
 }
@@ -3452,9 +3474,36 @@ function cwBorrarHistorial(id, desde) {
   cs.cobradas = cs.cobradas.filter(x => x !== c);
   guardar(); render();
 }
+let _cwEdDesde = null;
+function cwEditarHistorial(id, desde) {
+  const cs = _cwGet(id); if (!cs) return;
+  const c = (cs.cobradas || []).find(x => x.historial && x.desde === desde); if (!c) return;
+  _cwId = id; _cwEdDesde = desde;
+  $('cwHistEdTit').textContent = 'Semana ' + _fechaDM(c.desde) + ' al ' + _fechaDM(c.hasta);
+  $('cwHistEdBruto').value = fmtInput(c.bruto);
+  $('cwHistEdDep').value = c.neto != null ? fmtInput(c.neto) : '';
+  $('cwHistEdEst').checked = !!c.estimado; $('cwHistEdMsg').textContent = '';
+  $('cwHistEdModal').removeAttribute('hidden');
+}
+function cwGuardarEdHistorial() {
+  const cs = _cwGet(_cwId); if (!cs) return;
+  const c = (cs.cobradas || []).find(x => x.historial && x.desde === _cwEdDesde); if (!c) return;
+  const msg = $('cwHistEdMsg');
+  const bruto = _r2(readMonto($('cwHistEdBruto')));
+  if (!(bruto > 0)) { msg.textContent = 'El bruto tiene que ser mayor a 0.'; return; }
+  let neto = null;
+  if ($('cwHistEdDep').value.trim()) {
+    neto = _r2(readMonto($('cwHistEdDep')));
+    if (!(neto > 0)) { msg.textContent = 'El depositado tiene que ser mayor a 0 (o dejalo vacío).'; return; }
+    if (neto > bruto) { msg.textContent = 'El depositado no puede ser mayor al bruto.'; return; }
+  }
+  c.bruto = bruto; c.neto = neto; c.retencion = neto != null ? _r2(bruto - neto) : null;
+  if (neto != null && $('cwHistEdEst').checked) c.estimado = true; else delete c.estimado;
+  $('cwHistEdModal').setAttribute('hidden', ''); _cwId = _cwEdDesde = null; guardar(); render();
+}
 function cwAgregarFilaHist() {
   const row = document.createElement('div'); row.className = 'cw-hrow';
-  row.innerHTML = '<input type="date" class="cw-h-desde" aria-label="Lunes de la semana"><input type="text" class="input-monto cw-h-bruto" inputmode="decimal" placeholder="Bruto" aria-label="Bruto"><input type="text" class="input-monto cw-h-dep" inputmode="decimal" placeholder="Depositado" aria-label="Depositado (opcional)"><button type="button" class="edit cw-h-quitar" title="Quitar">✕</button>';
+  row.innerHTML = '<input type="date" class="cw-h-desde" aria-label="Lunes de la semana"><input type="text" class="input-monto cw-h-bruto" inputmode="decimal" placeholder="Bruto" aria-label="Bruto"><input type="text" class="input-monto cw-h-dep" inputmode="decimal" placeholder="Depositado" aria-label="Depositado (opcional)"><button type="button" class="edit cw-h-quitar" title="Quitar">✕</button><label class="cw-h-est-l"><input type="checkbox" class="cw-h-est"> estimado (depositado calculado, no real)</label>';
   row.querySelector('.cw-h-quitar').onclick = () => row.remove();
   $('cwHistFilas').appendChild(row);
 }
@@ -3485,7 +3534,9 @@ function cwGuardarHistorial() {
     }
     if (ocupadas.has(desde)) { msg.textContent = pre + 'Esa semana se superpone con otra ya cargada.'; return; }
     ocupadas.add(desde);
-    nuevas.push({ desde, hasta, bruto, neto, retencion: neto != null ? _r2(bruto - neto) : null, historial: true });
+    const nueva = { desde, hasta, bruto, neto, retencion: neto != null ? _r2(bruto - neto) : null, historial: true };
+    if (neto != null && f.querySelector('.cw-h-est').checked) nueva.estimado = true;
+    nuevas.push(nueva);
   }
   (cs.cobradas ||= []).push(...nuevas);
   $('cwHistModal').setAttribute('hidden', ''); _cwId = null; guardar(); render();
@@ -3501,6 +3552,9 @@ function cwGuardarHistorial() {
   $('btnCwCobGuardar').onclick = cwConfirmarCobro;
   $('btnCwCobCerrar').onclick = () => cerrar('cwCobreModal', () => { _cwId = _cwDesde = null; });
   $('btnCwHistMas').onclick = cwAgregarFilaHist;
+  $('cwHistEdDep').addEventListener('input', () => { $('cwHistEdEst').checked = false; });
+  $('btnCwHistEdGuardar').onclick = cwGuardarEdHistorial;
+  $('btnCwHistEdCerrar').onclick = () => cerrar('cwHistEdModal', () => { _cwId = _cwEdDesde = null; });
   $('btnCwHistGuardar').onclick = cwGuardarHistorial;
   $('btnCwHistCerrar').onclick = () => cerrar('cwHistModal', () => { _cwId = null; });
   $('btnCwAltaGuardar').onclick = cwGuardarAlta;

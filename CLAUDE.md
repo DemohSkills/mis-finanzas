@@ -140,3 +140,4 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 
 ## Botones ✕/✎ compactos del Cobro semanal
 - `.cw-h-del`, `.cw-h-quitar`, `.cw-e-del`, `.cw-e-ed` (y `.cw-h-ed`): 22 px de alto, borde fino; el área tocable de 36 px es un `::after` transparente. En `.cw-cobrow` la fecha va arriba y el dato (`.cw-dato-t`) debajo.
+- `cobradas[].estimado:true` (solo historial con `neto`): el depositado fue calculado, no real. Se muestra con «~»; `cwResumen` devuelve `estimadas`. Editar con ✎ (`cwEditarHistorial`/`cwGuardarEdHistorial`, modal `#cwHistEdModal`) permite reemplazarlo por el real.

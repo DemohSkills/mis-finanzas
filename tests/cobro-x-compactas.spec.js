@@ -15,7 +15,7 @@ async function abrir(page, tema) {
   await page.addInitScript(({ est, pin, tema }) => {
     localStorage.setItem('finanzas-v1', JSON.stringify(est));
     localStorage.setItem('finanzas-v1-pin', JSON.stringify(pin));
-    localStorage.setItem('finanzas-v1-tema', tema);
+    localStorage.setItem('finanzas-v1-tema', JSON.stringify(tema));
   }, { est: estado(), pin: PIN, tema });
   await page.goto(INDEX);
   for (const d of PIN) await page.click(`button[data-d="${d}"]`);
