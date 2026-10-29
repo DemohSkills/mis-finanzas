@@ -7269,6 +7269,7 @@ function _renderVisaPreview(data) {
 
   const _vCands = _visaArmarCandidatos(data, 'Visa Santander');
   const crMap = new Map(_vCands.filter(c => c._mov && c.deBorrador).map(c => [c._mov, c]));
+  const herMap = new Map(_vCands.filter(c => c._mov && c.heredada && !c.deBorrador).map(c => [c._mov, c]));
 
   for (const tarjeta of data.tarjetas) {
     const sumP = tarjeta.movs.reduce((s,m) => s + m.pesos, 0);
@@ -7297,6 +7298,8 @@ function _renderVisaPreview(data) {
         metaCat = `<span class="chip" style="font-size:.72rem;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);">En dólares</span>`;
       } else if (crMap.has(mov)) {
         metaCat = `<span>${esc(crMap.get(mov).cat)}</span><span class="imp-borr-tag">📝 cruzó con borrador: ${esc(crMap.get(mov).cat)}${crMap.get(mov).deBorradorCuotas ? ` (cuota 1/${crMap.get(mov).deBorradorCuotas})` : ''}</span>`;
+      } else if (herMap.has(mov)) {
+        metaCat = `<span>${esc(herMap.get(mov).cat)}</span><span class="imp-borr-tag mc-heredada">↺ categoría heredada de la cuota anterior</span>`;
       } else if (catInfo.paraRevisar && !mov._catOverride) {
         const cats = getCats().map(ct => `<option value="${esc(ct)}"${ct === catInfo.cat ? ' selected' : ''}>${esc(ct)}</option>`).join('');
         metaCat = `<select class="imp-cat-sel visa-cat-sel" data-ti="${data.tarjetas.indexOf(tarjeta)}" data-mi="${mi}" style="font-size:.78rem;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--warn);">${cats}</select>`;
@@ -7337,7 +7340,7 @@ function _renderVisaPreview(data) {
   const nPesosMov = data.tarjetas.reduce((s, t) => s + t.movs.filter(m => m.pesos > 0 && !m.usd).length, 0);
   const nOtros = data.otros.length ? new Set(data.otros.map(o => _categorizarVisa(o.desc, o.monto).cat)).size : 0;
   const nTotal = nPesosMov + nOtros;
-  const pendRevisa = data.tarjetas.some(t => t.movs.some(m => m.pesos > 0 && !m.usd && _categorizarVisa(m.desc, m.pesos).paraRevisar && !m._catOverride && !crMap.has(m)));
+  const pendRevisa = data.tarjetas.some(t => t.movs.some(m => m.pesos > 0 && !m.usd && _categorizarVisa(m.desc, m.pesos).paraRevisar && !m._catOverride && !crMap.has(m) && !herMap.has(m)));
   const lastImpVisa = (estado.importaciones || {})['Visa Santander'];
   const yaAlDia = lastImpVisa && data.cierre <= lastImpVisa.hasta;
   const lastImpHtml = lastImpVisa
@@ -7424,6 +7427,8 @@ function _visaArmarCandidatos(data, medio) {
         fecha: mov.fecha, desc, monto: mov.pesos, cat,
         catInfo: { tipo: 'gasto', cat, paraRevisar: !!ci.paraRevisar && !mov._catOverride },
         medio, ref, refs: ref ? [ref] : [], cuota: mov.cuota || null,
+        // Visa no trae la fecha de compra en cuotas 2..N: el plan se identifica por descripción + total de cuotas
+        plan: mov.cuota ? { desc: origDesc, m: mov.cuota.m } : null,
         _origDesc: origDesc, yaExiste: false, _mov: mov,
       });
     }
@@ -7448,6 +7453,11 @@ function _visaArmarCandidatos(data, medio) {
     }
   }
   _deduplicarVisaImp(candidatos, medio);
+  for (const c of candidatos) {
+    if (!c._mov || c.yaExiste || c._mov._catOverride || !c.catInfo.paraRevisar) continue;
+    const her = _heredarCategoriaCuota(c, medio);
+    if (her) { c.cat = her; c.catInfo = { ...c.catInfo, cat: her, paraRevisar: false }; c.heredada = true; }
+  }
   _cruzarBorradores(candidatos, medio);
   return candidatos;
 }
@@ -7484,6 +7494,8 @@ function _confirmarImpVisa() {
       medio, descripcion: c.desc, tipo: 'gasto', soloHistorial: false,
       refs: c.refs, lote: loteId,
     };
+    if (c.cuota) gasto.cuota = { ...c.cuota };
+    if (c.plan) gasto.plan = { ...c.plan };
     estado.gastos.push(gasto);
     cnt++;
     // Mark matching fijo (use original desc without cuota suffix)
@@ -7672,9 +7684,10 @@ function parseMastercardMP(lineas, hoyStr) {
   };
 }
 
-// Herencia de categoría: misma descripción normalizada + misma fecha original + mismo total de cuotas,
+// Herencia de categoría (Mastercard MP y Visa): misma descripción normalizada + misma fecha original (si el
+// plan la trae; en Visa las cuotas 2..N no la tienen y queda undefined) + mismo total de cuotas,
 // cuota anterior ya importada con importe parecido (≤ max(2,00; 1 %)); gana el importe más cercano.
-function _mcHeredarCategoria(c, medio) {
+function _heredarCategoriaCuota(c, medio) {
   if (!c.plan || !c.cuota || c.cuota.n < 2) return null;
   const nd = _mcNorm(c.plan.desc);
   let mejor = null, mejorD = Infinity;
@@ -7717,7 +7730,7 @@ function _mcArmarCandidatos(data, medio) {
     if (!c._mov || c.yaExiste) continue;
     if (c._mov._catOverride) { c.cat = c._mov._catOverride; c.catInfo = { ...c.catInfo, cat: c.cat, paraRevisar: false }; continue; }
     if (!c.catInfo.paraRevisar) continue;
-    const her = _mcHeredarCategoria(c, medio);
+    const her = _heredarCategoriaCuota(c, medio);
     if (her) { c.cat = her; c.catInfo = { ...c.catInfo, cat: her, paraRevisar: false }; c.heredada = true; }
   }
   _cruzarBorradores(cands, medio);

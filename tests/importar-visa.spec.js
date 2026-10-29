@@ -854,5 +854,63 @@ test.describe('importar-visa', () => {
     expect(result.proxVenc).toBe('2026-11-09');
   });
 
+  // ── Herencia de categoría en cuotas 2..N ───────────────
+  const gastoCuota1 = (extra = {}) => ({
+    id: 'c1', creado: 1000, monto: 1000, fecha: '2026-09-28', categoria: 'Salud', medio: 'Visa Santander',
+    descripcion: 'Tienda rara xyz (cuota 1/6)', tipo: 'gasto', soloHistorial: false, refs: [],
+    cuota: { n: 1, m: 6 }, plan: { desc: 'Tienda rara xyz', m: 6 }, ...extra,
+  });
+  const aoaCuota2 = (pesos) => buildVisaAoa({
+    cierre: '01/10/2026',
+    cards: [{ nombre: 'Titular', numero: '1111', tipo: 'titular', totalPesos: pesos, totalUSD: 0,
+      movs: [{ fecha: '04/05/2026', desc: 'Tienda rara xyz', comp: '333K', pesos, cuotaN: 2, cuotaM: 6 }] }],
+  });
+
+  test('(z7) cuota 2 sin regla hereda la categoría de la cuota 1 ya importada', async ({ page }) => {
+    await seedAndLoad(page, { ...BASE_STATE, gastos: [gastoCuota1()] });
+    await enterPIN(page);
+    const r = await page.evaluate(async (aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      const html = document.getElementById('impModalBody').innerHTML;
+      const sel = document.querySelectorAll('.visa-cat-sel').length;
+      window._confirmarImpVisa();
+      const g = window._getEstado().gastos.find(x => x.descripcion.includes('cuota 2/6'));
+      return { html, sel, g };
+    }, aoaCuota2(1000));
+    expect(r.html).toContain('↺ categoría heredada de la cuota anterior');
+    expect(r.sel).toBe(0);
+    expect(r.g.categoria).toBe('Salud');
+    expect(r.g.cuota).toEqual({ n: 2, m: 6 });
+    expect(r.g.plan).toEqual({ desc: 'Tienda rara xyz', m: 6 });
+  });
+
+  test('(z8) cuota 2 sin regla y sin cuota 1 importada queda para revisar', async ({ page }) => {
+    await seedAndLoad(page);
+    await enterPIN(page);
+    const r = await page.evaluate((aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      return { html: document.getElementById('impModalBody').innerHTML, sel: document.querySelectorAll('.visa-cat-sel').length };
+    }, aoaCuota2(1000));
+    expect(r.sel).toBe(1);
+    expect(r.html).not.toContain('categoría heredada');
+  });
+
+  test('(z9) importe de la cuota 2 fuera de tolerancia no hereda', async ({ page }) => {
+    await seedAndLoad(page, { ...BASE_STATE, gastos: [gastoCuota1()] });
+    await enterPIN(page);
+    const r = await page.evaluate((aoa) => {
+      const data = window.parseVisaXlsx(aoa);
+      document.getElementById('impModal').hidden = false;
+      window._renderVisaPreview(data);
+      return { html: document.getElementById('impModalBody').innerHTML, sel: document.querySelectorAll('.visa-cat-sel').length };
+    }, aoaCuota2(1100));
+    expect(r.sel).toBe(1);
+    expect(r.html).not.toContain('categoría heredada');
+  });
+
 });
 
