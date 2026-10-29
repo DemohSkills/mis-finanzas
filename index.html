@@ -5097,6 +5097,12 @@ function buildInformeHTML(opts){
     if(it.tipo==='activo') grupos[g].activos.push(it);
     else grupos[g].deudas.push(it);
   }
+  // Lo que «te debe» cada cobro semanal (mismo monto que Patrimonio: cwDebe) como ítem de Cobros pendientes
+  const cobrosSem=(estado.cobrosSemanales||[]).map(cs=>({nombre:(cs.nombre||'Cobro semanal')+' (te debe)',persona:cs.persona||'',tipo:'activo',grupo:'Cobros pendientes',monto:cwDebe(cs)})).filter(i=>i.monto>0);
+  if(cobrosSem.length){
+    if(!grupos['Cobros pendientes']) grupos['Cobros pendientes']={activos:[],deudas:[]};
+    grupos['Cobros pendientes'].activos.push(...cobrosSem);
+  }
   let gruposRows='';
   for(const [g,{activos:acts,deudas:deus}] of Object.entries(grupos)){
     const total=acts.reduce((s,i)=>s+i.monto,0)-deus.reduce((s,i)=>s+i.monto,0);
@@ -5106,6 +5112,8 @@ function buildInformeHTML(opts){
     }
     gruposRows+=`<tr style="border-top:1px solid #e2e8f0"><td colspan="2" style="text-align:right;font-size:8pt;color:#64748b">Subtotal</td><td class="${total>=0?'pos':'neg'} r">${fmt(total)}</td></tr>`;
   }
+
+  gruposRows+=`<tr style="border-top:2px solid #94a3b8"><td colspan="2" style="text-align:right;font-weight:700">Total activos</td><td class="pos r inf-tot-activos" data-v="${Math.round(t.activos*100)}" style="font-weight:700">${fmt(t.activos)}</td></tr>`;
 
   // Deudas principales (top 5)
   const top5Deudas=[...( estado.items||[])].filter(i=>i.tipo==='deuda').sort((a,b)=>b.monto-a.monto).slice(0,5);
@@ -5139,7 +5147,7 @@ function buildInformeHTML(opts){
   const vieneHtml=vieneRows.length?`<table class="inf-tbl"><thead><tr><th>Concepto</th><th class="r">Monto</th></tr></thead><tbody>${vieneRows.join('')}</tbody></table>`:'<p style="font-size:8pt;color:#64748b;margin:0">Sin compromisos próximos.</p>';
 
   // Cobros pendientes
-  const cobros=(estado.items||[]).filter(i=>i.grupo==='Cobros pendientes'&&i.monto>0);
+  const cobros=[...(estado.items||[]).filter(i=>i.grupo==='Cobros pendientes'&&i.monto>0),...cobrosSem];
   const cobrosRows=cobros.map(i=>`<tr><td>${esc(N(i.nombre))}</td>${i.persona?`<td>${esc(N(i.persona))}</td>`:'<td>—</td>'}<td class="pos r">${fmt(i.monto)}</td></tr>`).join('');
 
   html+=`<div class="inf-page">

@@ -147,3 +147,6 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 
 ## Ganancia del mes: comparación «vs mes anterior»
 - `_ganCmpValida(ym)`: solo se dibuja `#ganCmp` si el movimiento más antiguo de `estado.gastos` es ≤ día 7 del mes anterior (si no, el mes anterior está incompleto: se oculta sin mensaje).
+
+## Informe: cobro semanal
+- `buildInformeHTML` agrega, por cada cobro semanal con `cwDebe(cs) > 0`, una línea «<nombre> (te debe)» al grupo Cobros pendientes y a la tabla «Cobros pendientes» (sin tocar `estado.items`), y una fila `.inf-tot-activos` «Total activos» igual a `totales().activos`.
