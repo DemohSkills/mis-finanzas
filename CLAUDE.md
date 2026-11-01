@@ -150,3 +150,9 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 
 ## Informe: cobro semanal
 - `buildInformeHTML` agrega, por cada cobro semanal con `cwDebe(cs) > 0`, una línea «<nombre> (te debe)» al grupo Cobros pendientes y a la tabla «Cobros pendientes» (sin tocar `estado.items`), y una fila `.inf-tot-activos` «Total activos» igual a `totales().activos`.
+
+## A pagar: detalle del resumen y cuotas incluidas
+- Ciclo de un resumen (`_cicloResumen`): fechas en (`cierreAnterior`, `cierre`]. `comp.cierreAnterior` se guarda junto a `cierre` en los importadores Visa y Mastercard MP (el cierre previo; deshacer lo restaura) y al editar el cierre hacia una fecha posterior. Si falta o no es menor que `cierre`, el fallback es `addMeses(cierre, -1)`. Sin `cierre` no hay ciclo (ni detalle ni exclusión).
+- Detalle plegable (`details.comp-detalle` en `_compRowHtml`, siempre plegado, sin persistir): gastos (`tipo==='gasto'`, no transferencia) con `medio === entidad` dentro del ciclo (`_gastosDeResumen`) + cuotas incluidas. Puede no coincidir con `c.monto` (el resumen incluye intereses/ajustes y las cuotas 2..N entran con fecha de cierre); es informativo.
+- Cuota incluida (`_cuotaResumen`): `tipo==='cuota'`, sin `itemNombre`, con `(medioPago||entidad)` igual a la entidad de un resumen con pendientes y `proxVenc` dentro de su ciclo. No se lista como fila propia ni suma a «Cuotas» del mes, ni en `compromisosMes` (solo su 1.ª ocurrencia) ni en el informe; sus pendientes posteriores siguen proyectándose.
+- Pagar el resumen: en `_ejecutarTransf`, cuando el pagado del ciclo alcanza `c.monto`, `_descontarCuotasResumen` baja un pendiente (y avanza `proxVenc` un mes) a cada cuota incluida; un pago parcial no las toca. Deshacer la transferencia no las restaura.

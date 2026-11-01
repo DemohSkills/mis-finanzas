@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-10-25)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `44b9f4d`.
-- Tests: 1099 (Playwright). Todo en verde en trabajo-nocturno (2026-10-29).
+- Tests: 1110 (Playwright). 1109 en verde en trabajo-nocturno (2026-11-01); falla `fijos.spec.js` «chip vencido» solo cuando hoy es día 1 o 2 del mes (dependiente de fecha, previo a este cambio).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -71,3 +71,5 @@
 - Tarea 1 (Gastos): US$0,78. Tarea 2 + corrección (Evolución): US$2,03. El costo lo domina la relectura del contexto por paso, no el texto generado.
 
 - Cobro semanal, historial (en `trabajo-nocturno`, sin publicar): `cobradas[].historial:true` = semana informativa (sin `movId`, no toca cuentas, Total activos ni ganancia del mes; `neto`/`retencion` pueden ser null). Resumen plegable (clave `finanzas-v1-det-cw-res-<id>`). «A pagar» por vencimiento ahora proyecta cuotas y fijos (6+ meses, tope 48). Filas de semana en dos columnas. Suite: 1053 tests. Nota: «Pagué» de fijos sigue en los 3 primeros meses (el pedido decía también «actual y siguiente»; se mantuvo el comportamiento existente); una semana de historial debe haber terminado (hasta < hoy).
+
+- A pagar: detalle plegable del resumen + cuotas incluidas fuera de la lista (hecho, sin publicar). Pendiente: deshacer una transferencia de pago del resumen NO restaura los pendientes que bajaron en las cuotas incluidas; las cuotas ligadas a un ítem de patrimonio (`itemNombre`) no participan.

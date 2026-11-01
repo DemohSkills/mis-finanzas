@@ -188,6 +188,17 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .chip.chip-usd.vencido{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger);}
 .usd-nota{display:block;font-size:.7rem;color:var(--muted);margin-top:2px;}
 .chip.chip-tarjeta{border-color:color-mix(in srgb,var(--muted) 45%,transparent);color:var(--muted);font-style:italic;}
+.comp-detalle{width:100%;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:.8rem;}
+.comp-detalle summary{cursor:pointer;user-select:none;list-style:none;color:var(--muted);}
+.comp-detalle summary::-webkit-details-marker{display:none;}
+.comp-detalle summary::before{content:'▸ ';}
+.comp-detalle[open] summary::before{content:'▾ ';}
+.comp-detalle ul{margin:6px 0 0;padding:4px 8px;list-style:none;background:rgba(0,0,0,.18);border-radius:8px;}
+.comp-detalle li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--border);min-width:0;}
+.comp-detalle li:first-child{border-top:0;}
+.comp-detalle .rd-n{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere;}
+.comp-detalle small{color:var(--muted);font-size:.72rem;}
+.comp-detalle .num{white-space:nowrap;}
 .comp-pagos{width:100%;font-size:.76rem;color:var(--muted);margin-top:3px;}
 .comp-pagos summary{cursor:pointer;user-select:none;list-style:none;}
 .comp-pagos summary::-webkit-details-marker{display:none;}
@@ -2174,9 +2185,35 @@ function compromisosMes(mesStr){
   const r=[];
   for(const c of (estado.compromisos||[])){
     if(c.proxVenc===null&&c.pendientes>0){r.push({...c,sinFecha:true});}
-    else{for(let k=0;k<c.pendientes;k++){if(addMeses(c.proxVenc,k).slice(0,7)===mesStr){r.push({...c});break;}}}
+    else{for(let k=0;k<c.pendientes;k++){if(addMeses(c.proxVenc,k).slice(0,7)===mesStr){if(k===0&&_cuotaResumen(c)) break; r.push({...c});break;}}}
   }
   return r;
+}
+// Ciclo de un resumen: (desde, hasta]. hasta = cierre; desde = cierreAnterior (si es válido) o un mes antes del cierre.
+function _cicloResumen(r){
+  if(!r||r.tipo!=='resumen'||!r.cierre) return null;
+  const desde=(r.cierreAnterior&&r.cierreAnterior<r.cierre)?r.cierreAnterior:addMeses(r.cierre,-1);
+  return {desde,hasta:r.cierre};
+}
+// Resumen que ya incluye a esta cuota suelta (misma tarjeta y vencimiento dentro del ciclo), o null.
+function _cuotaResumen(q){
+  if(!q||q.tipo!=='cuota'||q.itemNombre||!q.proxVenc||!(q.pendientes>0)) return null;
+  const ent=q.medioPago||q.entidad;
+  for(const r of (estado.compromisos||[])){
+    if(r.tipo!=='resumen'||r.entidad!==ent||!(r.pendientes>0)) continue;
+    const cy=_cicloResumen(r);
+    if(cy&&q.proxVenc>cy.desde&&q.proxVenc<=cy.hasta) return r;
+  }
+  return null;
+}
+function _cuotasDeResumen(r){
+  return (estado.compromisos||[]).filter(q=>q!==r&&_cuotaResumen(q)===r);
+}
+function _gastosDeResumen(r){
+  const cy=_cicloResumen(r);
+  if(!cy) return [];
+  return (estado.gastos||[]).filter(g=>g.tipo==='gasto'&&!g.transferencia&&g.medio===r.entidad&&g.fecha>cy.desde&&g.fecha<=cy.hasta)
+    .sort((a,b)=>a.fecha.localeCompare(b.fecha));
 }
 // Suma de fijos pendientes (no pagados) para un mes dado.
 // Excluye: pausados, en resumen de tarjeta, ya pagados en ese mes.
@@ -2287,6 +2324,18 @@ function _compRowHtml(c){
       pagosCicloHtml=`<details class="comp-pagos"><summary>Pagos del ciclo: ${fmtV(pagado)} (${pagadoList.length})</summary><ul>${liItems}</ul></details>`;
     }
   }
+  let detalleHtml='';
+  if(esResumen&&!fin&&c.cierre){
+    const gs=_gastosDeResumen(c), qs=_cuotasDeResumen(c);
+    const filas=[
+      ...gs.map(g=>({f:g.fecha,n:g.descripcion||g.categoria,d:g.categoria,m:g.monto})),
+      ...qs.map(q=>({f:q.proxVenc,n:q.nombre,d:'cuota · '+q.pendientes+' pend.',m:q.monto}))
+    ].sort((a,b)=>a.f.localeCompare(b.f));
+    if(filas.length){
+      const li=filas.map(x=>`<li><span class="rd-n">${esc(x.n)}<small>${fechaCorta(x.f)} · ${esc(x.d)}</small></span><span class="num">${fmtV(x.m)}</span></li>`).join('');
+      detalleHtml=`<details class="comp-detalle" data-resumen-det="${esc(c.id)}"><summary>Ver el detalle (${filas.length} consumo${filas.length===1?'':'s'})</summary><ul>${li}</ul></details>`;
+    }
+  }
   const abon=esResumen?abonResumen:abonCuota;
   const venc=esResumen?false:vencCuota;
   // USD chip for resumen
@@ -2341,6 +2390,7 @@ function _compRowHtml(c){
         `}
       </div>
       ${pagosCicloHtml}
+      ${detalleHtml}
     </div>`;
 }
 const _MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -2353,7 +2403,8 @@ function renderCompromisos(){
   if(sel&&sel.value!==getCompSort()) setCompSort(sel.value);
   const todosComp=estado.compromisos||[];
   const fijosList=todosComp.filter(c=>c.tipo==='fijo'&&c.activo!==false);
-  const cs=sortCompromisos(todosComp.filter(c=>c.tipo!=='fijo'),orden);
+  const csTodas=sortCompromisos(todosComp.filter(c=>c.tipo!=='fijo'),orden);
+  const cs=csTodas.filter(c=>!_cuotaResumen(c));
   if(!cs.length&&!fijosList.length){cont.innerHTML='<div class="vacio">Sin compromisos cargados.</div>';return;}
   cont.innerHTML='';
   const hoyStr=hoy();
@@ -2383,7 +2434,7 @@ function renderCompromisos(){
     const MAX_MESES=48;
     const ultimoPermitido=addMeses(todayYM+'-01',MAX_MESES-1).slice(0,7);
     let ultimoProy=todayYM;
-    for(const c of cs){
+    for(const c of csTodas){
       if(c.tipo!=='cuota'||!(c.pendientes>1)||!c.proxVenc) continue;
       for(let k=1;k<c.pendientes;k++){
         const f=addMeses(c.proxVenc,k), ym=f.slice(0,7);
@@ -2545,7 +2596,7 @@ $('compForm').onsubmit=function(e){
     const c=estado.compromisos.find(x=>x.id===_compModalId);
     if(!c) return;
     c.monto=m; c.pendientes=pend; c.proxVenc=fecha;
-    if(c.tipo==='resumen'){if(!isNaN(mn)&&mn>0) c.pagoMinimo=mn; c.cierre=cierreV||null; const _usdV=parseMonto($('compUsd').value.trim()||'0'); c.usd=(!isNaN(_usdV)&&_usdV>0)?_usdV:0;}
+    if(c.tipo==='resumen'){if(!isNaN(mn)&&mn>0) c.pagoMinimo=mn; if(cierreV&&c.cierre&&cierreV>c.cierre) c.cierreAnterior=c.cierre; c.cierre=cierreV||null; const _usdV=parseMonto($('compUsd').value.trim()||'0'); c.usd=(!isNaN(_usdV)&&_usdV>0)?_usdV:0;}
   }
   cerrarCompModal();
   guardar(); renderCompromisos();
@@ -5129,6 +5180,7 @@ function buildInformeHTML(opts){
   for(const c of (estado.compromisos||[])){
     if(c.pendientes===0) continue;
     if(c.tipo==='fijo') continue; // handled below
+    if(_cuotaResumen(c)) continue; // ya incluida en el resumen de su tarjeta
     const venc=c.proxVenc;
     if(!venc||venc<=d30Str){
       const monto=c.tipo==='resumen'?Math.max(0,c.monto-_sumaPagadoCiclo(c)):c.monto;
@@ -6148,10 +6200,23 @@ function _ejecutarTransf(origen,destino,monto,fecha,nota,mode){
   const now=Date.now();
   estado.gastos.push({id:nuevoId(),creado:now,  monto,fecha,categoria,medio:origen, descripcion:desc,tipo:'gasto',  soloHistorial:false,transferencia:true,transferId});
   estado.gastos.push({id:nuevoId(),creado:now+1,monto,fecha,categoria,medio:destino,descripcion:desc,tipo:'ingreso',soloHistorial:false,transferencia:true,transferId});
+  if(esTP&&_transResumenId){
+    const r=(estado.compromisos||[]).find(x=>x.id===_transResumenId);
+    if(r&&r.tipo==='resumen'&&r.monto>0&&_sumaPagadoCiclo(r)>=r.monto) _descontarCuotasResumen(r);
+  }
   guardar(); guardarSnap();
   render(); renderCompromisos();
   if(_gastosReady){rChartIC();rChartG();} if(_evolReady) rChartD();
   return true;
+}
+// Al abonar el resumen completo: cada cuota suelta incluida en su ciclo baja un pendiente (como su propio «Pagar»).
+function _descontarCuotasResumen(r){
+  for(const q of _cuotasDeResumen(r)){
+    q.pendientes=Math.max(0,q.pendientes-1);
+    q.proxVenc=addMeses(q.proxVenc,1);
+    q.ultimoPago=hoy();
+    if(q.pendientes===0) estado.compromisos=estado.compromisos.filter(x=>x!==q);
+  }
 }
 
 function guardarTransferencia(){
@@ -7520,6 +7585,7 @@ function _confirmarImpVisa() {
     const prevCierre = compromisoVisa.cierre;
     if (!prevCierre || cierre > prevCierre) {
       compromisoVisa.monto = data.totalPesos;
+      if (prevCierre) compromisoVisa.cierreAnterior = prevCierre;
       compromisoVisa.cierre = cierre;
       compromisoVisa.proxVenc = data.vencimiento;
       if (data.totalUSD > 0) { compromisoVisa.usd = data.totalUSD; compromisoVisa.usdPagado = false; delete compromisoVisa.usdCompra; }
@@ -7569,6 +7635,7 @@ function _deshacerUltimaImpVisa() {
   if (compromisoVisa && _prevCompromiso) {
     compromisoVisa.monto     = _prevCompromiso.monto;
     compromisoVisa.cierre    = _prevCompromiso.cierre;
+    if (_prevCompromiso.cierreAnterior) compromisoVisa.cierreAnterior = _prevCompromiso.cierreAnterior; else delete compromisoVisa.cierreAnterior;
     compromisoVisa.proxVenc  = _prevCompromiso.proxVenc;
     compromisoVisa.usd       = _prevCompromiso.usd;
     compromisoVisa.usdPagado = _prevCompromiso.usdPagado;
@@ -7862,6 +7929,7 @@ function _confirmarImpMC() {
   }
   if (!comp.cierre || cierre > comp.cierre) {
     if (data.totalPesos != null) comp.monto = data.totalPesos;
+    if (comp.cierre) comp.cierreAnterior = comp.cierre;
     comp.cierre = cierre;
     comp.proxVenc = data.vencimiento;
     if (data.minimo != null && data.minimo > 0) comp.pagoMinimo = data.minimo;
@@ -7902,6 +7970,7 @@ function _deshacerUltimaImpMC() {
     const comp = (estado.compromisos || []).find(c => c.tipo === 'resumen' && c.entidad === medio);
     if (comp && _prevCompromiso) {
       comp.monto = _prevCompromiso.monto; comp.cierre = _prevCompromiso.cierre; comp.proxVenc = _prevCompromiso.proxVenc;
+      if (_prevCompromiso.cierreAnterior) comp.cierreAnterior = _prevCompromiso.cierreAnterior; else delete comp.cierreAnterior;
       if (_prevCompromiso.pagoMinimo != null) comp.pagoMinimo = _prevCompromiso.pagoMinimo; else delete comp.pagoMinimo;
     }
   }
