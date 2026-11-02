@@ -171,6 +171,13 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .gasto .desc{font-weight:500;overflow-wrap:anywhere;}
 .subcat-tag{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;font:inherit;font-size:.74rem;line-height:1.4;cursor:pointer;background:#132142;color:#9cc1ff;border:1px solid #132142;max-width:100%;overflow-wrap:anywhere;text-align:left;}
 .subcat-tag.vacia{background:transparent;color:#5a6b8c;border:1px dashed #5a6b8c;}
+.div-fila{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.div-fila select{flex:1 1 0;min-width:0;}
+.div-fila input{flex:0 0 7.5em;min-width:0;}
+.gasto .div-partes{margin-top:4px;font-size:.82rem;}
+.gasto .div-partes>summary{cursor:pointer;color:var(--muted);}
+.gasto .div-partes ul{list-style:none;margin:4px 0 0;padding:0;}
+.gasto .div-partes li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px solid var(--border);}
 .subcat-sug{display:flex;flex-wrap:wrap;gap:6px;}
 .subcat-chip{font:inherit;font-size:.76rem;padding:3px 10px;border-radius:999px;border:1px solid #132142;background:#132142;color:#9cc1ff;cursor:pointer;}
 .subcat-aviso{font-size:.76rem;color:var(--muted);}
@@ -1308,6 +1315,18 @@ try{
         <label id="categoriaLabel">Categoría
           <select id="categoria" required></select>
         </label>
+        <div class="full" id="divBox" hidden>
+          <button type="button" class="mini" id="btnDividir">+ Dividir en categorías</button>
+          <div id="divPartes" hidden>
+            <div class="meta" style="margin-bottom:6px;">Repartí el monto entre categorías:</div>
+            <div id="divFilas"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+              <button type="button" class="mini" id="btnDivAgregar">+ agregar categoría</button>
+              <button type="button" class="mini" id="btnDivVolver">Volver a una sola categoría</button>
+            </div>
+            <div class="meta" id="divSuma" style="margin-top:6px;"></div>
+          </div>
+        </div>
         <label class="full" id="subcatLabel">Subcategoría (opcional)
           <input type="text" id="subcategoria" maxlength="60" placeholder="Ej: nafta, peaje…" autocomplete="off">
         </label>
@@ -3942,6 +3961,40 @@ function renderHistorial() {
     target.appendChild(div);
   }
 
+  // Compras divididas: todas las partes del grupo (aunque la búsqueda solo encuentre alguna)
+  const divGrupos={};
+  for(const g of allLista){ if(g.grupoDivision){ (divGrupos[g.grupoDivision]=divGrupos[g.grupoDivision]||[]).push(g); } }
+  const seenDiv=new Set();
+  // Devuelve true si g es parte de una división (la fila del grupo se agrega una sola vez)
+  function _appendDivDiv(g, target){
+    const partes=divGrupos[g.grupoDivision];
+    if(!partes||partes.length<2) return false;
+    if(seenDiv.has(g.grupoDivision)) return true;
+    seenDiv.add(g.grupoDivision);
+    const total=partes.reduce((s,p)=>s+p.monto,0);
+    const p0=partes[0];
+    const div=document.createElement('div');
+    div.className='gasto gasto-div';
+    div.dataset.grupo=g.grupoDivision;
+    div.innerHTML=`
+      <div class="row">
+        <div class="info">
+          <div class="desc">${esc(p0.descripcion||'Compra dividida')}<span class="chip hist">dividido · ${partes.length}</span>${p0.soloHistorial?'<span class="chip hist">histórico</span>':''}</div>
+          <div class="meta">${fechaCorta(p0.fecha)} · ${esc(p0.medio)}</div>
+          <details class="div-partes"><summary>Ver partes</summary><ul>${[...partes].sort((a,b)=>a.creado-b.creado).map(p=>`<li><span>${esc(p.categoria)}</span><span class="num">${fmtV(p.monto)}</span></li>`).join('')}</ul></details>
+        </div>
+        <div class="importe neg">−${fmtV(total)}</div>
+      </div>
+      <div class="btns">
+        <button type="button" class="mini" data-a="editar-div">Editar</button>
+        <button type="button" class="mini danger" data-a="borrar-div">Borrar</button>
+      </div>`;
+    div.querySelector('[data-a=editar-div]').onclick=()=>empezarEdicionDivision(g.grupoDivision);
+    div.querySelector('[data-a=borrar-div]').onclick=()=>borrarDivision(g.grupoDivision);
+    target.appendChild(div);
+    return true;
+  }
+
   if(query){
     // Separate complete transfer pairs from normal items
     const seenTrans=new Set();
@@ -3974,6 +4027,7 @@ function renderHistorial() {
 
     // Render normal items
     for(const g of normalItems){
+      if(g.grupoDivision && _appendDivDiv(g,cont)) continue;
       const isIng=(g.tipo||'gasto')==='ingreso';
       const div=document.createElement('div');
       div.className='gasto'+(g.id===editandoId?' editando':'');
@@ -4016,6 +4070,7 @@ function renderHistorial() {
         if(par.length===2){ _appendTransDiv(par, cont); continue; }
         // Orphan transfer — fall through to normal render
       }
+      if(g.grupoDivision && _appendDivDiv(g,cont)) continue;
       const isIng=(g.tipo||'gasto')==='ingreso';
       const div=document.createElement('div');
       div.className='gasto'+(g.id===editandoId?' editando':'');
@@ -4076,7 +4131,7 @@ function _subcatSugerir(){
   }
 }
 function _subcatActualizar(){
-  const visible=($('tipo').value||'gasto')==='gasto';
+  const visible=($('tipo').value||'gasto')==='gasto' && !_divModo;
   $('subcatLabel').hidden=!visible;
   if(!visible){ $('subcatSug').hidden=true; $('subcatAviso').hidden=true; return; }
   _subcatChips(); _subcatSugerir();
@@ -4088,6 +4143,93 @@ function _subcatReset(valor){
 $('subcategoria').addEventListener('input',()=>{ _subcatTocado=true; _subcatAuto=null; $('subcatAviso').hidden=true; });
 $('categoria').addEventListener('change',()=>{ if($('categoria').value!=='__nueva__') _subcatChips(); });
 $('descripcion').addEventListener('input',_subcatSugerir);
+
+// ─── Dividir una compra en varias categorías ──────────────────
+// Cada parte es un gasto normal; las partes comparten `grupoDivision`.
+let _divModo=false, _divEditGrupo=null;
+function _divFilaHtml(cat,monto){
+  const opts=getCats().map(c=>`<option${c===cat?' selected':''}>${esc(c)}</option>`).join('');
+  return `<div class="div-fila"><select class="div-cat">${opts}</select><input type="text" class="input-monto div-monto" inputmode="decimal" placeholder="0" value="${monto?esc(fmtInput(monto)):''}"><button type="button" class="mini danger div-del" aria-label="Quitar">×</button></div>`;
+}
+function _divSumar(){
+  const filas=[...document.querySelectorAll('#divFilas .div-fila')];
+  const suma=filas.reduce((s,f)=>{const v=parseMonto(f.querySelector('.div-monto').value);return s+(isNaN(v)?0:v);},0);
+  const total=readMonto('monto')||0;
+  const ok=Math.abs(suma-total)<0.005&&total>0;
+  $('divSuma').textContent=`Suma de las partes: ${fmt(suma)} de ${fmt(total)}`+(ok?' ✓':'');
+  for(const b of document.querySelectorAll('#divFilas .div-del')) b.hidden=filas.length<=2;
+}
+function _divAgregarFila(cat,monto){
+  $('divFilas').insertAdjacentHTML('beforeend',_divFilaHtml(cat,monto));
+  const f=$('divFilas').lastElementChild;
+  f.querySelector('.div-monto').addEventListener('input',_divSumar);
+  f.querySelector('.div-del').onclick=()=>{ f.remove(); _divSumar(); };
+  _divSumar();
+}
+function _divEntrar(partes){
+  _divModo=true;
+  $('divFilas').innerHTML='';
+  const cats=getCats();
+  const ini=partes&&partes.length?partes:[{categoria:cats[0],monto:0},{categoria:cats[1]||cats[0],monto:0}];
+  for(const p of ini) _divAgregarFila(p.categoria,p.monto);
+  $('divPartes').hidden=false; $('btnDividir').hidden=true;
+  $('categoriaLabel').hidden=true;
+  $('subcatLabel').hidden=true; $('subcatSug').hidden=true; $('subcatAviso').hidden=true;
+}
+function _divSalir(){
+  _divModo=false;
+  $('divPartes').hidden=true; $('divFilas').innerHTML='';
+  const esGasto=($('tipo').value||'gasto')==='gasto';
+  $('btnDividir').hidden=!esGasto;
+  $('categoriaLabel').hidden=!esGasto&&($('tipo').value==='transferir'||$('tipo').value==='pagar-tarjeta');
+  _subcatActualizar();
+}
+function _divActualizar(){
+  const esGasto=($('tipo').value||'gasto')==='gasto';
+  $('divBox').hidden=!esGasto;
+  if(!esGasto){ if(_divModo) _divSalir(); return; }
+  if(_divModo){ $('categoriaLabel').hidden=true; $('subcatLabel').hidden=true; }
+  else $('btnDividir').hidden=false;
+}
+$('btnDividir').onclick=()=>{
+  const cat=$('categoria').value, m=readMonto('monto')||0;
+  const cats=getCats(); const otra=cats.find(c=>c!==cat)||cat;
+  _divEntrar([{categoria:cat,monto:m},{categoria:otra,monto:0}]);
+};
+$('btnDivAgregar').onclick=()=>_divAgregarFila(getCats()[0],0);
+$('btnDivVolver').onclick=_divSalir;
+$('monto').addEventListener('input',()=>{ if(_divModo) _divSumar(); });
+function _divLeerPartes(){
+  return [...document.querySelectorAll('#divFilas .div-fila')].map(f=>({categoria:f.querySelector('.div-cat').value,monto:Math.round(parseMonto(f.querySelector('.div-monto').value)*100)/100}));
+}
+function empezarEdicionDivision(grupo){
+  const partes=estado.gastos.filter(g=>g.grupoDivision===grupo); if(!partes.length) return;
+  const p0=partes[0];
+  editandoId=null; _divEditGrupo=grupo;
+  for(const opt of $('tipo').querySelectorAll('.opt-trans')) opt.hidden=true;
+  $('tipo').value='gasto';
+  $('monto').value=fmtInput(partes.reduce((s,g)=>s+g.monto,0)); $('fecha').value=p0.fecha;
+  fillCatSelect('categoria', p0.categoria, false);
+  $('medio').value=p0.medio; $('descripcion').value=p0.descripcion||'';
+  $('soloHistorial').checked=!!p0.soloHistorial; $('soloHistorialLabel').hidden=false;
+  $('formTitulo').textContent='Editar movimiento dividido';
+  $('btnGuardar').textContent='Actualizar movimiento';
+  $('btnCancelar').hidden=false;
+  _subcatReset('');
+  $('divBox').hidden=false;
+  _divEntrar([...partes].sort((a,b)=>a.creado-b.creado).map(g=>({categoria:g.categoria,monto:g.monto})));
+  const _df=document.getElementById('det-form'); if(_df) _df.open=true;
+  $('form').scrollIntoView({behavior:'smooth',block:'center'});
+  $('monto').focus();
+}
+function borrarDivision(grupo){
+  const partes=estado.gastos.filter(g=>g.grupoDivision===grupo); if(!partes.length) return;
+  const total=partes.reduce((s,g)=>s+g.monto,0);
+  if(!confirm(`¿Borrar la compra dividida de ${fmt(total)} (${partes.length} categorías)?`)) return;
+  estado.gastos=estado.gastos.filter(g=>g.grupoDivision!==grupo);
+  if(_divEditGrupo===grupo) resetForm();
+  guardar(); render();
+}
 
 function resetForm() {
   editandoId=null; $('form').reset(); $('fecha').value=hoy();
@@ -4104,11 +4246,15 @@ function resetForm() {
   $('formDestinoLabel').hidden=true;
   $('medio').innerHTML=MEDIOS.map(m=>`<option>${m}</option>`).join('');
   fillCatSelect('categoria');
+  _divModo=false; _divEditGrupo=null; $('divPartes').hidden=true; $('divFilas').innerHTML='';
+  $('categoriaLabel').hidden=false; $('divBox').hidden=false; $('btnDividir').hidden=false;
   _subcatReset(''); _subcatActualizar();
 }
 
 function empezarEdicion(id, opts) {
   const g=estado.gastos.find(x=>x.id===id); if(!g) return;
+  if(_divModo) _divSalir();
+  _divEditGrupo=null;
   editandoId=id;
   const isIng=(g.tipo||'gasto')==='ingreso';
   // In edit mode: hide transfer options (transfers are edited by delete + re-add)
@@ -4166,6 +4312,7 @@ $('tipo').addEventListener('change', () => {
     fillCatSelect('categoria', null, isIng);
   }
   _subcatActualizar();
+  _divActualizar();
 });
 
 $('form').addEventListener('submit', e => {
@@ -4179,9 +4326,23 @@ $('form').addEventListener('submit', e => {
     if(_ejecutarTransf(origen,destino,monto,fecha,nota,tipo)) resetForm();
     return;
   }
+  const soloHistorial = $('soloHistorialLabel').hidden ? false : $('soloHistorial').checked;
+  if(_divModo && tipo==='gasto'){
+    const partes=_divLeerPartes();
+    if(partes.length<2||partes.some(p=>!(p.monto>0))) return alert('Cada parte necesita un monto mayor a 0.');
+    const suma=Math.round(partes.reduce((s,p)=>s+p.monto,0)*100)/100;
+    if(Math.abs(suma-monto)>=0.005) return alert(`La suma de las partes (${fmt(suma)}) no coincide con el monto (${fmt(monto)}).`);
+    const grupoDivision=nuevoId();
+    if(_divEditGrupo) estado.gastos=estado.gastos.filter(g=>g.grupoDivision!==_divEditGrupo);
+    if(editandoId) estado.gastos=estado.gastos.filter(g=>g.id!==editandoId);
+    const ahora=Date.now();
+    partes.forEach((p,i)=>estado.gastos.push({id:nuevoId(),creado:ahora+i,tipo:'gasto',fecha:$('fecha').value,medio:$('medio').value,descripcion:$('descripcion').value.trim(),categoria:p.categoria,monto:p.monto,soloHistorial,grupoDivision}));
+    guardar(); resetForm(); render();
+    return;
+  }
+  if(_divEditGrupo) estado.gastos=estado.gastos.filter(g=>g.grupoDivision!==_divEditGrupo);
   let cat = $('categoria').value;
   if (cat === '__nueva__') return;
-  const soloHistorial = $('soloHistorialLabel').hidden ? false : $('soloHistorial').checked;
   const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial, subcategoria: tipo==='gasto' ? ($('subcategoria').value.trim()||undefined) : undefined };
   if(editandoId) { Object.assign(estado.gastos.find(x=>x.id===editandoId), datos); }
   else { estado.gastos.push({id:nuevoId(),creado:Date.now(),...datos}); }
