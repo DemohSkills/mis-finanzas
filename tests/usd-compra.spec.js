@@ -143,6 +143,75 @@ test.describe('usd-compra: modal', () => {
     expect(c.usdCompra.usd).toBe(50);
   });
 
+  test('editar pesos deriva la cotización con más de 2 decimales y guarda lo tipeado', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await goToCompromisos(page);
+    await page.locator(`${ROW} button:has-text("Ya compré los USD")`).click();
+    await expect(page.locator('#compraUsdPesos')).toBeEditable();
+    await page.locator('#compraUsdPesos').fill('61234,57');
+    // 61234,57 / 50 = 1224,6914 (4 decimales visibles)
+    expect(await page.locator('#compraUsdCot').inputValue()).toBe('1.224,6914');
+    await page.locator('#compraUsdForm button[type="submit"]').click();
+    const u = (await leer(page)).usdCompra;
+    expect(u.pesos).toBe(61234.57);
+    expect(u.cotizacion).toBe(61234.57 / 50);
+    expect(u.usd).toBe(50);
+  });
+
+  test('editar pesos con USD vacío o 0 no calcula nada', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await goToCompromisos(page);
+    await page.locator(`${ROW} button:has-text("Ya compré los USD")`).click();
+    await page.locator('#compraUsdCot').fill('1200');
+    await page.locator('#compraUsdMonto').fill('0');
+    await page.locator('#compraUsdPesos').fill('60000');
+    expect((await page.locator('#compraUsdCot').inputValue()).replace(/\D/g, '')).toBe('1200');
+    await page.locator('#compraUsdMonto').fill('');
+    await page.locator('#compraUsdPesos').fill('70000');
+    expect((await page.locator('#compraUsdCot').inputValue()).replace(/\D/g, '')).toBe('1200');
+  });
+
+  test('editar cotización sigue derivando pesos y guarda la cotización tipeada sin redondear', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await goToCompromisos(page);
+    await page.locator(`${ROW} button:has-text("Ya compré los USD")`).click();
+    await page.locator('#compraUsdPesos').fill('99999');
+    await page.locator('#compraUsdCot').fill('1234,5678');
+    expect((await page.locator('#compraUsdPesos').inputValue()).replace(/\D/g, '')).toBe('6172839');
+    await page.locator('#compraUsdForm button[type="submit"]').click();
+    const u = (await leer(page)).usdCompra;
+    expect(u.cotizacion).toBe(1234.5678);
+    expect(u.pesos).toBe(61728.39);
+  });
+
+  test('tras editar pesos, cambiar USD recalcula pesos con la cotización exacta', async ({ page }) => {
+    await seedAndUnlock(page, buildEstado());
+    await goToCompromisos(page);
+    await page.locator(`${ROW} button:has-text("Ya compré los USD")`).click();
+    await page.locator('#compraUsdPesos').fill('61234,57');
+    await page.locator('#compraUsdMonto').fill('100');
+    expect((await page.locator('#compraUsdPesos').inputValue()).replace(/\D/g, '')).toBe('12246914');
+  });
+
+  for (const w of [360, 412, 450]) {
+    test(`pesos editable sin desbordar a ${w}px`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 800 });
+      await seedAndUnlock(page, buildEstado());
+      await goToCompromisos(page);
+      await page.locator(`${ROW} button:has-text("Ya compré los USD")`).click();
+      const r = await page.evaluate(() => {
+        const m = document.querySelector('#compraUsdModal .wiz-box').getBoundingClientRect();
+        const cot = document.getElementById('compraUsdCot').getBoundingClientRect();
+        const p = document.getElementById('compraUsdPesos').getBoundingClientRect();
+        return { mL: m.left, mR: m.right, w: innerWidth, dw: cot.width - p.width, sw: document.documentElement.scrollWidth };
+      });
+      expect(r.mL).toBeGreaterThanOrEqual(0);
+      expect(r.mR).toBeLessThanOrEqual(r.w);
+      expect(r.sw).toBeLessThanOrEqual(r.w);
+      expect(Math.abs(r.dw)).toBeLessThan(1);
+    });
+  }
+
   test('cancelar no guarda', async ({ page }) => {
     await seedAndUnlock(page, buildEstado());
     await goToCompromisos(page);

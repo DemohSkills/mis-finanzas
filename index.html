@@ -876,7 +876,7 @@ try{
       </div>
       <div class="wiz-field">
         <label>Costo en pesos</label>
-        <input type="text" id="compraUsdPesos" readonly placeholder="—">
+        <input type="text" class="input-monto" inputmode="decimal" id="compraUsdPesos" placeholder="—">
       </div>
       <div class="wiz-field">
         <label>Fecha de compra</label>
@@ -1751,7 +1751,7 @@ const readMonto = el => parseMonto((typeof el==='string' ? $(el) : el)?.value ??
 document.addEventListener('focusout', e => {
   if (!e.target.classList.contains('input-monto')) return;
   const v = parseMonto(e.target.value);
-  if (!isNaN(v)) e.target.value = fmtInput(v);
+  if (!isNaN(v)) e.target.value = e.target.id==='compraUsdCot' ? _fmtCotUsd(v) : fmtInput(v);
 });
 const ls = { get: k => { try{return JSON.parse(localStorage.getItem(k));}catch{return null;} }, set: (k,v) => { try{localStorage.setItem(k,JSON.stringify(v));}catch{} } };
 function _normT(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
@@ -2666,9 +2666,24 @@ function fmtFechaDM(iso,conAnio){
   const [y,m,d]=String(iso).split('-');
   return conAnio?`${d}/${m}/${y}`:`${d}/${m}`;
 }
+// "Último campo editado gana": USD/Cotización → pesos = USD × cot; Pesos → cot = pesos ÷ USD sin redondear.
+// _compraUsdCotEx guarda esa cotización exacta (el input solo la muestra con hasta 6 decimales).
+let _compraUsdUlt='cot',_compraUsdCotEx=null;
+const _fmtCotUsd=n=>n.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:6});
+function _compraUsdCotVal(){
+  if(_compraUsdCotEx!=null) return _compraUsdCotEx;
+  return parseMonto($('compraUsdCot').value);
+}
 function _compraUsdCalc(){
-  const u=parseMonto($('compraUsdMonto').value), cot=parseMonto($('compraUsdCot').value);
+  const u=parseMonto($('compraUsdMonto').value), cot=_compraUsdCotVal();
   $('compraUsdPesos').value=(!isNaN(u)&&u>0&&!isNaN(cot)&&cot>0)?fmtInput(Math.round(u*cot*100)/100):'';
+}
+function _compraUsdDesdePesos(){
+  _compraUsdUlt='pesos';
+  const u=parseMonto($('compraUsdMonto').value), p=parseMonto($('compraUsdPesos').value);
+  if(isNaN(u)||u<=0||isNaN(p)||p<=0){_compraUsdCotEx=null;return;}
+  _compraUsdCotEx=p/u;
+  $('compraUsdCot').value=_fmtCotUsd(_compraUsdCotEx);
 }
 function abrirCompraUsd(id){
   const c=(estado.compromisos||[]).find(x=>x.id===id);
@@ -2676,6 +2691,7 @@ function abrirCompraUsd(id){
   _compraUsdId=id;
   $('compraUsdMonto').value=fmtInput(c.usd||0);
   $('compraUsdCot').value='';
+  _compraUsdUlt='cot'; _compraUsdCotEx=null;
   const nota=$('compraUsdRefNota');
   nota.hidden=true; nota.textContent=''; nota.style.color='';
   const ref=getUsdRef();
@@ -2698,8 +2714,9 @@ function abrirCompraUsd(id){
   $('compraUsdCot').focus();
 }
 function cerrarCompraUsd(){$('compraUsdModal').setAttribute('hidden','');_compraUsdId=null;}
-$('compraUsdMonto').addEventListener('input',_compraUsdCalc);
-$('compraUsdCot').addEventListener('input',_compraUsdCalc);
+$('compraUsdMonto').addEventListener('input',()=>{_compraUsdUlt='cot';_compraUsdCalc();});
+$('compraUsdCot').addEventListener('input',()=>{_compraUsdUlt='cot';_compraUsdCotEx=null;_compraUsdCalc();});
+$('compraUsdPesos').addEventListener('input',_compraUsdDesdePesos);
 $('compraUsdForm').onsubmit=function(e){
   e.preventDefault();
   const c=(estado.compromisos||[]).find(x=>x.id===_compraUsdId);
@@ -2708,8 +2725,13 @@ $('compraUsdForm').onsubmit=function(e){
   if(isNaN(u)||u<=0){alert('USD inválidos.');return;}
   const cotRaw=$('compraUsdCot').value.trim();
   let cot=null,pesos=null;
-  if(cotRaw){
-    cot=parseMonto(cotRaw);
+  const pRaw=parseMonto($('compraUsdPesos').value);
+  if(_compraUsdUlt==='pesos'&&_compraUsdCotEx!=null&&!isNaN(pRaw)&&pRaw>0){
+    // pesos tipeados tal cual; cotización implícita con toda la precisión
+    pesos=Math.round(pRaw*100)/100;
+    cot=pesos/u;
+  } else if(cotRaw){
+    cot=_compraUsdCotVal();
     if(isNaN(cot)||cot<=0){alert('Cotización inválida.');return;}
     pesos=Math.round(u*cot*100)/100;
   }
