@@ -4,8 +4,8 @@
 > con un `Edit` puntual (mover el ítem a "Hecho" o agregar uno nuevo), sin releer `HISTORIAL.md`.
 > El repo es PÚBLICO: nada de montos, nombres de personas, claves ni datos bancarios en este archivo.
 
-## Estado actual (2026-10-25)
-- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `44b9f4d`.
+## Estado actual (2026-11-02)
+- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `f8639dd` (2026-11-02); `main` y `trabajo-nocturno` coinciden.
 - Tests: 1112 (Playwright). 1111 en verde (2026-11-01); falla `fijos.spec.js` «chip vencido» (zona horaria del test: TODAY en UTC vs fecha local, aparece como FAILED, no skipped), previo a los cambios de A pagar.
 
 ## Hecho (publicado)
@@ -18,30 +18,30 @@
 
 - Costo de los dólares MEP por el débito real del Santander: categoría nueva "En dólares" (gasto normal) y regla en el importador (débito con "titulos publicos" → "En dólares", sin revisar). Se sacó el botón "Ya pagué los USD" de "falta comprar": hay que pasar por "Ya compré los USD". (`6e88516`)
 - Avisos en Inicio por los USD MEP de la Visa: banner "falta comprar" (días de mercado, amarillo/rojo/vencido) con emergente a pantalla completa lun–vie 11 a 16 hs repetido cada 30 min, y banner "comprados, falta pagarlos" (sin emergente). Constantes `USD_*` junto a `BACKUP_SNOOZE_K`. (`44b9f4d`)
-- Modal «Ya compré los USD»: el costo en pesos es editable (último campo editado gana). Tipear pesos deriva la cotización exacta (pesos ÷ USD, hasta 6 decimales visibles, guardada sin redondear); USD/cotización siguen derivando pesos. Hecho 2026-11-02, en `trabajo-nocturno`, sin publicar.
-- Retoques de los avisos de USD (en `trabajo-nocturno`, sin publicar): "Hoy no hay mercado" silencia solo el emergente del día (campo `silenciadoEmergente`; el banner sigue) y el aviso de pagar vencido ya no repite la fecha. Tabla de claves de localStorage de `CLAUDE.md` completa.
-- Color de la barra de estado (meta `theme-color`) aplicado al arrancar según el tema guardado y, con tema auto, siguiendo `prefers-color-scheme`; función única `_themeColorPara` en el script inline del `<head>`. Tests en `tests/theme-color.spec.js` (en `trabajo-nocturno`, sin publicar).
-- Temas «Neón azul», «Neón turquesa» y «Neón violeta» (`neon-azul`/`neon-turquesa`/`neon-violeta`, en `trabajo-nocturno`, sin publicar): solo estilo (variables + `html[data-theme^="neon"]`), botones en Configuración, ciclo con «Pulse» (toast con nombre legible), `theme-color` `#060914`, tema guardado desconocido → auto. Tests en `tests/temas-neon.spec.js`.
+- Modal «Ya compré los USD»: el costo en pesos es editable (último campo editado gana). Tipear pesos deriva la cotización exacta (pesos ÷ USD, hasta 6 decimales visibles, guardada sin redondear); USD/cotización siguen derivando pesos. Hecho 2026-11-02.
+- Retoques de los avisos de USD: "Hoy no hay mercado" silencia solo el emergente del día (campo `silenciadoEmergente`; el banner sigue) y el aviso de pagar vencido ya no repite la fecha. Tabla de claves de localStorage de `CLAUDE.md` completa.
+- Color de la barra de estado (meta `theme-color`) aplicado al arrancar según el tema guardado y, con tema auto, siguiendo `prefers-color-scheme`; función única `_themeColorPara` en el script inline del `<head>`. Tests en `tests/theme-color.spec.js`.
+- Temas «Neón azul», «Neón turquesa» y «Neón violeta» (`neon-azul`/`neon-turquesa`/`neon-violeta`): solo estilo (variables + `html[data-theme^="neon"]`), botones en Configuración, ciclo con «Pulse» (toast con nombre legible), `theme-color` `#060914`, tema guardado desconocido → auto. Tests en `tests/temas-neon.spec.js`.
 
-- Propósito de las transferencias recibidas (en `trabajo-nocturno`, sin publicar): campo `proposito`, `reglasRemitente`, modal «Clasificar transferencias recibidas» tras importar y aviso en Movimientos. Solo etiqueta: no cambia saldos ni totales. Ver CLAUDE.md. 
-- Tarjeta «Ganancia bruta del mes» en Inicio (en `trabajo-nocturno`, sin publicar): ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
+- Propósito de las transferencias recibidas: campo `proposito`, `reglasRemitente`, modal «Clasificar transferencias recibidas» tras importar y aviso en Movimientos. Solo etiqueta: no cambia saldos ni totales. Ver CLAUDE.md. 
+- Tarjeta «Ganancia bruta del mes» en Inicio: ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
 
-- Cobro semanal (Meli Extra) (en `trabajo-nocturno`, sin publicar): `estado.cobrosSemanales`; ver CLAUDE.md. El ítem suelto viejo de Cobros pendientes lo borra el usuario a mano. Pendiente: sumarlo también al informe PDF (hoy solo entra en Total activos y Por cobrar).
-- Subcategoría por gasto + filtro por categorías en el Informe (commits `465959a` y `673fe4d`, en `trabajo-nocturno`, sin publicar): `g.subcategoria` opcional con etiqueta en Movimientos, chips y sugerencia por descripción en el formulario; Informe con chips de categorías, desglose por tipo de gasto (1 categoría), «Todos los movimientos (N)» plegado y casillas de impresión. Ver CLAUDE.md. Suite: 1125 verdes.
-- Fijos en dólares (commit `fe3810a`, en `trabajo-nocturno`, sin publicar): campo `moneda` (`'USD'` o ausente) en `#fijoModal`, fila con «US$», nota de la tarjeta de fijos con el total en USD. Suite: 1128 verdes.
-- Dividir una compra en varias categorías (en `trabajo-nocturno`, sin publicar): campo `grupoDivision`, botón en el formulario, una fila plegable por grupo en Movimientos con Editar/Borrar del grupo. Suite: 1135 verdes.
-- Dictado de días trabajados (en `trabajo-nocturno`, sin publicar): modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
-- Retoques visuales (en `trabajo-nocturno`, sin publicar): pantalla del PIN con logo (velas + «Di-Mi-Trip / Pulse Finance»), título pegado al logo y teclado numérico al borde inferior (acercarlo al pulgar); etiquetas de la tarjeta de fijos recortadas solo si no entran (por ancho medido, no 16 caracteres fijos); botón ▶ de velocidad de la cinta con más padding horizontal. Tests en `retoques-pin-fijos.spec.js`.
+- Cobro semanal (Meli Extra): `estado.cobrosSemanales`; ver CLAUDE.md. El ítem suelto viejo de Cobros pendientes lo borra el usuario a mano. Pendiente: sumarlo también al informe PDF (hoy solo entra en Total activos y Por cobrar).
+- Subcategoría por gasto + filtro por categorías en el Informe (commits `465959a` y `673fe4d`): `g.subcategoria` opcional con etiqueta en Movimientos, chips y sugerencia por descripción en el formulario; Informe con chips de categorías, desglose por tipo de gasto (1 categoría), «Todos los movimientos (N)» plegado y casillas de impresión. Ver CLAUDE.md. Suite: 1125 verdes.
+- Fijos en dólares (commit `fe3810a`): campo `moneda` (`'USD'` o ausente) en `#fijoModal`, fila con «US$», nota de la tarjeta de fijos con el total en USD. Suite: 1128 verdes.
+- Dividir una compra en varias categorías (commit `6d65882`): campo `grupoDivision`, botón en el formulario, una fila plegable por grupo en Movimientos con Editar/Borrar del grupo. Suite: 1135 verdes.
+- Dictado de días trabajados: modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
+- Retoques visuales (commit `f8639dd`): pantalla del PIN con logo (velas + «Di-Mi-Trip / Pulse Finance»), título pegado al logo y teclado numérico al borde inferior (acercarlo al pulgar); etiquetas de la tarjeta de fijos recortadas solo si no entran (por ancho medido, no 16 caracteres fijos); botón ▶ de velocidad de la cinta con más padding horizontal. Tests en `retoques-pin-fijos.spec.js`.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.
-1. ~~**Fijos en otra moneda**~~ ✅ Hecho (commit `fe3810a`, en `trabajo-nocturno`, sin publicar). Quedan pendientes: el modal «Pagué» y los demás totales de fijos (A pagar, informe, compromisos del mes) no distinguen moneda; un fijo en USD se suma como pesos ahí.
+1. ~~**Fijos en otra moneda**~~ ✅ Hecho (commit `fe3810a`). Quedan pendientes: el modal «Pagué» y los demás totales de fijos (A pagar, informe, compromisos del mes) no distinguen moneda; un fijo en USD se suma como pesos ahí.
 2. ~~**Borradores de gastos para conciliar con resúmenes**~~ ✅ Hecho (etapa 1, 2026-10-25): sección «📝 Borradores» en Movimientos (`estado.borradores`), cruce al importar Santander/Mercado Pago/Visa vía `_cruzarBorradores` (reglas en CLAUDE.md) y lupa en el buscador. Etapas siguientes, todavía pendientes:
    - 2a. ~~**Cargar borradores por dictado de voz.**~~ ✅ Hecho (2026-10-25): decir «borrador» en el dictado guarda un borrador (ver CLAUDE.md, «Dictado en modo borrador»).
    - 2b. ~~**Borradores con cuotas, versión mínima.**~~ ✅ Hecho (2026-10-25): el borrador con `cuotas` N cruza solo con la cuota 1 de ese plan en la Visa (ver CLAUDE.md, «Borradores con cuotas»). Pendientes de esta etapa:
      - (1) Verificar con el resumen real del 29/10 la tolerancia de importe (`max(2,00; 1 %)` de total÷N) y el formato de la columna de cuotas.
      - (2) ~~Que las cuotas 2..N hereden la categoría de la cuota 1.~~ ✅ Hecho (2026-10-29): en Visa heredan de la cuota anterior ya importada del mismo plan (no por cruce con el borrador).
-   - 2c. ~~**Dividir una compra en varias categorías.**~~ ✅ Hecho (en `trabajo-nocturno`, sin publicar; ver CLAUDE.md «Dividir una compra en categorías»). Pendiente: subcategoría por parte (v1 sin ella).
+   - 2c. ~~**Dividir una compra en varias categorías.**~~ ✅ Hecho (ver CLAUDE.md «Dividir una compra en categorías»). Pendiente: subcategoría por parte (v1 sin ella).
 3b. ~~**Importar Mastercard MP (PDF)**~~ ✅ Hecho (2026-10-25, ver CLAUDE.md «Importador Mastercard MP»). Pendientes:
    - (1) Verificar con el resumen real del 27/10 (formato de líneas del PDF, fechas de cierre/vencimiento, suma contra el total).
    - (2) ~~Extender la herencia de categoría de cuotas 2..N al importador de Visa.~~ ✅ Hecho (2026-10-29, `_heredarCategoriaCuota` compartida).
@@ -49,7 +49,7 @@
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
 5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
 6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes). 2026-10-27: regla del « · » en nombres de ítem (título + detalle chico) en Vínculos y Patrimonio; Patrimonio → Cobros pendientes agrupa por persona (`pat-cobros-<persona>`); suite en 1003 verdes. 2026-10-27: el modal de clasificar transferencias muestra la cuenta (medio) junto a la fecha; suite en 1005 verdes.
-7. ~~**Detalles visuales menores**~~ ✅ Hecho (en `trabajo-nocturno`, sin publicar): nombres largos de fijos cortados con "…", texto del icono "normal" casi pegado al borde y pantalla del PIN con el teclado numérico lejos del pulgar (ver línea de «sin publicar»).
+7. ~~**Detalles visuales menores**~~ ✅ Hecho: nombres largos de fijos cortados con "…", texto del icono "normal" casi pegado al borde y pantalla del PIN con el teclado numérico lejos del pulgar (ver «Retoques visuales» en Hecho).
 8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
 9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
 10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
@@ -75,6 +75,6 @@
 ## Referencia de costo (Code, Sonnet 5.5 nivel medio)
 - Tarea 1 (Gastos): US$0,78. Tarea 2 + corrección (Evolución): US$2,03. El costo lo domina la relectura del contexto por paso, no el texto generado.
 
-- Cobro semanal, historial (en `trabajo-nocturno`, sin publicar): `cobradas[].historial:true` = semana informativa (sin `movId`, no toca cuentas, Total activos ni ganancia del mes; `neto`/`retencion` pueden ser null). Resumen plegable (clave `finanzas-v1-det-cw-res-<id>`). «A pagar» por vencimiento ahora proyecta cuotas y fijos (6+ meses, tope 48). Filas de semana en dos columnas. Suite: 1053 tests. Nota: «Pagué» de fijos sigue en los 3 primeros meses (el pedido decía también «actual y siguiente»; se mantuvo el comportamiento existente); una semana de historial debe haber terminado (hasta < hoy).
+- Cobro semanal, historial: `cobradas[].historial:true` = semana informativa (sin `movId`, no toca cuentas, Total activos ni ganancia del mes; `neto`/`retencion` pueden ser null). Resumen plegable (clave `finanzas-v1-det-cw-res-<id>`). «A pagar» por vencimiento ahora proyecta cuotas y fijos (6+ meses, tope 48). Filas de semana en dos columnas. Suite: 1053 tests. Nota: «Pagué» de fijos sigue en los 3 primeros meses (el pedido decía también «actual y siguiente»; se mantuvo el comportamiento existente); una semana de historial debe haber terminado (hasta < hoy).
 
-- A pagar: detalle plegable del resumen + cuotas incluidas fuera de la lista (hecho, sin publicar). Pendiente: deshacer una transferencia de pago del resumen NO restaura los pendientes que bajaron en las cuotas incluidas; las cuotas ligadas a un ítem de patrimonio (`itemNombre`) no participan.
+- A pagar: detalle plegable del resumen + cuotas incluidas fuera de la lista (hecho). Pendiente: deshacer una transferencia de pago del resumen NO restaura los pendientes que bajaron en las cuotas incluidas; las cuotas ligadas a un ítem de patrimonio (`itemNombre`) no participan.
