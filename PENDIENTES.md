@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-10-25)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `44b9f4d`.
-- Tests: 1110 (Playwright). 1109 en verde en trabajo-nocturno (2026-11-01); falla `fijos.spec.js` «chip vencido» solo cuando hoy es día 1 o 2 del mes (dependiente de fecha, previo a este cambio).
+- Tests: 1112 (Playwright). 1111 en verde (2026-11-01); falla `fijos.spec.js` «chip vencido» (zona horaria del test: TODAY en UTC vs fecha local, aparece como FAILED, no skipped), previo a los cambios de A pagar.
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)

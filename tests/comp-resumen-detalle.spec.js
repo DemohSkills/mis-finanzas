@@ -119,11 +119,22 @@ test.describe('resumen: detalle plegable y cuotas incluidas', () => {
     await expect(page.locator('.comp-row[data-id="q1"]:not(.comp-row--proy)')).toHaveCount(1);
   });
 
-  test('sin overflow horizontal a 360 px', async ({ page }) => {
-    await page.setViewportSize({ width: 360, height: 800 });
-    await seed(page, buildEstado());
-    await page.locator('.comp-row[data-id="res"] details.comp-detalle summary').click();
-    const sw = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-    expect(sw).toBe(true);
-  });
+  for (const w of [360, 390, 412]) {
+    test(`sin overflow horizontal a ${w} px con detalle desplegado y nombres largos`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 800 });
+      const est = buildEstado();
+      est.gastos.push(gasto('gL', off(-9), 123456.78, { descripcion: 'Compra con un nombre larguisimo sin espacios ' + 'x'.repeat(60) + ' y otro texto bastante largo con espacios para envolver' }));
+      est.compromisos[1].nombre = 'Cuota con nombre muy largo '.repeat(3);
+      await seed(page, est);
+      await page.locator('.comp-row[data-id="res"] details.comp-detalle summary').click();
+      const r = await page.evaluate(() => {
+        const det = document.querySelector('.comp-row[data-id="res"] details.comp-detalle');
+        const rect = det.getBoundingClientRect();
+        return { doc: document.documentElement.scrollWidth <= window.innerWidth, inside: rect.right <= window.innerWidth + 0.5 && rect.left >= -0.5, abierto: det.open };
+      });
+      expect(r.abierto).toBe(true);
+      expect(r.doc).toBe(true);
+      expect(r.inside).toBe(true);
+    });
+  }
 });
