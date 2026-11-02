@@ -208,7 +208,7 @@ test('(j) opción detalle "compacto" genera tabla de una línea por movimiento',
     return window.buildInformeHTML({ desde: hoy, hasta: hoy, detalle: 'compacto', inclTransf: false, ocultarNombres: false, otrosNombres: '' });
   }, { hoy });
 
-  expect(result).toContain('Detalle de movimientos');
+  expect(result).toContain('Todos los movimientos (2)');
   expect(result).toContain('inf-det-tbl');
   expect(result).toContain('pizza');
   expect(result).toContain('cobro');

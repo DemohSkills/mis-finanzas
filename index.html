@@ -169,6 +169,19 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .gasto:first-child{border-top:0;}
 .gasto .info{min-width:0;}
 .gasto .desc{font-weight:500;overflow-wrap:anywhere;}
+.subcat-tag{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;font:inherit;font-size:.74rem;line-height:1.4;cursor:pointer;background:#132142;color:#9cc1ff;border:1px solid #132142;max-width:100%;overflow-wrap:anywhere;text-align:left;}
+.subcat-tag.vacia{background:transparent;color:#5a6b8c;border:1px dashed #5a6b8c;}
+.subcat-sug{display:flex;flex-wrap:wrap;gap:6px;}
+.subcat-chip{font:inherit;font-size:.76rem;padding:3px 10px;border-radius:999px;border:1px solid #132142;background:#132142;color:#9cc1ff;cursor:pointer;}
+.subcat-aviso{font-size:.76rem;color:var(--muted);}
+.inf-cats{flex:1 0 100%;display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:#1e293b;}
+.inf-cats-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.inf-cat-chip{font:inherit;font-size:.78rem;padding:3px 10px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;color:#1e293b;cursor:pointer;}
+.inf-cat-chip.on{background:#1e3a8a;border-color:#1e3a8a;color:#fff;}
+.inf-todos>summary,.inf-grp>summary{cursor:pointer;font-weight:600;font-size:9pt;padding:4px 0;color:#1e293b;}
+.inf-grp{border-bottom:1px solid #e2e8f0;}
+.inf-grp .inf-grp-n{font-weight:400;color:#64748b;}
+.inf-grp .inf-grp-t{float:right;}
 .gasto .importe{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .gasto .btns{display:flex;gap:6px;margin-top:6px;}
 .gasto.editando,.item.editando{background:color-mix(in srgb,var(--accent) 10%,transparent);}
@@ -636,6 +649,8 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
   .inf-page{page-break-after:always;}
   .inf-page:last-child{page-break-after:auto;}
   .inf-kpi,.inf-bar-row{page-break-inside:avoid;}
+  #informePrint.no-pr-resumen .inf-sec-resumen,#informePrint.no-pr-desglose .inf-sec-desglose,#informePrint.no-pr-todos .inf-sec-todos{display:none!important;}
+  .inf-grp>summary,.inf-todos>summary{list-style:none;}
   .inf-det-tbl thead{display:table-header-group;}
   .inf-det-tbl tr{page-break-inside:avoid;}
   body{background:#fff;color:#000;}
@@ -1289,6 +1304,11 @@ try{
         <label id="categoriaLabel">Categoría
           <select id="categoria" required></select>
         </label>
+        <label class="full" id="subcatLabel">Subcategoría (opcional)
+          <input type="text" id="subcategoria" maxlength="60" placeholder="Ej: nafta, peaje…" autocomplete="off">
+        </label>
+        <div class="full subcat-sug" id="subcatSug" hidden></div>
+        <div class="full subcat-aviso" id="subcatAviso" hidden></div>
         <label id="medioLabel">Medio de pago
           <select id="medio" required></select>
         </label>
@@ -1654,6 +1674,16 @@ try{
         <option value="ninguno">Ninguno</option>
       </select>
     </label>
+    <div class="inf-cats" id="infCats">Categorías (vacío = todas)
+      <div class="inf-cats-chips" id="infCatsChips"></div>
+    </div>
+    <div class="inf-cats" id="infImprimirSec">Al imprimir, incluir:
+      <div class="inf-cats-chips">
+        <label class="inf-cbx"><input type="checkbox" id="infPrResumen" checked> Resumen y gráfico por categoría</label>
+        <label class="inf-cbx" id="infPrDesgloseLbl"><input type="checkbox" id="infPrDesglose" checked> Desglose por tipo de gasto</label>
+        <label class="inf-cbx"><input type="checkbox" id="infPrTodos" checked> Todos los movimientos, uno por uno</label>
+      </div>
+    </div>
     <label class="inf-cbx">
       <input type="checkbox" id="infTransf">
       Incluir transferencias entre cuentas
@@ -3944,7 +3974,7 @@ function renderHistorial() {
         <div class="row">
           <div class="info">
             <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
-            <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
+            <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>${_subcatTagHtml(g)}
           </div>
           <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmtV(g.monto)}</div>
         </div>
@@ -3954,6 +3984,7 @@ function renderHistorial() {
         </div>`;
       div.querySelector('[data-a=editar]').onclick=()=>empezarEdicion(g.id);
       div.querySelector('[data-a=borrar]').onclick=()=>borrar(g.id);
+      const _st=div.querySelector('[data-a=subcat]'); if(_st) _st.onclick=()=>empezarEdicion(g.id,{foco:'subcategoria'});
       cont.appendChild(div);
     }
 
@@ -3985,7 +4016,7 @@ function renderHistorial() {
         <div class="row">
           <div class="info">
             <div class="desc">${esc(g.descripcion||g.categoria)}${g.soloHistorial?'<span class="chip hist">histórico</span>':''}${isIng?'<span class="chip inc">ingreso</span>':''}</div>
-            <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>
+            <div class="meta">${fechaCorta(g.fecha)} · ${esc(g.categoria)} · ${esc(g.medio)}</div>${_subcatTagHtml(g)}
           </div>
           <div class="importe ${isIng?'pos':'neg'}">${isIng?'+':'−'}${fmtV(g.monto)}</div>
         </div>
@@ -3995,10 +4026,61 @@ function renderHistorial() {
         </div>`;
       div.querySelector('[data-a=editar]').onclick=()=>empezarEdicion(g.id);
       div.querySelector('[data-a=borrar]').onclick=()=>borrar(g.id);
+      const _st=div.querySelector('[data-a=subcat]'); if(_st) _st.onclick=()=>empezarEdicion(g.id,{foco:'subcategoria'});
       cont.appendChild(div);
     }
   }
 }
+
+// ─── Subcategoría de gastos ───────────────────────────────────
+function _subcatTagHtml(g){
+  if((g.tipo||'gasto')!=='gasto') return '';
+  const s=(g.subcategoria||'').trim();
+  return s?`<button type="button" class="subcat-tag" data-a="subcat" title="Editar subcategoría">${esc(s)}</button>`
+          :`<button type="button" class="subcat-tag vacia" data-a="subcat">+ agregar subcategoría</button>`;
+}
+let _subcatAuto=null, _subcatTocado=false;
+function _subcatChips(){
+  const cat=$('categoria').value, cont=$('subcatSug');
+  const cnt=new Map();
+  for(const g of estado.gastos){ if(g.categoria===cat && g.subcategoria && (g.tipo||'gasto')==='gasto') cnt.set(g.subcategoria,(cnt.get(g.subcategoria)||0)+1); }
+  const top=[...cnt].sort((a,b)=>b[1]-a[1]).slice(0,5);
+  cont.hidden=!top.length;
+  cont.innerHTML=top.map(([s,n])=>`<button type="button" class="subcat-chip" data-s="${esc(s)}">${esc(s)} · ${n} ${n===1?'vez':'veces'}</button>`).join('');
+  for(const b of cont.querySelectorAll('.subcat-chip')) b.onclick=()=>{ $('subcategoria').value=b.dataset.s; _subcatTocado=true; _subcatAuto=null; $('subcatAviso').hidden=true; };
+}
+function _subcatSugerir(){
+  const inp=$('subcategoria'), av=$('subcatAviso');
+  if(_subcatTocado){ return; }
+  const descRaw=$('descripcion').value.trim(), d=_normT(descRaw).trim();
+  let hit=null;
+  if(d){
+    hit=estado.gastos.filter(g=>g.id!==editandoId && g.subcategoria && (g.tipo||'gasto')==='gasto' && _normT(g.descripcion).trim()===d)
+      .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.creado||0)-(a.creado||0))[0]||null;
+  }
+  if(inp.value.trim() && inp.value!==_subcatAuto){ av.hidden=true; return; }
+  if(hit){
+    inp.value=hit.subcategoria; _subcatAuto=hit.subcategoria;
+    av.textContent=`💡 Sugerida por el historial de "${descRaw}". Podés borrarla o cambiarla antes de guardar.`;
+    av.hidden=false;
+  } else {
+    if(_subcatAuto && inp.value===_subcatAuto) inp.value='';
+    _subcatAuto=null; av.hidden=true;
+  }
+}
+function _subcatActualizar(){
+  const visible=($('tipo').value||'gasto')==='gasto';
+  $('subcatLabel').hidden=!visible;
+  if(!visible){ $('subcatSug').hidden=true; $('subcatAviso').hidden=true; return; }
+  _subcatChips(); _subcatSugerir();
+}
+function _subcatReset(valor){
+  $('subcategoria').value=valor||''; _subcatAuto=null; _subcatTocado=!!valor;
+  $('subcatAviso').hidden=true;
+}
+$('subcategoria').addEventListener('input',()=>{ _subcatTocado=true; _subcatAuto=null; $('subcatAviso').hidden=true; });
+$('categoria').addEventListener('change',()=>{ if($('categoria').value!=='__nueva__') _subcatChips(); });
+$('descripcion').addEventListener('input',_subcatSugerir);
 
 function resetForm() {
   editandoId=null; $('form').reset(); $('fecha').value=hoy();
@@ -4015,9 +4097,10 @@ function resetForm() {
   $('formDestinoLabel').hidden=true;
   $('medio').innerHTML=MEDIOS.map(m=>`<option>${m}</option>`).join('');
   fillCatSelect('categoria');
+  _subcatReset(''); _subcatActualizar();
 }
 
-function empezarEdicion(id) {
+function empezarEdicion(id, opts) {
   const g=estado.gastos.find(x=>x.id===id); if(!g) return;
   editandoId=id;
   const isIng=(g.tipo||'gasto')==='ingreso';
@@ -4032,10 +4115,11 @@ function empezarEdicion(id) {
   $('formTitulo').textContent='Editar movimiento';
   $('btnGuardar').textContent='Actualizar movimiento';
   $('btnCancelar').hidden=false;
+  _subcatReset(g.subcategoria||''); _subcatActualizar();
   renderHistorial();
   const _df=document.getElementById('det-form'); if(_df) _df.open=true;
   $('form').scrollIntoView({behavior:'smooth',block:'center'});
-  $('monto').focus();
+  (opts&&opts.foco==='subcategoria'?$('subcategoria'):$('monto')).focus();
 }
 
 function borrar(id) {
@@ -4074,6 +4158,7 @@ $('tipo').addEventListener('change', () => {
     $('btnGuardar').textContent = editandoId ? 'Actualizar movimiento' : 'Guardar movimiento';
     fillCatSelect('categoria', null, isIng);
   }
+  _subcatActualizar();
 });
 
 $('form').addEventListener('submit', e => {
@@ -4090,7 +4175,7 @@ $('form').addEventListener('submit', e => {
   let cat = $('categoria').value;
   if (cat === '__nueva__') return;
   const soloHistorial = $('soloHistorialLabel').hidden ? false : $('soloHistorial').checked;
-  const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial };
+  const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial, subcategoria: tipo==='gasto' ? ($('subcategoria').value.trim()||undefined) : undefined };
   if(editandoId) { Object.assign(estado.gastos.find(x=>x.id===editandoId), datos); }
   else { estado.gastos.push({id:nuevoId(),creado:Date.now(),...datos}); }
   guardar(); resetForm(); render();
@@ -5027,6 +5112,7 @@ function abrirInforme(){
   const desdeStr=d30.toLocaleDateString('sv');
   $('infDesde').value=desdeStr;
   $('infHasta').value=hoyStr;
+  _infRenderCats();
   $('informeView').classList.add('inf-open');
   document.body.style.overflow='hidden';
 }
@@ -5070,14 +5156,16 @@ function _applyNameMap(text,map){
 
 function buildInformeHTML(opts){
   const {desde,hasta,detalle,inclTransf,ocultarNombres,otrosNombres}=opts;
+  const cats=Array.isArray(opts.categorias)?opts.categorias:[];
+  const catOk=g=>!cats.length||cats.includes(g.categoria||'Sin categoría');
   const nameMap=_buildNameMap(ocultarNombres,otrosNombres);
   const N=s=>_applyNameMap(s,nameMap);
 
   // Filter gastos by period
   const gastos=(estado.gastos||[]).filter(g=>g.fecha>=desde&&g.fecha<=hasta);
 
-  // Ingresos/gastos excl. transfers (unless inclTransf)
-  const movBase=inclTransf?gastos:gastos.filter(g=>!g.transferencia);
+  // Ingresos/gastos excl. transfers (unless inclTransf); con categorías elegidas solo esas
+  const movBase=(inclTransf?gastos:gastos.filter(g=>!g.transferencia)).filter(catOk);
   const totalIngresos=movBase.filter(g=>(g.tipo||'gasto')==='ingreso').reduce((s,g)=>s+g.monto,0);
   const totalGastos=movBase.filter(g=>(g.tipo||'gasto')==='gasto').reduce((s,g)=>s+g.monto,0);
   const resultado=totalIngresos-totalGastos;
@@ -5135,9 +5223,9 @@ function buildInformeHTML(opts){
   }
 
   // Page 1
-  let html=`<div class="inf-page">
+  let html=`<div class="inf-page inf-sec-resumen">
   <div class="inf-titulo">Informe financiero</div>
-  <div class="inf-sub">Período: ${esc(periodoStr)} · Generado: ${esc(genDate)}</div>
+  <div class="inf-sub">Período: ${esc(periodoStr)} · Generado: ${esc(genDate)}${cats.length?` · Categorías: ${esc(cats.join(', '))}`:''}</div>
   <div class="inf-kpis">
     <div class="inf-kpi"><div class="lbl">Ingresos</div><div class="val pos">${fmt(totalIngresos)}</div></div>
     <div class="inf-kpi"><div class="lbl">Gastos</div><div class="val neg">${fmt(totalGastos)}</div></div>
@@ -5236,9 +5324,36 @@ function buildInformeHTML(opts){
   ${cobros.length?`<div class="inf-h3">Cobros pendientes</div><table class="inf-tbl"><thead><tr><th>Concepto</th><th>Persona</th><th class="r">Monto</th></tr></thead><tbody>${cobrosRows}</tbody></table>`:''}
 </div>`;
 
+  // Desglose por tipo de gasto (solo con UNA categoría elegida): subcategoría; si falta, descripción igual/similar
+  if(cats.length===1){
+    const items=movBase.filter(g=>(g.tipo||'gasto')==='gasto');
+    if(items.length){
+      const grp=new Map();
+      const normDesc=s=>_normT(s).replace(/[0-9]+/g,' ').replace(/[^a-z\s]/g,' ').replace(/\s+/g,' ').trim();
+      for(const g of items){
+        const sub=(g.subcategoria||'').trim();
+        const k=sub?'s:'+_normT(sub).trim():'d:'+(normDesc(g.descripcion)||'(sin descripción)');
+        const nombre=sub||(g.descripcion||'').trim()||'Sin descripción';
+        if(!grp.has(k)) grp.set(k,{nombre,porDesc:!sub,items:[],total:0});
+        const o=grp.get(k); o.items.push(g); o.total+=g.monto;
+      }
+      const arr=[...grp.values()].sort((a,b)=>b.total-a.total);
+      const totalCat=items.reduce((s,g)=>s+g.monto,0);
+      const grpHtml=arr.map(o=>{
+        const rows=[...o.items].sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(g=>`<tr><td>${fechaCorta(g.fecha)}</td><td class="neg r">−${fmt(g.monto)}</td></tr>`).join('');
+        return `<details class="inf-grp"><summary>${esc(N(o.nombre))}${o.porDesc?' <span class="inf-grp-n">(por descripción)</span>':''} <span class="inf-grp-n">· ${o.items.length} mov.</span><span class="inf-grp-t neg">${fmt(o.total)}</span></summary><table class="inf-det-tbl" style="font-size:8pt"><tbody>${rows}</tbody></table></details>`;
+      }).join('');
+      html+=`<div class="inf-page inf-sec-desglose">
+  <div class="inf-h2">Desglose por tipo de gasto — ${esc(cats[0])}</div>
+  <div class="inf-sub">${items.length} movimientos · ${fmt(totalCat)}</div>
+  ${grpHtml}
+</div>`;
+    }
+  }
+
   // Page 3+ — Detalle
   if(detalle==='compacto'){
-    const movDet=inclTransf?gastos:gastos.filter(g=>!g.transferencia);
+    const movDet=(inclTransf?gastos:gastos.filter(g=>!g.transferencia)).filter(catOk);
     const sorted=[...movDet].sort((a,b)=>a.fecha.localeCompare(b.fecha));
     const rows=sorted.map((g,i)=>{
       const isIng=(g.tipo||'gasto')==='ingreso';
@@ -5246,17 +5361,19 @@ function buildInformeHTML(opts){
       const cls=isIng?'pos':'neg';
       return `<tr><td>${fechaCorta(g.fecha)}</td><td>${esc(N(g.descripcion||g.categoria||''))}</td><td>${esc(g.categoria||'')}</td><td>${esc(g.medio||'')}</td><td class="${cls} r">${signo}${fmt(g.monto)}</td></tr>`;
     }).join('');
-    html+=`<div class="inf-page">
-  <div class="inf-h2">Detalle de movimientos</div>
+    html+=`<div class="inf-page inf-sec-todos">
+  <details class="inf-todos">
+  <summary class="inf-h2">Todos los movimientos (${sorted.length})</summary>
   <table class="inf-det-tbl" style="font-size:8pt">
     <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Medio</th><th class="r">Importe</th></tr></thead>
     <tbody>${rows||'<tr><td colspan="5" style="color:#64748b">Sin movimientos en el período.</td></tr>'}</tbody>
   </table>
+  </details>
 </div>`;
   } else if(detalle==='categoria'){
     // Totals and count by category
     const catMap={};
-    const movDet=inclTransf?gastos:gastos.filter(g=>!g.transferencia);
+    const movDet=(inclTransf?gastos:gastos.filter(g=>!g.transferencia)).filter(catOk);
     for(const g of movDet){
       const c=g.categoria||'Sin categoría';
       const tipo=(g.tipo||'gasto')==='ingreso'?'ingreso':'gasto';
@@ -5285,8 +5402,35 @@ function generarInforme(){
   const inclTransf=$('infTransf').checked;
   const ocultarNombres=$('infOcultarNombres').checked;
   const otrosNombres=$('infOtrosNombres').value||'';
-  $('informePrint').innerHTML=buildInformeHTML({desde,hasta,detalle,inclTransf,ocultarNombres,otrosNombres});
+  $('informePrint').innerHTML=buildInformeHTML({desde,hasta,detalle,inclTransf,ocultarNombres,otrosNombres,categorias:_infCats});
+  _infAplicarImpresion();
 }
+
+// Filtro por categorías del informe (no persistido)
+let _infCats=[];
+function _infRenderCats(){
+  const todas=[...new Set([...getCats(),...getCatsIncome()])];
+  _infCats=_infCats.filter(c=>todas.includes(c));
+  const cont=$('infCatsChips'); if(!cont) return;
+  cont.innerHTML=todas.map(c=>`<button type="button" class="inf-cat-chip${_infCats.includes(c)?' on':''}" data-c="${esc(c)}" aria-pressed="${_infCats.includes(c)}">${esc(c)}</button>`).join('');
+  for(const b of cont.querySelectorAll('.inf-cat-chip')) b.onclick=()=>{
+    const c=b.dataset.c;
+    _infCats=_infCats.includes(c)?_infCats.filter(x=>x!==c):[..._infCats,c];
+    _infRenderCats(); generarInforme();
+  };
+  $('infPrDesgloseLbl').hidden=_infCats.length!==1;
+}
+// Casillas de impresión → clases que ocultan secciones solo al imprimir
+function _infAplicarImpresion(){
+  const p=$('informePrint');
+  p.classList.toggle('no-pr-resumen',!$('infPrResumen').checked);
+  p.classList.toggle('no-pr-desglose',_infCats.length!==1||!$('infPrDesglose').checked);
+  p.classList.toggle('no-pr-todos',!$('infPrTodos').checked);
+  $('infPrDesgloseLbl').hidden=_infCats.length!==1;
+}
+let _infAbiertos=[];
+window.addEventListener('beforeprint',()=>{ _infAbiertos=[...document.querySelectorAll('#informePrint details:not([open])')]; _infAbiertos.forEach(d=>d.open=true); });
+window.addEventListener('afterprint',()=>{ _infAbiertos.forEach(d=>d.open=false); _infAbiertos=[]; });
 
 function exportarPDF(){
   abrirInforme();
@@ -8300,6 +8444,7 @@ function wireEvents(){
   $('btnExportPDF').onclick=abrirInforme;
   if($('btnInformeConfig')) $('btnInformeConfig').onclick=abrirInforme;
   $('btnInformeGenerar').onclick=generarInforme;
+  for(const id of ['infPrResumen','infPrDesglose','infPrTodos']) $(id).onchange=_infAplicarImpresion;
   $('btnInformeImprimir').onclick=()=>{generarInforme();setTimeout(()=>window.print(),120);};
   $('btnInformeCerrar').onclick=cerrarInforme;
   $('btnImportCSV').onclick=()=>$('csvFile').click();
