@@ -35,6 +35,7 @@ test.describe('PIN con logo y teclado abajo', () => {
             padBottom: aviso.bottom, vh: innerHeight,
             icono: r('#pinScr .pin-logo-ic').width, tendencia: !!document.querySelector('#pinScr .pin-top .pin-logo svg polyline[stroke="#eab308"]'),
             tituloEnBottom: !!document.querySelector('#pinScr .pin-bottom #pinTitle'), puntosEnBottom: !!document.querySelector('#pinScr .pin-bottom #pinDots'), logoEnTop: !!document.querySelector('#pinScr .pin-top .pin-logo'),
+            logoCentroOk: (() => { const t = r('#pinScr .pin-top'), l = logo; return Math.abs((l.top - t.top) - (t.bottom - l.bottom)) < 6; })(),
             nTop: document.querySelector('#pinScr .pin-top').children.length, dotsBottom: r('#pinDots').bottom, errBottom: r('#pinErr').bottom,
             texto: document.querySelector('#pinScr .pin-logo').textContent.replace(/\s+/g, ' ').trim(),
             sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, padTop: pad.top, tituloBottom: tit.bottom,
@@ -44,10 +45,11 @@ test.describe('PIN con logo y teclado abajo', () => {
         expect(m.texto).toContain('Pulse Finance');
         expect(m.logoEnTop && m.tituloEnBottom && m.puntosEnBottom).toBe(true);
         expect(m.nTop).toBe(1);                                       // .pin-top solo con el logo
-        expect(m.icono).toBe(66);
+        expect(m.icono).toBe(132);
         expect(m.tendencia).toBe(true);                               // línea dorada bajo «Pulse Finance»
-        expect(m.logoTop).toBeLessThan(40);                           // logo cerca del borde de arriba
-        expect(m.tituloTop - m.logoBottom).toBeGreaterThan(40);       // título ya no pegado al logo
+        expect(m.logoTop).toBeGreaterThan(m.vh * 0.03);               // logo centrado en el espacio libre, no pegado arriba
+        expect(m.logoCentroOk).toBe(true);
+        expect(m.tituloTop).toBeGreaterThanOrEqual(m.logoBottom - 1);  // el logo no pisa el título
         expect(m.padTop - m.errBottom).toBeLessThan(30);              // título/puntos pegados al teclado
         expect(m.vh - m.padBottom).toBeLessThan(40);                 // cerca del borde inferior
         expect(m.vh - m.padBottom).toBeGreaterThan(0);
@@ -100,3 +102,26 @@ test('con poco ancho el nombre largo sí se recorta con «…»', async ({ page 
   const lab = await page.evaluate(() => window._ci['cF'].scales.y.ticks[0].label);
   expect(lab.endsWith('…')).toBe(true);
 });
+
+test('en pantallas bajas (360x640) el teclado entra completo y sin overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  const err = await abrir(page);
+  const m = await page.evaluate(() => ({
+    pad: document.querySelector('#pinScr .pin-bottom').getBoundingClientRect().bottom,
+    logoTop: document.querySelector('#pinScr .pin-logo').getBoundingClientRect().top,
+    sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+  }));
+  expect(m.pad).toBeLessThanOrEqual(640);
+  expect(m.logoTop).toBeGreaterThanOrEqual(0);
+  expect(m.sw).toBeLessThanOrEqual(m.cw);
+  expect(err).toEqual([]);
+});
+
+for (const tema of TEMAS) {
+  test(`el fondo de html coincide con el de body (${tema})`, async ({ page }) => {
+    await abrir(page, { tema });
+    const f = await page.evaluate(() => ({ h: getComputedStyle(document.documentElement).backgroundColor, b: getComputedStyle(document.body).backgroundColor }));
+    expect(f.h).toBe(f.b);
+    expect(f.h).not.toBe('rgba(0, 0, 0, 0)');
+  });
+}
