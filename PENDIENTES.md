@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-11-02)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
-- Tests: 1112 (Playwright). 1111 en verde (2026-11-01); falla `fijos.spec.js` «chip vencido» (zona horaria del test: TODAY en UTC vs fecha local, aparece como FAILED, no skipped), previo a los cambios de A pagar.
+- Tests (Playwright): 1195 en verde (2026-11-02). 2 fallos preexistentes de zona horaria en `resumen-usd.spec.js` («chip de compra MEP»: venc en ≤7 días y venc pasado; TODAY en UTC vs fecha local), iguales sin los cambios recientes.
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
