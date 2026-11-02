@@ -7,11 +7,11 @@ const INDEX = 'file:///' + path.resolve(__dirname, '..', 'index.html').replace(/
 const ORDEN = [
   '🌗 Apariencia', '📄 Informe financiero', '🏦 Importar resúmenes', '💾 Copia de seguridad',
   '💵 Dólar de referencia (MEP)', '🤖 Reglas de categorización automática', '🏷 Categorías de gastos',
-  '🏷 Categorías de ingresos', '🔒 PIN de acceso', '👤 Mi nombre en los bancos',
+  '🏷 Categorías de ingresos', '↻ Recategorizar movimientos', '🔒 PIN de acceso', '👤 Mi nombre en los bancos',
   '🎙 API key de Claude (para voz)', '📷 Fotos del gráfico',
 ];
 const CLAVES = ['cfg-apariencia', 'cfg-informe', 'cfg-importar', 'cfg-backup', 'cfg-usdref', 'cfg-reglas',
-  'cfg-cats-gastos', 'cfg-cats-ingresos', 'cfg-pin', 'cfg-nombre', 'cfg-apikey', 'cfg-fotos'];
+  'cfg-cats-gastos', 'cfg-cats-ingresos', 'cfg-recat', 'cfg-pin', 'cfg-nombre', 'cfg-apikey', 'cfg-fotos'];
 
 async function abrir(page, { conSR = false } = {}) {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -27,7 +27,7 @@ async function abrir(page, { conSR = false } = {}) {
 const irConfig = (page) => page.locator('nav.tabs button[data-vista="config"]').click();
 const estados = (page) => page.evaluate(() => [...document.querySelectorAll('#vista-config > details.cfg-section')].map(d => d.open));
 
-test('orden de los 12 títulos y sección 3 renombrada', async ({ page }) => {
+test('orden de los 13 títulos y sección 3 renombrada', async ({ page }) => {
   await abrir(page);
   await irConfig(page);
   const titulos = await page.locator('#vista-config > details.cfg-section > summary h2').allTextContents();
@@ -40,9 +40,9 @@ test('orden de los 12 títulos y sección 3 renombrada', async ({ page }) => {
 test('todas cerradas al entrar; se abre solo la tocada; al volver a entrar vuelven a cerrarse', async ({ page }) => {
   await abrir(page);
   await irConfig(page);
-  expect(await estados(page)).toEqual(Array(12).fill(false));
+  expect(await estados(page)).toEqual(Array(13).fill(false));
   const sums = page.locator('#vista-config > details.cfg-section > summary');
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 13; i++) {
     await expect(sums.nth(i)).toBeVisible();
     const box = await sums.nth(i).boundingBox();
     expect(box && box.height).toBeGreaterThanOrEqual(44);
@@ -59,14 +59,14 @@ test('todas cerradas al entrar; se abre solo la tocada; al volver a entrar vuelv
   // salir y volver a entrar: todo cerrado
   await page.locator('nav.tabs button[data-vista="inicio"]').click();
   await irConfig(page);
-  expect(await estados(page)).toEqual(Array(12).fill(false));
+  expect(await estados(page)).toEqual(Array(13).fill(false));
   // recargar: también cerradas
   await page.locator('#cfg-pin > summary').click();
   await page.reload();
   for (const d of ['1', '2', '3', '4']) await page.click(`button[data-d="${d}"]`);
   await page.waitForTimeout(400);
   await irConfig(page);
-  expect(await estados(page)).toEqual(Array(12).fill(false));
+  expect(await estados(page)).toEqual(Array(13).fill(false));
 });
 
 test('renderConfig no cambia el estado abierto/cerrado', async ({ page }) => {

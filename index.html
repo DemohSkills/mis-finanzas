@@ -528,6 +528,21 @@ details.cfg-section[open]>summary{margin-bottom:6px;}
 .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 .cat-chip{font-size:.78rem;padding:3px 10px;border-radius:99px;border:1px solid var(--border);background:transparent;cursor:pointer;}
 .cat-chip.custom{border-color:var(--accent);color:var(--accent);}
+.cat-chip.on{background:color-mix(in srgb,var(--accent) 18%,transparent);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.cat-blk{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0;border-top:1px solid var(--border);}
+.cat-blk:first-child{border-top:0;}
+.cat-subs{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:4px;}
+.cat-sub{font-size:.72rem;padding:1px 8px;border-radius:99px;border:1px dashed var(--border);color:var(--muted);}
+.recat-fila{display:flex;gap:8px;align-items:flex-start;border-top:1px solid var(--border);padding:8px 0;cursor:pointer;}
+.recat-fila input{margin-top:3px;flex:0 0 auto;}
+.recat-fila .info{flex:1 1 auto;min-width:0;}
+.recat-fila .desc{font-weight:500;overflow-wrap:anywhere;}
+.recat-fila .meta{margin:0;font-size:.78rem;}
+.recat-fila .amt{flex:0 0 auto;font-variant-numeric:tabular-nums;}
+.recat-filtro{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.recat-filtro label{display:flex;flex-direction:column;gap:2px;font-size:.78rem;color:var(--muted);min-width:0;}
+.recat-filtro label.full{grid-column:1/-1;}
+.recat-acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 /* ── Compromisos list ────────────────────────────────────────── */
 .comp-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);flex-wrap:wrap;}
 .comp-row:first-child,.comp-mes .comp-row:first-of-type{border-top:0;}
@@ -1662,6 +1677,39 @@ try{
       <button type="button" class="mini" id="btnNuevaCatIngreso">+ Crear categoría</button>
     </details>
 
+    <details class="cfg-section" id="cfg-recat" data-cfg="cfg-recat">
+      <summary><span class="det-arrow">▶</span><h2>↻ Recategorizar movimientos</h2></summary>
+      <p class="meta">Reasigná en lote la categoría (y subcategoría) de gastos ya cargados. Solo gastos.</p>
+      <div id="recatPaso1">
+        <div class="recat-filtro">
+          <label class="full">Categoría actual<select id="recatCat"></select></label>
+          <label class="full">Subcategoría actual<select id="recatSubFiltro"></select></label>
+          <label>Desde<input type="date" id="recatDesde"></label>
+          <label>Hasta<input type="date" id="recatHasta"></label>
+        </div>
+        <div class="recat-acc"><button type="button" class="mini primary" id="btnRecatBuscar">Buscar movimientos</button></div>
+        <p class="meta" id="recatMsg" role="status"></p>
+      </div>
+      <div id="recatPaso2" hidden>
+        <label class="meta" style="display:flex;gap:6px;align-items:center;margin:8px 0 0"><input type="checkbox" id="recatTodos"> Seleccionar todos</label>
+        <div id="recatLista"></div>
+        <div class="recat-acc">
+          <button type="button" class="mini primary" id="btnRecatSig" disabled>Recategorizar 0 seleccionados →</button>
+          <button type="button" class="mini" id="btnRecatVolver">Cancelar</button>
+        </div>
+      </div>
+      <div id="recatPaso3" hidden>
+        <p class="meta" id="recatResumen" style="margin-top:8px"></p>
+        <div class="cat-chips" id="recatDestChips"></div>
+        <button type="button" class="mini" id="btnRecatNuevaCat">+ Crear categoría</button>
+        <label class="meta" style="display:flex;flex-direction:column;gap:2px;margin-top:10px">Subcategoría nueva (opcional; vacía = no se toca)<input type="text" id="recatSubNueva" maxlength="60" autocomplete="off"></label>
+        <div class="recat-acc">
+          <button type="button" class="mini primary" id="btnRecatConfirmar" disabled>Confirmar recategorización</button>
+          <button type="button" class="mini" id="btnRecatCancelar3">Cancelar</button>
+        </div>
+      </div>
+    </details>
+
     <details class="cfg-section" id="cfg-pin" data-cfg="cfg-pin">
       <summary><span class="det-arrow">▶</span><h2>🔒 PIN de acceso</h2></summary>
       <p class="meta">Protección casual. Cualquier persona con acceso al localStorage del navegador puede eludirla.</p>
@@ -1928,9 +1976,13 @@ function renderReglasLista() {
 function renderCfgCats() {
   const cont = $('catChips'); if (!cont) return;
   const cats = getCats(); const custom = ls.get(CATS_KEY) || [];
-  cont.innerHTML = cats.map(c =>
-    `<span class="cat-chip${custom.includes(c)?' custom':''}">${esc(c)}</span>`
-  ).join('');
+  cont.innerHTML = cats.map(c => {
+    const subs = recatSubcats(c);
+    return `<div class="cat-blk"><span class="cat-chip${custom.includes(c)?' custom':''}">${esc(c)}</span>` +
+      `<button type="button" class="mini recat-btn" data-c="${esc(c)}">↻ Recategorizar</button>` +
+      (subs.length ? `<div class="cat-subs">${subs.map(x => `<span class="cat-sub">${esc(x)}</span>`).join('')}</div>` : '') + '</div>';
+  }).join('');
+  cont.querySelectorAll('.recat-btn').forEach(b => b.onclick = () => abrirRecat(b.dataset.c));
   const contI = $('catIngresoChips'); if (!contI) return;
   const catsI = getCatsIncome(); const customI = ls.get(CATS_INC_K) || [];
   contI.innerHTML = catsI.map(c =>
@@ -4599,7 +4651,113 @@ function abrirCfg(key,opts){
   try{ d.scrollIntoView({block:'start'}); }catch{}
   if(opts.foco){ const e=$(opts.foco); if(e) try{ e.focus({preventScroll:true}); }catch{} }
 }
+// ── Recategorizar movimientos (solo gastos) ─────────────
+let _recat = { ids: [], sel: new Set(), dest: null };
+const _esGastoRecat = g => (g.tipo || 'gasto') === 'gasto' && !g.transferencia;
+function recatSubcats(cat) {
+  const set = new Set();
+  for (const g of (estado.gastos || [])) {
+    if (_esGastoRecat(g) && g.categoria === cat) { const s = (g.subcategoria || '').trim(); if (s) set.add(s); }
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, 'es'));
+}
+function _recatCatsOrigen() {
+  const base = getCats();
+  const extra = [...new Set((estado.gastos || []).filter(_esGastoRecat).map(g => g.categoria).filter(c => c && !base.includes(c)))];
+  return [...base, ...extra];
+}
+function _recatLlenarSubFiltro() {
+  const sel = $('recatSubFiltro'); if (!sel) return;
+  const subs = recatSubcats($('recatCat').value);
+  sel.innerHTML = '<option value="">Todas</option>' + subs.map(s => `<option>${esc(s)}</option>`).join('');
+}
+function _recatPaso(n) {
+  for (const i of [1, 2, 3]) $('recatPaso' + i).hidden = i !== n;
+}
+function renderRecat() {
+  const sel = $('recatCat'); if (!sel) return;
+  const prev = sel.value;
+  const cats = _recatCatsOrigen();
+  sel.innerHTML = cats.map(c => `<option${c === prev ? ' selected' : ''}>${esc(c)}</option>`).join('');
+  _recatLlenarSubFiltro();
+}
+function abrirRecat(cat) {
+  abrirCfg('cfg-recat');
+  _recatPaso(1); $('recatMsg').textContent = '';
+  renderRecat();
+  if (cat) { $('recatCat').value = cat; _recatLlenarSubFiltro(); }
+}
+function _recatActualizarSel() {
+  const n = _recat.sel.size;
+  $('btnRecatSig').disabled = n === 0;
+  $('btnRecatSig').textContent = `Recategorizar ${n} seleccionado${n === 1 ? '' : 's'} →`;
+  $('recatTodos').checked = n > 0 && n === _recat.ids.length;
+}
+function recatBuscar() {
+  const cat = $('recatCat').value, sub = $('recatSubFiltro').value;
+  const d = $('recatDesde').value, h = $('recatHasta').value;
+  const res = (estado.gastos || []).filter(g => _esGastoRecat(g) && g.categoria === cat
+    && (!sub || (g.subcategoria || '').trim() === sub)
+    && (!d || g.fecha >= d) && (!h || g.fecha <= h))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!res.length) { $('recatMsg').textContent = 'No hay gastos que coincidan con el filtro.'; return; }
+  $('recatMsg').textContent = '';
+  _recat = { ids: res.map(g => g.id), sel: new Set(), dest: null };
+  $('recatLista').innerHTML = res.map(g => `<label class="recat-fila" data-id="${esc(g.id)}"><input type="checkbox" class="recat-chk" value="${esc(g.id)}"><span class="info"><span class="desc">${esc(g.descripcion || '(sin descripción)')}</span><span class="meta" style="display:block">${fmtFechaDM(g.fecha, true)}${g.subcategoria ? ' · ' + esc(g.subcategoria) : ''}</span></span><span class="amt">${fmt(g.monto)}</span></label>`).join('');
+  $('recatLista').querySelectorAll('.recat-chk').forEach(c => c.onchange = () => {
+    c.checked ? _recat.sel.add(c.value) : _recat.sel.delete(c.value); _recatActualizarSel();
+  });
+  _recatActualizarSel(); _recatPaso(2);
+}
+function _recatChipsDestino() {
+  const cont = $('recatDestChips');
+  cont.innerHTML = getCats().map(c => `<button type="button" class="cat-chip${_recat.dest === c ? ' on' : ''}" data-c="${esc(c)}" aria-pressed="${_recat.dest === c}">${esc(c)}</button>`).join('');
+  cont.querySelectorAll('.cat-chip').forEach(b => b.onclick = () => { _recat.dest = b.dataset.c; _recatChipsDestino(); });
+  $('btnRecatConfirmar').disabled = !_recat.dest;
+}
+function recatConfirmar() {
+  if (!_recat.dest || !_recat.sel.size) return;
+  const sub = $('recatSubNueva').value.trim();
+  let n = 0;
+  for (const g of estado.gastos) {
+    if (!_recat.sel.has(g.id) || !_esGastoRecat(g)) continue;
+    g.categoria = _recat.dest;
+    if (sub) g.subcategoria = sub;
+    n++;
+  }
+  guardar(); render();
+  const dest = _recat.dest;
+  _recat = { ids: [], sel: new Set(), dest: null };
+  $('recatSubNueva').value = '';
+  renderRecat(); renderCfgCats(); _recatPaso(1);
+  $('recatMsg').textContent = `✓ ${n} gasto${n === 1 ? '' : 's'} recategorizado${n === 1 ? '' : 's'} a «${dest}».`;
+}
+$('recatCat').onchange = _recatLlenarSubFiltro;
+$('btnRecatBuscar').onclick = recatBuscar;
+$('btnRecatVolver').onclick = () => { _recatPaso(1); };
+$('recatTodos').onchange = () => {
+  const on = $('recatTodos').checked;
+  _recat.sel = new Set(on ? _recat.ids : []);
+  $('recatLista').querySelectorAll('.recat-chk').forEach(c => c.checked = on);
+  _recatActualizarSel();
+};
+$('btnRecatSig').onclick = () => {
+  if (!_recat.sel.size) return;
+  const n = _recat.sel.size;
+  $('recatResumen').textContent = `Destino para ${n} gasto${n === 1 ? '' : 's'} de «${$('recatCat').value}»:`;
+  _recat.dest = null; _recatChipsDestino(); _recatPaso(3);
+};
+$('btnRecatNuevaCat').onclick = () => {
+  const nombre = prompt('Nombre de la nueva categoría:')?.trim();
+  if (!nombre) return;
+  addCat(nombre); _recat.dest = nombre;
+  _recatChipsDestino(); renderCfgCats(); fillCatSelect('categoria'); fillCatSelect('reglaCat');
+};
+$('btnRecatConfirmar').onclick = recatConfirmar;
+$('btnRecatCancelar3').onclick = () => { _recat.dest = null; _recatPaso(2); };
+
 function renderConfig(){
+  renderRecat();
   renderCfgCats();
   renderReglasLista();
   fillCatSelect('reglaCat');

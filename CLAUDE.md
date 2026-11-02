@@ -76,7 +76,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Cruce con borradores, deduplicación (`_deduplicarVisaImp`), «conciliado hasta» y deshacer: igual que Visa. Saldos: los gastos entran como gastos normales (`soloHistorial:false`) del medio, como en Visa; el saldo de la deuda se ajusta a mano con «Ajustar saldo». Compromiso `resumen` de `Mastercard MP`: se actualiza (monto, cierre, proxVenc, pagoMinimo) o se crea si no existe; deshacer lo restaura o lo quita.
 
 ## Configuración (vista-config)
-- 12 secciones `<details class="cfg-section" id="cfg-…" data-cfg="cfg-…">` (fotos: `id="detFotos"`, `data-cfg="cfg-fotos"`) en este orden: apariencia, informe, importar (título «🏦 Importar resúmenes»), backup, usdref, reglas, cats-gastos, cats-ingresos, pin, nombre, apikey, fotos. Todas plegadas cada vez que se ENTRA a la vista (`mostrarVista`), estado no persistido; `renderConfig` nunca cambia `open`.
+- 13 secciones `<details class="cfg-section" id="cfg-…" data-cfg="cfg-…">` (fotos: `id="detFotos"`, `data-cfg="cfg-fotos"`) en este orden: apariencia, informe, importar (título «🏦 Importar resúmenes»), backup, usdref, reglas, cats-gastos, cats-ingresos, recat, pin, nombre, apikey, fotos. Todas plegadas cada vez que se ENTRA a la vista (`mostrarVista`), estado no persistido; `renderConfig` nunca cambia `open`.
 - Para llevar al usuario a un ajuste: `abrirCfg('cfg-xxx',{foco:'idInput'})` (abre la sección, scroll y foco); nunca solo `mostrarVista('config')`.
 
 ## Cobro semanal (Meli Extra)
@@ -175,3 +175,8 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - `html{background:var(--bg)}` (todos los temas): evita ver el fondo por defecto del navegador en el notch/barra inferior o con rebote de scroll.
 - Tarjeta de fijos (`rChartF`): las etiquetas del eje Y llevan el nombre completo y se recortan con «…» en `ticks.callback` solo si superan el 45 % del ancho del gráfico (medido con `measureText`).
 - `.tk-btn` (velocidad de la cinta): padding horizontal 14 px.
+
+## Recategorizar movimientos (solo gastos)
+- Sección `#cfg-recat` («↻ Recategorizar movimientos», entre «Categorías de ingresos» y «PIN»). Flujo en 3 pasos dentro de la misma sección (`#recatPaso1/2/3`, estado en `_recat`, no persistido): filtro (categoría actual obligatoria, subcategoría actual «Todas» por defecto, desde/hasta opcionales, inclusivos) → lista con casillas, «Seleccionar todos» y «Recategorizar N seleccionados →» (deshabilitado con 0) → destino (chips `.cat-chip`, «+ Crear categoría» con `prompt` + `addCat`, subcategoría nueva opcional) y «Confirmar recategorización».
+- Solo entran gastos (`tipo==='gasto'`, sin `transferencia`); ingresos y transferencias no. Confirmar fija `categoria` en cada seleccionado y `subcategoria` solo si el campo no está vacío (vacío = no se toca); luego `guardar()` + `render()`. No cambia saldos ni crea claves de localStorage nuevas. Las categorías de origen incluyen las que aparezcan en gastos aunque ya no estén en `getCats()`.
+- «🏷 Categorías de gastos» (`renderCfgCats`): cada categoría es un `.cat-blk` con chip, botón `.recat-btn` («↻ Recategorizar» → `abrirRecat(cat)`, categoría preseleccionada) y sus subcategorías (`recatSubcats`, únicas y no vacías, en `.cat-sub`).
