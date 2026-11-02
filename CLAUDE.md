@@ -171,6 +171,6 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - `renderHistorial` arma `divGrupos` (con todas las partes de `estado.gastos`, aunque la búsqueda encuentre solo una) y `_appendDivDiv` dibuja UNA fila `.gasto-div` por grupo en las dos ramas. `empezarEdicionDivision(grupo)` / `borrarDivision(grupo)`. Un grupo con una sola parte (huérfano) se muestra como gasto normal.
 
 ## Pantalla de PIN y retoques visuales
-- `#pinScr .pin-box` es una columna flex de alto completo: `.pin-top` (logo `.pin-logo` con SVG de velas + «Di-Mi-Trip / Pulse Finance», título, subtítulo, puntos, error), `.pin-spacer` (`flex:1 1 auto`) y `.pin-bottom` (teclado + aviso) pegado al borde inferior. Sirve para ingresar, crear y confirmar (mismo HTML).
+- `#pinScr .pin-box` es una columna flex de alto completo: `.pin-top` (solo el logo `.pin-logo`: ícono de velas de 66 px, «Di-Mi-Trip», «Pulse Finance» y una línea de tendencia dorada `#eab308` sutil), `.pin-spacer` (`flex:1 1 auto`) y `.pin-bottom` (título, subtítulo, puntos, error, teclado y aviso) pegado al borde inferior. Padding superior reducido para subir el logo. Sirve para ingresar, crear y confirmar (mismo HTML).
 - Tarjeta de fijos (`rChartF`): las etiquetas del eje Y llevan el nombre completo y se recortan con «…» en `ticks.callback` solo si superan el 45 % del ancho del gráfico (medido con `measureText`).
 - `.tk-btn` (velocidad de la cinta): padding horizontal 14 px.

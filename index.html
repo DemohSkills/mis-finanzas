@@ -442,11 +442,11 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .overlay[hidden]{display:none;}
 .pin-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:320px;width:100%;text-align:center;}
 #pinScr{align-items:stretch;}
-#pinScr .pin-box{max-width:none;display:flex;flex-direction:column;align-items:center;padding:28px 24px calc(20px + env(safe-area-inset-bottom));}
+#pinScr .pin-box{max-width:none;display:flex;flex-direction:column;align-items:center;padding:12px 24px calc(20px + env(safe-area-inset-bottom));}
 #pinScr .pin-top,#pinScr .pin-bottom{width:100%;max-width:320px;}
 #pinScr .pin-spacer{flex:1 1 auto;min-height:12px;}
 .pin-logo{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:14px;}
-.pin-logo-ic{width:52px;height:52px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 8%,transparent);}
+.pin-logo-ic{width:66px;height:66px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 8%,transparent);}
 .pin-logo-t{font-weight:800;font-size:1rem;margin-top:6px;}
 .pin-logo-s{font-size:.72rem;color:var(--muted);}
 .pin-box h2{margin:0 0 4px;font-size:1.2rem;}
@@ -721,7 +721,7 @@ try{
   <div class="pin-box">
     <div class="pin-top">
     <div class="pin-logo" aria-hidden="true">
-      <div class="pin-logo-ic"><svg width="26" height="26" viewBox="0 0 24 24">
+      <div class="pin-logo-ic"><svg width="34" height="34" viewBox="0 0 24 24">
         <line x1="5" y1="3" x2="5" y2="21" stroke="#4ade80" stroke-width="1.3"/>
         <rect x="3" y="8" width="4" height="7" rx="0.5" fill="#4ade80"/>
         <line x1="11" y1="2" x2="11" y2="16" stroke="#f87171" stroke-width="1.3"/>
@@ -731,16 +731,17 @@ try{
       </svg></div>
       <div class="pin-logo-t">Di-Mi-Trip</div>
       <div class="pin-logo-s">Pulse Finance</div>
+      <svg width="70" height="14" viewBox="0 0 70 14" style="opacity:.6;margin-top:4px"><polyline points="2,12 16,8 30,9 44,4 58,5 68,1" fill="none" stroke="#eab308" stroke-width="1.3"/></svg>
     </div>
+    </div>
+    <div class="pin-spacer"></div>
+    <div class="pin-bottom">
     <h2 id="pinTitle">Ingresar PIN</h2>
     <p class="pin-sub" id="pinSub">Tu PIN de 4 dígitos</p>
     <div class="pin-dots" id="pinDots">
       <span></span><span></span><span></span><span></span>
     </div>
     <div class="pin-err" id="pinErr"></div>
-    </div>
-    <div class="pin-spacer"></div>
-    <div class="pin-bottom">
     <div class="pin-pad">
       <button type="button" data-d="1">1</button>
       <button type="button" data-d="2">2</button>

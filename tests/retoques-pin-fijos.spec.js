@@ -33,14 +33,22 @@ test.describe('PIN con logo y teclado abajo', () => {
           return {
             logoTop: logo.top, tituloTop: tit.top, logoBottom: logo.bottom,
             padBottom: aviso.bottom, vh: innerHeight,
+            icono: r('#pinScr .pin-logo-ic').width, tendencia: !!document.querySelector('#pinScr .pin-top .pin-logo svg polyline[stroke="#eab308"]'),
+            tituloEnBottom: !!document.querySelector('#pinScr .pin-bottom #pinTitle'), puntosEnBottom: !!document.querySelector('#pinScr .pin-bottom #pinDots'), logoEnTop: !!document.querySelector('#pinScr .pin-top .pin-logo'),
+            nTop: document.querySelector('#pinScr .pin-top').children.length, dotsBottom: r('#pinDots').bottom, errBottom: r('#pinErr').bottom,
             texto: document.querySelector('#pinScr .pin-logo').textContent.replace(/\s+/g, ' ').trim(),
             sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, padTop: pad.top, tituloBottom: tit.bottom,
           };
         });
         expect(m.texto).toContain('Di-Mi-Trip');
         expect(m.texto).toContain('Pulse Finance');
-        expect(m.tituloTop - m.logoBottom).toBeLessThan(30);       // título pegado al logo
-        expect(m.padTop - m.tituloBottom).toBeGreaterThan(40);       // teclado separado hacia abajo
+        expect(m.logoEnTop && m.tituloEnBottom && m.puntosEnBottom).toBe(true);
+        expect(m.nTop).toBe(1);                                       // .pin-top solo con el logo
+        expect(m.icono).toBe(66);
+        expect(m.tendencia).toBe(true);                               // línea dorada bajo «Pulse Finance»
+        expect(m.logoTop).toBeLessThan(40);                           // logo cerca del borde de arriba
+        expect(m.tituloTop - m.logoBottom).toBeGreaterThan(40);       // título ya no pegado al logo
+        expect(m.padTop - m.errBottom).toBeLessThan(30);              // título/puntos pegados al teclado
         expect(m.vh - m.padBottom).toBeLessThan(40);                 // cerca del borde inferior
         expect(m.vh - m.padBottom).toBeGreaterThan(0);
         expect(m.sw).toBeLessThanOrEqual(m.cw);
