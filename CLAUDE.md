@@ -104,6 +104,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 ## Gráficos neón
 - `mkChart` es el único punto de creación de gráficos. Con tema `neon-*` (`_esNeon()`) llama a `_neonizar(cfg,id)` y agrega el plugin `neonGrafico` (degradés recreados en `beforeDraw` con la geometría actual; brillo `shadowBlur` solo en líneas, en `beforeDatasetDraw`/`afterDatasetDraw`). El gráfico queda marcado con `chart.$neon` y `canvas.dataset.neon='1'`; en los demás temas no se toca nada.
 - Solo `cP` y `cG`/`cG_e` toman el tono del tema (`--neon-a`); el resto conserva sus colores con significado (rojo deuda/gasto, verde ingreso, paletas por categoría/entidad).
+- Pulido neón (2026-11-02): `.ev-sep` y `.imp-fijo-tag` usan `--neon-1`/`--neon-2` y `--ok` (con brillo estático); `.tk-row` ya lo cubría la regla neón (`--ok`/`--danger`); aros `.avd-arco`/`.avd-seg` con `drop-shadow`. En `_neonizar`, la curva «actual» de la comparativa (`cGCurva`/`cGCurva_e`, la de `#fb923c`) toma el tono del tema; la anterior queda en `#94a3b8` (= `--muted`). Paletas por categoría/entidad (`PALETA_GASTOS`, `S7`, `AVD_COLORES`, líneas de `cD`) conservan sus colores: no se mapean a neón sin decisión de color.
 - `aplicarTema` recrea los gráficos (Evolución y Gastos) y descarta las copias `_e` plegadas para que se redibujen al abrirlas.
 
 ## Cuentas

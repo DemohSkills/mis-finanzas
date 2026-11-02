@@ -69,7 +69,8 @@ html[data-theme^="neon"] .tk-row.pos .tk-arrow,html[data-theme^="neon"] .tk-row.
 html[data-theme^="neon"] .tk-row.neg .tk-arrow,html[data-theme^="neon"] .tk-row.neg .tk-pct{color:var(--danger);}
 html[data-theme^="neon"] .avd-arco{filter:drop-shadow(0 0 6px color-mix(in srgb,currentColor 55%,transparent));}
 html[data-theme^="neon"] .avd-seg{filter:drop-shadow(0 0 5px color-mix(in srgb,currentColor 50%,transparent));}
-html[data-theme^="neon"] .ev-sep{background:linear-gradient(90deg,#ff4d6d,#ffa24a,#4cc9ff);box-shadow:0 0 12px rgba(255,162,74,.45);}
+html[data-theme^="neon"] .ev-sep{background:linear-gradient(90deg,var(--neon-1),var(--neon-2));box-shadow:0 0 12px rgba(var(--neon-a),.6),0 0 4px rgba(var(--neon-b),.5);}
+html[data-theme^="neon"] .imp-fijo-tag{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent);box-shadow:0 0 8px color-mix(in srgb,var(--ok) 35%,transparent);}
 html[data-theme^="neon"] .fab-voz-btn{box-shadow:0 0 26px rgba(var(--neon-a),.9);}
 html[data-theme^="neon"] .borr-pill{box-shadow:0 0 12px rgba(255,210,74,.7);}
 *{box-sizing:border-box;}
@@ -5956,6 +5957,7 @@ function _neonizar(cfg,id){
     const tipo=ds.type||cfg.type;
     if(tipo==='line'){
       if(tema){ds.borderColor=`rgb(${ta})`;ds.backgroundColor=`rgba(${ta},.2)`;}
+      else if(/^cGCurva/.test(id)&&ds.borderColor==='#fb923c'){ds.borderColor=`rgb(${ta})`;ds.backgroundColor=`rgb(${ta})`;} // curva "actual" de la comparativa: tono del tema (la anterior ya es --muted)
       let last=-1;(ds.data||[]).forEach((v,i)=>{if(v!=null)last=i;});
       ds.borderWidth=3;ds.pointRadius=cx=>cx.dataIndex===last?5:0;
       ds.pointBackgroundColor=CV('--text');ds.pointBorderColor=ds.borderColor;ds.pointBorderWidth=2;ds.pointHoverRadius=6;
