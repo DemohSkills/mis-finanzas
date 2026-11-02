@@ -28,11 +28,12 @@
 
 - Cobro semanal (Meli Extra) (en `trabajo-nocturno`, sin publicar): `estado.cobrosSemanales`; ver CLAUDE.md. El ítem suelto viejo de Cobros pendientes lo borra el usuario a mano. Pendiente: sumarlo también al informe PDF (hoy solo entra en Total activos y Por cobrar).
 - Subcategoría por gasto + filtro por categorías en el Informe (commits `465959a` y `673fe4d`, en `trabajo-nocturno`, sin publicar): `g.subcategoria` opcional con etiqueta en Movimientos, chips y sugerencia por descripción en el formulario; Informe con chips de categorías, desglose por tipo de gasto (1 categoría), «Todos los movimientos (N)» plegado y casillas de impresión. Ver CLAUDE.md. Suite: 1125 verdes.
+- Fijos en dólares (commit `fe3810a`, en `trabajo-nocturno`, sin publicar): campo `moneda` (`'USD'` o ausente) en `#fijoModal`, fila con «US$», nota de la tarjeta de fijos con el total en USD. Suite: 1128 verdes.
 - Dictado de días trabajados (en `trabajo-nocturno`, sin publicar): modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.
-1. **Fijos en otra moneda**: los compromisos fijos no tienen campo `moneda`. Agregarlo (ARS/USD) para cargar suscripciones en dólares. La tarjeta "Gastos financieros fijos" ya ignora los que no son ARS y muestra una nota con la cantidad.
+1. ~~**Fijos en otra moneda**~~ ✅ Hecho (commit `fe3810a`, en `trabajo-nocturno`, sin publicar). Quedan pendientes: el modal «Pagué» y los demás totales de fijos (A pagar, informe, compromisos del mes) no distinguen moneda; un fijo en USD se suma como pesos ahí.
 2. ~~**Borradores de gastos para conciliar con resúmenes**~~ ✅ Hecho (etapa 1, 2026-10-25): sección «📝 Borradores» en Movimientos (`estado.borradores`), cruce al importar Santander/Mercado Pago/Visa vía `_cruzarBorradores` (reglas en CLAUDE.md) y lupa en el buscador. Etapas siguientes, todavía pendientes:
    - 2a. ~~**Cargar borradores por dictado de voz.**~~ ✅ Hecho (2026-10-25): decir «borrador» en el dictado guarda un borrador (ver CLAUDE.md, «Dictado en modo borrador»).
    - 2b. ~~**Borradores con cuotas, versión mínima.**~~ ✅ Hecho (2026-10-25): el borrador con `cuotas` N cruza solo con la cuota 1 de ese plan en la Visa (ver CLAUDE.md, «Borradores con cuotas»). Pendientes de esta etapa:
