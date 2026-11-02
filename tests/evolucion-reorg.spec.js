@@ -84,7 +84,7 @@ test('fijos salen de compromisos y el badge suma los activos en ARS', async ({ p
   expect(r.data).toEqual([300000, 150000, 80000]);
   expect(r.labels[0]).toMatch(/…$/);
   expect(r.badge).toBe('$530k/mes');
-  expect(r.nota).toMatch(/1 fijo en otra moneda no incluido/);
+  expect(r.nota).toBe('1 fijo en USD no incluido (US$ 100/mes)');
   expect(r.nota_h).toBe(false);
   expect(parseInt(r.alto)).toBeGreaterThanOrEqual(3 * 30);
   expect(r.grid).toBe(false);

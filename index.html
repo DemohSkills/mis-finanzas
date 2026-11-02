@@ -923,6 +923,10 @@ try{
         <input type="text" class="input-monto" inputmode="decimal" id="fijoMonto" placeholder="0">
       </div>
       <div class="wiz-field">
+        <label>Moneda</label>
+        <select id="fijoMoneda"><option value="ARS">ARS (pesos)</option><option value="USD">USD (dólares)</option></select>
+      </div>
+      <div class="wiz-field">
         <label>Día del mes (1–31)</label>
         <input type="number" id="fijoDiaMes" min="1" max="31" step="1" placeholder="1">
       </div>
@@ -2910,7 +2914,7 @@ function _fijoRowHtml(fijo,mesStr,sinPagar){
       ${enResumen?'<span class="chip chip-tarjeta">En el resumen de la tarjeta</span>':''}
     </div>
     <div class="comp-det">
-      <span class="neg">${fmtV(fijo.monto)}</span>
+      <span class="neg">${fijo.moneda==='USD'?'US$ '+Math.round(fijo.monto).toLocaleString('es-AR'):fmtV(fijo.monto)}</span>
       <span class="comp-meta">Día ${fijo.diaMes}${fijo.medioPago?' · '+esc(fijo.medioPago):''}${(fijo.cadaMeses||1)>1?' · cada '+fijo.cadaMeses+' meses':''}</span>
     </div>
     <div class="comp-btns">
@@ -2941,8 +2945,9 @@ function abrirFijoModal(id){
     $('fijoNombreWrap').removeAttribute('hidden');
     $('fijoNombre').value='';$('fijoMonto').value='';$('fijoDiaMes').value='1';
     $('fijoRepite').value='1';$('fijoMesBase').value='';$('fijoMesBaseWrap').setAttribute('hidden','');
-    $('fijoPalabrasClave').value='';
+    $('fijoPalabrasClave').value='';$('fijoMoneda').value='ARS';
   } else {
+    $('fijoMoneda').value=f.moneda==='USD'?'USD':'ARS';
     $('fijoNombreWrap').setAttribute('hidden','');
     $('fijoMonto').value=fmtInput(f.monto);$('fijoDiaMes').value=f.diaMes;
     $('fijoRepite').value=String(f.cadaMeses||1);$('fijoMesBase').value=f.mesBase||'';
@@ -2965,14 +2970,16 @@ $('fijoForm').onsubmit=function(e){
   const cadaMeses=parseInt($('fijoRepite').value)||1;
   const mesBase=cadaMeses>1?($('fijoMesBase').value||null):null;
   const palabrasClave=$('fijoPalabrasClave').value.trim();
+  const moneda=$('fijoMoneda').value==='USD'?'USD':undefined;
   if(!_fijoModalId){
     const nombre=$('fijoNombre').value.trim();
     if(!nombre){alert('Ingresá un nombre.');return;}
-    estado.compromisos.push({id:nuevoId(),tipo:'fijo',nombre,categoria:cat,monto:m,estimado:true,diaMes:dia,medioPago:medio||null,palabrasClave,activo:true,pagos:{},cadaMeses:cadaMeses>1?cadaMeses:undefined,mesBase:mesBase||undefined});
+    estado.compromisos.push({id:nuevoId(),tipo:'fijo',nombre,categoria:cat,monto:m,estimado:true,diaMes:dia,medioPago:medio||null,palabrasClave,activo:true,pagos:{},cadaMeses:cadaMeses>1?cadaMeses:undefined,mesBase:mesBase||undefined,moneda});
   } else {
     const f=(estado.compromisos||[]).find(x=>x.id===_fijoModalId);
     if(!f) return;
     f.monto=m;f.diaMes=dia;f.categoria=cat;f.medioPago=medio||null;f.palabrasClave=palabrasClave;
+    if(moneda) f.moneda=moneda; else delete f.moneda;
     if(cadaMeses>1){f.cadaMeses=cadaMeses;f.mesBase=mesBase||f.mesBase||null;}
     else{delete f.cadaMeses;delete f.mesBase;}
   }
@@ -6132,7 +6139,8 @@ function rChartF(){
   const total=items.reduce((s,d)=>s+d.value,0);
   $('evBadgeF').textContent='$'+fmtM(total)+'/mes';
   const nota=$('evFinNota');
-  nota.textContent=otra?otra+(otra===1?' fijo en otra moneda no incluido':' fijos en otra moneda no incluidos'):'';
+  const totalOtra=fijos.filter(c=>!esArs(c)).reduce((s,c)=>s+(c.monto||0),0);
+  nota.textContent=otra?otra+(otra===1?' fijo en USD no incluido':' fijos en USD no incluidos')+' (US$ '+Math.round(totalOtra).toLocaleString('es-AR')+'/mes)':'';
   nota.hidden=!otra;
   const wrap=$('evFinWrap');
   if(!items.length){
