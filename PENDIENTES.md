@@ -27,6 +27,7 @@
 - Tarjeta «Ganancia bruta del mes» en Inicio (en `trabajo-nocturno`, sin publicar): ver CLAUDE.md. Solo lectura de ingresos; no cambia saldos.
 
 - Cobro semanal (Meli Extra) (en `trabajo-nocturno`, sin publicar): `estado.cobrosSemanales`; ver CLAUDE.md. El ítem suelto viejo de Cobros pendientes lo borra el usuario a mano. Pendiente: sumarlo también al informe PDF (hoy solo entra en Total activos y Por cobrar).
+- Subcategoría por gasto + filtro por categorías en el Informe (commits `465959a` y `673fe4d`, en `trabajo-nocturno`, sin publicar): `g.subcategoria` opcional con etiqueta en Movimientos, chips y sugerencia por descripción en el formulario; Informe con chips de categorías, desglose por tipo de gasto (1 categoría), «Todos los movimientos (N)» plegado y casillas de impresión. Ver CLAUDE.md. Suite: 1125 verdes.
 - Dictado de días trabajados (en `trabajo-nocturno`, sin publicar): modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
 
 ## Pendiente (por orden de prioridad sugerido)
