@@ -1175,7 +1175,7 @@ try{
 <div class="overlay" id="impModal" hidden>
   <div class="wiz-box" style="max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;">
-      <h2 style="margin:0;font-size:1rem;">📥 Importar Santander / Mercado Pago</h2>
+      <h2 id="impModalTitulo" style="margin:0;font-size:1rem;">📥 Importar Santander / Mercado Pago</h2>
       <button type="button" class="mini" id="btnCerrarImpModal">✕</button>
     </div>
     <div id="impModalBody"></div>
@@ -7984,6 +7984,7 @@ function _deshacerUltimaImpMC() {
 }
 
 function abrirImportMCModal() {
+  $("impModalTitulo").textContent = "📥 Importar Mastercard MP (PDF)";
   const body = $('impModalBody');
   body.innerHTML = `
     <p class="meta">Seleccioná el resumen de la Mastercard de Mercado Pago (<b>.pdf</b>). El parseo es local.</p>
@@ -8018,6 +8019,7 @@ function abrirImportMCModal() {
 
 // ── Open Visa Excel import modal ───────────────────────
 function abrirImportVisaModal() {
+  $("impModalTitulo").textContent = "📥 Importar Visa (Excel)";
   const body = $('impModalBody');
   body.innerHTML = `
     <p class="meta">Seleccioná el resumen de Visa en Excel (<b>.xls/.xlsx</b>) del home banking de Santander. El parseo es local.</p>
@@ -8050,6 +8052,7 @@ function abrirImportVisaModal() {
 
 // ── Open import modal ──────────────────────────────────
 function abrirImportModal() {
+  $("impModalTitulo").textContent = "📥 Importar Santander / Mercado Pago";
   const body = $('impModalBody');
   const imps = estado.importaciones || {};
   const lastSant = imps['Banco Santander'];
