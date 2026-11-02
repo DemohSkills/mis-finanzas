@@ -79,10 +79,10 @@ test('fijos salen de compromisos y el badge suma los activos en ARS', async ({ p
   const err = await abrir(page, estadoBase());
   const r = await page.evaluate(() => {
     const c = window._ci['cF'];
-    return { labels: c.data.labels, data: c.data.datasets[0].data, badge: document.getElementById('evBadgeF').textContent, nota: document.getElementById('evFinNota').textContent, nota_h: document.getElementById('evFinNota').hidden, alto: document.getElementById('evFinWrap').style.height, grid: !!document.getElementById('evFinGrid') };
+    return { labels: c.scales.y.ticks.map(t => t.label), data: c.data.datasets[0].data, badge: document.getElementById('evBadgeF').textContent, nota: document.getElementById('evFinNota').textContent, nota_h: document.getElementById('evFinNota').hidden, alto: document.getElementById('evFinWrap').style.height, grid: !!document.getElementById('evFinGrid') };
   });
   expect(r.data).toEqual([300000, 150000, 80000]);
-  expect(r.labels[0]).toMatch(/…$/);
+  expect(r.labels[0]).toBe('Alquiler ficticio con nombre muy largo para abreviar'); // entra: sin recorte
   expect(r.badge).toBe('$530k/mes');
   expect(r.nota).toBe('1 fijo en USD no incluido (US$ 100/mes)');
   expect(r.nota_h).toBe(false);

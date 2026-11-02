@@ -441,6 +441,14 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;}
 .overlay[hidden]{display:none;}
 .pin-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:320px;width:100%;text-align:center;}
+#pinScr{align-items:stretch;}
+#pinScr .pin-box{max-width:none;display:flex;flex-direction:column;align-items:center;padding:28px 24px calc(20px + env(safe-area-inset-bottom));}
+#pinScr .pin-top,#pinScr .pin-bottom{width:100%;max-width:320px;}
+#pinScr .pin-spacer{flex:1 1 auto;min-height:12px;}
+.pin-logo{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:14px;}
+.pin-logo-ic{width:52px;height:52px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 8%,transparent);}
+.pin-logo-t{font-weight:800;font-size:1rem;margin-top:6px;}
+.pin-logo-s{font-size:.72rem;color:var(--muted);}
 .pin-box h2{margin:0 0 4px;font-size:1.2rem;}
 .pin-box .pin-sub{font-size:.82rem;color:var(--muted);margin:0 0 20px;}
 .pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:20px;}
@@ -682,7 +690,7 @@ details.imp-sec[open]>summary .det-arrow{transform:rotate(90deg);}
 .tk-val{font-size:.70rem;color:var(--muted);}
 .tk-row.pos .tk-arrow,.tk-row.pos .tk-pct{color:#4ade80;}
 .tk-row.neg .tk-arrow,.tk-row.neg .tk-pct{color:#f87171;}
-.tk-btn{flex-shrink:0;align-self:stretch;padding:0 8px;font-size:.72rem;background:none;border:none;border-left:1px solid var(--border);color:var(--muted);cursor:pointer;display:flex;align-items:center;}
+.tk-btn{flex-shrink:0;align-self:stretch;padding:0 14px;font-size:.72rem;background:none;border:none;border-left:1px solid var(--border);color:var(--muted);cursor:pointer;display:flex;align-items:center;}
 .tk-btn:hover{color:var(--text);}
 body.ocultar .tk-val{display:none!important;}
 /* ── /TICKER EVOLUCIÓN ── */
@@ -711,12 +719,28 @@ try{
 <!-- ══════════════════ PIN SCREEN ══════════════════ -->
 <div class="overlay" id="pinScr">
   <div class="pin-box">
+    <div class="pin-top">
+    <div class="pin-logo" aria-hidden="true">
+      <div class="pin-logo-ic"><svg width="26" height="26" viewBox="0 0 24 24">
+        <line x1="5" y1="3" x2="5" y2="21" stroke="#4ade80" stroke-width="1.3"/>
+        <rect x="3" y="8" width="4" height="7" rx="0.5" fill="#4ade80"/>
+        <line x1="11" y1="2" x2="11" y2="16" stroke="#f87171" stroke-width="1.3"/>
+        <rect x="9" y="5" width="4" height="7" rx="0.5" fill="#f87171"/>
+        <line x1="17" y1="6" x2="17" y2="22" stroke="#4ade80" stroke-width="1.3"/>
+        <rect x="15" y="10" width="4" height="8" rx="0.5" fill="#4ade80"/>
+      </svg></div>
+      <div class="pin-logo-t">Di-Mi-Trip</div>
+      <div class="pin-logo-s">Pulse Finance</div>
+    </div>
     <h2 id="pinTitle">Ingresar PIN</h2>
     <p class="pin-sub" id="pinSub">Tu PIN de 4 dígitos</p>
     <div class="pin-dots" id="pinDots">
       <span></span><span></span><span></span><span></span>
     </div>
     <div class="pin-err" id="pinErr"></div>
+    </div>
+    <div class="pin-spacer"></div>
+    <div class="pin-bottom">
     <div class="pin-pad">
       <button type="button" data-d="1">1</button>
       <button type="button" data-d="2">2</button>
@@ -734,6 +758,7 @@ try{
     <p style="font-size:.7rem;color:var(--muted);margin:0">
       ⚠️ Protección casual — no sustituye seguridad real.
     </p>
+    </div>
   </div>
 </div>
 
@@ -6311,14 +6336,13 @@ function rChartF(){
   wrap.hidden=false;$('evFinVacio').hidden=true;
   wrap.style.height=Math.max(80,items.length*30+24)+'px';
   const oc=()=>document.body.classList.contains('ocultar');
-  const abrev=l=>l.length>16?l.slice(0,15)+'…':l;
   const labPlg={id:'barLabelsF',afterDatasetsDraw(chart){
     if(oc())return;
     const{ctx}=chart;ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='10px system-ui,-apple-system,sans-serif';ctx.fillStyle=CV('--text');
     chart.getDatasetMeta(0).data.forEach((bar,i)=>{ctx.fillText('$'+Math.round(items[i].value).toLocaleString('es-AR'),bar.x+4,bar.y);});
     ctx.restore();
   }};
-  mkChart('cF',{type:'bar',data:{labels:items.map(d=>abrev(d.label)),datasets:[{label:'Gasto mensual',data:items.map(d=>d.value),backgroundColor:items.map((_,i)=>S7[i%S7.length]),borderRadius:4,barPercentage:.7,categoryPercentage:.9}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:78}},plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{title:its=>items[its[0].dataIndex].label,label:c=>' '+(oc()?'••••••':'$'+Math.round(c.parsed.x).toLocaleString('es-AR')+'/mes')}}},scales:{x:{beginAtZero:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v),maxTicksLimit:4},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}},y:{ticks:{color:CV('--muted'),font:{size:10},keepOjo:true},grid:{display:false},border:{display:false}}}},plugins:[labPlg]});
+  mkChart('cF',{type:'bar',data:{labels:items.map(d=>d.label),datasets:[{label:'Gasto mensual',data:items.map(d=>d.value),backgroundColor:items.map((_,i)=>S7[i%S7.length]),borderRadius:4,barPercentage:.7,categoryPercentage:.9}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:78}},plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{title:its=>items[its[0].dataIndex].label,label:c=>' '+(oc()?'••••••':'$'+Math.round(c.parsed.x).toLocaleString('es-AR')+'/mes')}}},scales:{x:{beginAtZero:true,ticks:{color:CV('--muted'),callback:v=>'$'+fmtM(v),maxTicksLimit:4},grid:{color:CV('--border'),lineWidth:.5},border:{display:false}},y:{ticks:{color:CV('--muted'),font:{size:10},keepOjo:true,callback(v,i){const l=String(items[i]?items[i].label:'');const cx=this.chart.ctx;cx.save();cx.font='10px system-ui,-apple-system,sans-serif';const mx=Math.max(60,this.chart.width*.45);let t=l;if(cx.measureText(t).width>mx){while(t.length>1&&cx.measureText(t+'…').width>mx)t=t.slice(0,-1);t+='…';}cx.restore();return t;}},grid:{display:false},border:{display:false}}}},plugins:[labPlg]});
 }
 
 // ── Saldo promedio mensual por medio ──────────────────

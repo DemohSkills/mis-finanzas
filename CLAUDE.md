@@ -169,3 +169,8 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - `g.grupoDivision` (string opcional, mismo valor en todas las partes de una compra dividida). Cada parte es un gasto normal e independiente (misma `fecha`/`medio`/`descripcion`, su `categoria`/`monto`, sin `subcategoria`), así que totales, Informe y CSV las ven como gastos sueltos.
 - `#form`: `#btnDividir` (dentro de `#divBox`, visible solo con `tipo==='gasto'`) activa `_divModo`: oculta categoría y subcategoría y muestra filas `.div-fila` (mín. 2; la suma debe igualar `#monto`, si no `alert` y no guarda). Al guardar crea N gastos con un `grupoDivision` nuevo; si se editaba un grupo (`_divEditGrupo`) o un gasto suelto, lo reemplaza.
 - `renderHistorial` arma `divGrupos` (con todas las partes de `estado.gastos`, aunque la búsqueda encuentre solo una) y `_appendDivDiv` dibuja UNA fila `.gasto-div` por grupo en las dos ramas. `empezarEdicionDivision(grupo)` / `borrarDivision(grupo)`. Un grupo con una sola parte (huérfano) se muestra como gasto normal.
+
+## Pantalla de PIN y retoques visuales
+- `#pinScr .pin-box` es una columna flex de alto completo: `.pin-top` (logo `.pin-logo` con SVG de velas + «Di-Mi-Trip / Pulse Finance», título, subtítulo, puntos, error), `.pin-spacer` (`flex:1 1 auto`) y `.pin-bottom` (teclado + aviso) pegado al borde inferior. Sirve para ingresar, crear y confirmar (mismo HTML).
+- Tarjeta de fijos (`rChartF`): las etiquetas del eje Y llevan el nombre completo y se recortan con «…» en `ticks.callback` solo si superan el 45 % del ancho del gráfico (medido con `measureText`).
+- `.tk-btn` (velocidad de la cinta): padding horizontal 14 px.

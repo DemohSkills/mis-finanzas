@@ -31,6 +31,7 @@
 - Fijos en dólares (commit `fe3810a`, en `trabajo-nocturno`, sin publicar): campo `moneda` (`'USD'` o ausente) en `#fijoModal`, fila con «US$», nota de la tarjeta de fijos con el total en USD. Suite: 1128 verdes.
 - Dividir una compra en varias categorías (en `trabajo-nocturno`, sin publicar): campo `grupoDivision`, botón en el formulario, una fila plegable por grupo en Movimientos con Editar/Borrar del grupo. Suite: 1135 verdes.
 - Dictado de días trabajados (en `trabajo-nocturno`, sin publicar): modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
+- Retoques visuales (en `trabajo-nocturno`, sin publicar): pantalla del PIN con logo (velas + «Di-Mi-Trip / Pulse Finance»), título pegado al logo y teclado numérico al borde inferior (acercarlo al pulgar); etiquetas de la tarjeta de fijos recortadas solo si no entran (por ancho medido, no 16 caracteres fijos); botón ▶ de velocidad de la cinta con más padding horizontal. Tests en `retoques-pin-fijos.spec.js`.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.
@@ -48,7 +49,7 @@
 4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
 5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
 6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes). 2026-10-27: regla del « · » en nombres de ítem (título + detalle chico) en Vínculos y Patrimonio; Patrimonio → Cobros pendientes agrupa por persona (`pat-cobros-<persona>`); suite en 1003 verdes. 2026-10-27: el modal de clasificar transferencias muestra la cuenta (medio) junto a la fecha; suite en 1005 verdes.
-7. **Detalles visuales menores**: nombres largos de fijos cortados con "…" en la tarjeta de fijos; el texto del icono "normal" ocupa casi todo el ancho (más margen si se quiere).
+7. ~~**Detalles visuales menores**~~ ✅ Hecho (en `trabajo-nocturno`, sin publicar): nombres largos de fijos cortados con "…", texto del icono "normal" casi pegado al borde y pantalla del PIN con el teclado numérico lejos del pulgar (ver línea de «sin publicar»).
 8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.
 9. **Capturas demo**: regenerar (anonimizadas) cuando cambie la UI.
 10. **Rediseño con Claude Design**: pospuesto (gasta muchos créditos). Hay brief y capturas guardados por el usuario.
