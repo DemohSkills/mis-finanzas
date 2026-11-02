@@ -29,6 +29,7 @@
 - Cobro semanal (Meli Extra) (en `trabajo-nocturno`, sin publicar): `estado.cobrosSemanales`; ver CLAUDE.md. El ítem suelto viejo de Cobros pendientes lo borra el usuario a mano. Pendiente: sumarlo también al informe PDF (hoy solo entra en Total activos y Por cobrar).
 - Subcategoría por gasto + filtro por categorías en el Informe (commits `465959a` y `673fe4d`, en `trabajo-nocturno`, sin publicar): `g.subcategoria` opcional con etiqueta en Movimientos, chips y sugerencia por descripción en el formulario; Informe con chips de categorías, desglose por tipo de gasto (1 categoría), «Todos los movimientos (N)» plegado y casillas de impresión. Ver CLAUDE.md. Suite: 1125 verdes.
 - Fijos en dólares (commit `fe3810a`, en `trabajo-nocturno`, sin publicar): campo `moneda` (`'USD'` o ausente) en `#fijoModal`, fila con «US$», nota de la tarjeta de fijos con el total en USD. Suite: 1128 verdes.
+- Dividir una compra en varias categorías (en `trabajo-nocturno`, sin publicar): campo `grupoDivision`, botón en el formulario, una fila plegable por grupo en Movimientos con Editar/Borrar del grupo. Suite: 1135 verdes.
 - Dictado de días trabajados (en `trabajo-nocturno`, sin publicar): modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
 
 ## Pendiente (por orden de prioridad sugerido)
@@ -39,7 +40,7 @@
    - 2b. ~~**Borradores con cuotas, versión mínima.**~~ ✅ Hecho (2026-10-25): el borrador con `cuotas` N cruza solo con la cuota 1 de ese plan en la Visa (ver CLAUDE.md, «Borradores con cuotas»). Pendientes de esta etapa:
      - (1) Verificar con el resumen real del 29/10 la tolerancia de importe (`max(2,00; 1 %)` de total÷N) y el formato de la columna de cuotas.
      - (2) ~~Que las cuotas 2..N hereden la categoría de la cuota 1.~~ ✅ Hecho (2026-10-29): en Visa heredan de la cuota anterior ya importada del mismo plan (no por cruce con el borrador).
-   - 2c. **Dividir una compra en varias categorías.**
+   - 2c. ~~**Dividir una compra en varias categorías.**~~ ✅ Hecho (en `trabajo-nocturno`, sin publicar; ver CLAUDE.md «Dividir una compra en categorías»). Pendiente: subcategoría por parte (v1 sin ella).
 3b. ~~**Importar Mastercard MP (PDF)**~~ ✅ Hecho (2026-10-25, ver CLAUDE.md «Importador Mastercard MP»). Pendientes:
    - (1) Verificar con el resumen real del 27/10 (formato de líneas del PDF, fechas de cierre/vencimiento, suma contra el total).
    - (2) ~~Extender la herencia de categoría de cuotas 2..N al importador de Visa.~~ ✅ Hecho (2026-10-29, `_heredarCategoriaCuota` compartida).
