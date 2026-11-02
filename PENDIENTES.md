@@ -5,7 +5,7 @@
 > El repo es PÚBLICO: nada de montos, nombres de personas, claves ni datos bancarios en este archivo.
 
 ## Estado actual (2026-11-02)
-- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `f8639dd` (2026-11-02); `main` y `trabajo-nocturno` coinciden.
+- Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
 - Tests: 1112 (Playwright). 1111 en verde (2026-11-01); falla `fijos.spec.js` «chip vencido» (zona horaria del test: TODAY en UTC vs fecha local, aparece como FAILED, no skipped), previo a los cambios de A pagar.
 
 ## Hecho (publicado)
@@ -31,8 +31,8 @@
 - Fijos en dólares (commit `fe3810a`): campo `moneda` (`'USD'` o ausente) en `#fijoModal`, fila con «US$», nota de la tarjeta de fijos con el total en USD. Suite: 1128 verdes.
 - Dividir una compra en varias categorías (commit `6d65882`): campo `grupoDivision`, botón en el formulario, una fila plegable por grupo en Movimientos con Editar/Borrar del grupo. Suite: 1135 verdes.
 - Dictado de días trabajados: modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
-- Retoques visuales (commit `f8639dd`): pantalla del PIN con logo (velas + «Di-Mi-Trip / Pulse Finance»), título pegado al logo y teclado numérico al borde inferior (acercarlo al pulgar); etiquetas de la tarjeta de fijos recortadas solo si no entran (por ancho medido, no 16 caracteres fijos); botón ▶ de velocidad de la cinta con más padding horizontal. Tests en `retoques-pin-fijos.spec.js`. Ajuste posterior: logo de 66 px más arriba con línea de tendencia dorada, y título/puntos movidos al bloque del teclado (`.pin-bottom`). Segundo ajuste (sin publicar): logo 2x centrado en el espacio libre (reducido en pantallas bajas), sin `.pin-spacer`, y `html{background}` para cubrir notch y barra inferior en neón.
-- Recategorizar movimientos (en `trabajo-nocturno`, sin publicar): sección «↻ Recategorizar movimientos» en Configuración (filtro → selección → destino) y subcategorías + botón «↻ Recategorizar» en Categorías de gastos; solo gastos. Ver CLAUDE.md. Tests en `recategorizar.spec.js`. Suite: 1195 verdes (2 fallos preexistentes de zona horaria en `resumen-usd.spec.js`).
+- Retoques visuales (commit `f8639dd`): pantalla del PIN con logo (velas + «Di-Mi-Trip / Pulse Finance»), título pegado al logo y teclado numérico al borde inferior (acercarlo al pulgar); etiquetas de la tarjeta de fijos recortadas solo si no entran (por ancho medido, no 16 caracteres fijos); botón ▶ de velocidad de la cinta con más padding horizontal. Tests en `retoques-pin-fijos.spec.js`. Ajuste posterior: logo de 66 px más arriba con línea de tendencia dorada, y título/puntos movidos al bloque del teclado (`.pin-bottom`). Segundo ajuste (commit `f5ab9ab`): logo 2x centrado en el espacio libre (reducido en pantallas bajas), sin `.pin-spacer`, y `html{background}` para cubrir notch y barra inferior en neón.
+- Recategorizar movimientos (commit `af1827e`): sección «↻ Recategorizar movimientos» en Configuración (filtro → selección → destino) y subcategorías + botón «↻ Recategorizar» en Categorías de gastos; solo gastos. Ver CLAUDE.md. Tests en `recategorizar.spec.js`. Suite: 1195 verdes (2 fallos preexistentes de zona horaria en `resumen-usd.spec.js`).
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: gráficos en neón con relleno degradado y punto brillante; aro de progreso; ajuste fino de colores fijos que quedaron sin tocar (`PALETA_GASTOS`, barras/colores de datasets Chart.js `rgba(...)` y `#94a3b8`/`#fb923c` de la comparativa, `.ev-sep`, `.tk-row` `#4ade80`/`#f87171`, `.imp-fijo-tag` `#16a34a`, informe en blanco a propósito); más tonos si el usuario quiere.
