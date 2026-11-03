@@ -91,16 +91,15 @@ test.describe('patrimonio-grafico', () => {
       await page.locator('#pCtl .p-chip-per').click();
     }
     expect(vistos).toEqual([3, 5, 10, 20, 50, 100, 200, 3]);
-    await expect(page.locator('#pCtl .p-chip-per')).toHaveText('Media móvil (P5)');
+    await expect(page.locator('#pCtl .p-chip-per')).toHaveText('Media móvil (5 períodos)');
     expect(await page.evaluate(() => _pSigPeriodo(200))).toBe(3);
   });
 
   test('la media móvil se calcula sobre el rango visible', async ({ page }) => {
     await abrir(page, { pref: { rango: '7', mm: 3 } });
     const r = await page.evaluate(() => { const d = window._ci.cP.data.datasets; return { p: d[0].data, m: d[1].data, label: d[1].label }; });
-    expect(r.label).toBe('Media móvil (P3)');
-    expect(r.m[0]).toBeNull();
-    expect(r.m[1]).toBeNull();
+    expect(r.label).toBe('Media móvil (3 períodos)');
+    expect(r.m[0]).toBe(r.p[0]);
     expect(r.m[2]).toBeCloseTo((r.p[0] + r.p[1] + r.p[2]) / 3, 5);
   });
 
@@ -128,7 +127,7 @@ test.describe('patrimonio-grafico', () => {
   test('las preferencias guardadas se aplican al abrir', async ({ page }) => {
     await abrir(page, { pref: { rango: '90', mm: 20, verP: true, verMM: false } });
     expect(await puntos(page)).toBe(91);
-    await expect(page.locator('#pCtl .p-chip-per')).toHaveText('Media móvil (P20)');
+    await expect(page.locator('#pCtl .p-chip-per')).toHaveText('Media móvil (20 períodos)');
     expect(await page.evaluate(() => window._ci.cP.isDatasetVisible(1))).toBe(false);
   });
 
@@ -156,5 +155,51 @@ test.describe('patrimonio-grafico', () => {
     const txt = (await page.locator('#pCtl').innerText()).toLowerCase();
     expect(txt).not.toContain('tocá');
     expect(txt).not.toContain('tocar');
+  });
+
+  test('relleno de la media móvil: parte del primer punto y llega exacto al primer valor real', async ({ page }) => {
+    await abrir(page, { nSnaps: 120, pref: { rango: 'all', mm: 10 } });
+    const r = await page.evaluate(() => {
+      const d = window._ci.cP.data.datasets;
+      const vals = d[0].data, m = d[1].data;
+      const real = _pMediaMovil(vals, 10);
+      return { m, p0: vals[0], real9: real[9], desde: d[1].mmDesde, alfa: [0, 9, 20].map(i => _pMMAlfa(i, 10)),
+        seg: [0, 4, 9].map(i => d[1].segment.borderColor({ p0DataIndex: i })), dash: d[1].borderDash || null, pr: d[1].pointRadius };
+    });
+    expect(r.desde).toBe(9);
+    expect(r.m[0]).toBe(r.p0);
+    expect(r.m[9]).toBeCloseTo(r.real9, 6);
+    const paso = (r.m[9] - r.m[0]) / 9;
+    for (let i = 1; i <= 9; i++) expect(r.m[i] - r.m[i - 1]).toBeCloseTo(paso, 5);
+    expect(r.m.every(v => v != null)).toBe(true);
+    expect(r.alfa[0]).toBeCloseTo(0.15, 5);
+    expect(r.alfa[1]).toBe(1);
+    expect(r.alfa[2]).toBe(1);
+    expect(r.seg[0]).toBe('rgba(251,191,36,0.150)');
+    expect(r.seg[1]).toBe('rgba(251,191,36,0.575)');
+    expect(r.seg[2]).toBe('#fbbf24');
+    expect(r.dash).toBeNull();
+    expect(r.pr).toBe(0);
+  });
+
+  test('sin relleno si el período supera los puntos visibles', async ({ page }) => {
+    await abrir(page, { nSnaps: 120, pref: { rango: '7', mm: 20 } });
+    const r = await page.evaluate(() => { const d = window._ci.cP.data.datasets[1]; return { m: d.data, desde: d.mmDesde }; });
+    expect(r.m.every(v => v === null)).toBe(true);
+    expect(r.desde).toBe(0);
+  });
+
+  test('serie apagada: no se dibuja nada (dataset oculto)', async ({ page }) => {
+    await abrir(page, { nSnaps: 120, pref: { rango: 'all', mm: 10, verMM: false } });
+    expect(await page.evaluate(() => window._ci.cP.isDatasetVisible(1))).toBe(false);
+  });
+
+  test('chip: texto "N períodos" para cada valor del ciclo', async ({ page }) => {
+    await abrir(page, { nSnaps: 120, pref: { rango: 'all' } });
+    for (const n of [3, 5, 10, 20, 50, 100, 200]) {
+      await expect(page.locator('#pCtl .p-chip-per')).toHaveText('Media móvil (' + n + ' períodos)');
+      await page.locator('#pCtl .p-chip-per').click();
+    }
+    await expect(page.locator('#pCtl .p-chip-per')).toHaveText('Media móvil (3 períodos)');
   });
 });

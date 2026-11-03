@@ -6317,6 +6317,13 @@ function _pMediaMovil(vals,p){
   if(!(p>=1)||p>vals.length)return null;
   return vals.map((_,i)=>i<p-1?null:vals.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p);
 }
+// Tramo de relleno VISUAL: reemplaza los null iniciales por una recta desde vals[0] hasta el primer valor real. No es dato.
+function _pMMRelleno(vals,mm,p){
+  if(!mm||p<2)return mm;
+  const f=mm[p-1];
+  return mm.map((v,i)=>i<p-1?vals[0]+(f-vals[0])*i/(p-1):v);
+}
+function _pMMAlfa(i,p){return i>=p-1?1:.15+.85*i/Math.max(1,p-2);}
 function rChartP(){
   const pf=_pPrefs();
   const raw=cargarSnaps().sort((a,b)=>a.d.localeCompare(b.d));const t=totales();const hoyStr=hoy();
@@ -6325,15 +6332,15 @@ function rChartP(){
   const badge=$('evBadgeP');
   if(data.length>=2){const diff=data[data.length-1].n-data[0].n;badge.textContent=(diff>=0?'▲ +':'▼ ')+fmtM(diff);badge.className='ev-badge '+(diff>=0?'up':'dn');}
   else{badge.textContent='Un punto';badge.className='ev-badge neu';}
-  const vals=data.map(s=>s.n),mm=_pMediaMovil(vals,pf.mm);
+  const vals=data.map(s=>s.n),mmReal=_pMediaMovil(vals,pf.mm),mm=_pMMRelleno(vals,mmReal,pf.mm);
   const dsP={label:'Patrimonio neto',data:vals,borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.10)',fill:true,tension:.4,borderWidth:2,pointBackgroundColor:'#60a5fa',pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=12?4:2,pointHoverRadius:6,hidden:!pf.verP};
-  const dsM={label:'Media móvil (P'+pf.mm+')',data:mm||vals.map(()=>null),borderColor:'#fbbf24',backgroundColor:'#fbbf24',fill:false,tension:.4,borderWidth:2,pointRadius:0,pointHoverRadius:4,keepColor:true,hidden:!pf.verMM};
-  const ch=mkChart('cP',{type:'line',data:{labels:data.map(s=>s.d.slice(5).split('-').reverse().join('/')),datasets:[dsP,dsM]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...ttO(),filter:c=>c.parsed.y!=null,callbacks:{label:c=>' '+(c.datasetIndex?c.dataset.label+': ':'')+fmtM(c.parsed.y),afterLabel:c=>{if(c.datasetIndex||!c.dataIndex)return'';const d=c.parsed.y-c.dataset.data[c.dataIndex-1];return' Δ '+(d>=0?'+':'−')+'$'+Math.abs(d).toLocaleString('es-AR');}}}},scales:axO(v=>fmtM(v))}});
+  const dsM={label:'Media móvil ('+pf.mm+' períodos)',data:mm||vals.map(()=>null),borderColor:'#fbbf24',backgroundColor:'#fbbf24',fill:false,tension:.4,borderWidth:2,pointRadius:0,pointHoverRadius:0,keepColor:true,hidden:!pf.verMM,mmDesde:mmReal?pf.mm-1:0,segment:{borderColor:c=>{const a=_pMMAlfa(c.p0DataIndex,pf.mm);return a>=1?'#fbbf24':'rgba(251,191,36,'+a.toFixed(3)+')';}}};
+  const ch=mkChart('cP',{type:'line',data:{labels:data.map(s=>s.d.slice(5).split('-').reverse().join('/')),datasets:[dsP,dsM]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...ttO(),filter:c=>c.parsed.y!=null&&!(c.datasetIndex===1&&c.dataIndex<c.dataset.mmDesde),callbacks:{label:c=>' '+(c.datasetIndex?c.dataset.label+': ':'')+fmtM(c.parsed.y),afterLabel:c=>{if(c.datasetIndex||!c.dataIndex)return'';const d=c.parsed.y-c.dataset.data[c.dataIndex-1];return' Δ '+(d>=0?'+':'−')+'$'+Math.abs(d).toLocaleString('es-AR');}}}},scales:axO(v=>fmtM(v))}});
   const ctl=$('pCtl');if(!ctl)return;
   const col=i=>(ch&&ch.data.datasets[i].borderColor)||(i?'#fbbf24':'#60a5fa');
   ctl.innerHTML=`<div class="p-rangos">${[['7','7 días'],['30','30 días'],['90','90 días'],['all','ALL']].map(([k,l])=>`<button type="button" class="p-rango${pf.rango===k?' on':''}" data-rango="${k}">${l}</button>`).join('')}</div>`+
     `<div class="p-chips"><span class="p-chip${pf.verP?'':' off'}" data-serie="p"><button type="button" class="p-chip-sw" aria-pressed="${pf.verP}" aria-label="Patrimonio neto"><i style="background:${col(0)}"></i></button>Patrimonio neto</span>`+
-    `<span class="p-chip${pf.verMM?'':' off'}" data-serie="mm"><button type="button" class="p-chip-sw" aria-pressed="${pf.verMM}" aria-label="Media móvil"><i style="background:${col(1)}"></i></button><button type="button" class="p-chip-per">Media móvil (P${pf.mm})</button></span></div>`;
+    `<span class="p-chip${pf.verMM?'':' off'}" data-serie="mm"><button type="button" class="p-chip-sw" aria-pressed="${pf.verMM}" aria-label="Media móvil"><i style="background:${col(1)}"></i></button><button type="button" class="p-chip-per">Media móvil (${pf.mm} períodos)</button></span></div>`;
   ctl.querySelectorAll('[data-rango]').forEach(b=>b.onclick=()=>{const p=_pPrefs();p.rango=b.dataset.rango;_pGuardar(p);rChartP();});
   ctl.querySelectorAll('.p-chip-sw').forEach(b=>b.onclick=()=>{
     const chip=b.closest('.p-chip'),mmS=chip.dataset.serie==='mm',p=_pPrefs();

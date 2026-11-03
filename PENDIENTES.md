@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-11-02)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
-- Tests (Playwright): 1237 en verde (2026-11-02), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (10).
+- Tests (Playwright): 1241 en verde (2026-11-02), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
