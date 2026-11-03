@@ -326,6 +326,15 @@ details.persona>summary .estado{flex-shrink:0;white-space:nowrap;}
 .ev-hd h2{margin:0 0 2px;font-size:.9rem;}
 .ev-hd .sub{font-size:.72rem;color:var(--muted);margin:0;}
 .ev-hint{font-size:.7rem;color:var(--muted);opacity:.65;white-space:nowrap;align-self:flex-end;}
+#pCtl{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:2px 0 8px;}
+.p-rangos,.p-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.p-rango{font:inherit;font-size:.72rem;font-weight:700;padding:5px 10px;border-radius:99px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
+.p-rango.on{background:var(--accent,#60a5fa);border-color:var(--accent,#60a5fa);color:#fff;}
+.p-chip{display:inline-flex;align-items:center;gap:2px;font-size:.72rem;font-weight:600;border:1px solid var(--border);border-radius:99px;padding:0 10px 0 2px;color:var(--text);}
+.p-chip.off{opacity:.45;}
+.p-chip-sw{font:inherit;background:transparent;border:0;padding:8px 6px;cursor:pointer;display:inline-flex;align-items:center;}
+.p-chip-sw i{display:block;width:16px;height:3px;border-radius:2px;}
+.p-chip-per{font:inherit;font-weight:600;background:transparent;border:0;padding:6px 0;color:inherit;cursor:pointer;}
 .ev-badge{display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;}
 .ev-badge.up{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok);}
 .ev-badge.dn{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);}
@@ -1554,6 +1563,7 @@ try{
     </div>
     <details class="ev-card" id="det-ev-cP" open>
       <summary class="ev-hd"><div><h2>Patrimonio neto</h2><p class="sub">Evolución histórica · ARS</p></div><span class="det-arrow">▶</span><span class="ev-badge neu" id="evBadgeP">—</span></summary>
+      <div id="pCtl"></div>
       <div class="cw h200"><canvas id="cP"></canvas></div>
     </details>
     <details class="ev-card" id="det-ev-cB" open>
@@ -6102,7 +6112,7 @@ function _neonizar(cfg,id){
   ((cfg.data&&cfg.data.datasets)||[]).forEach(ds=>{
     const tipo=ds.type||cfg.type;
     if(tipo==='line'){
-      if(tema){ds.borderColor=`rgb(${ta})`;ds.backgroundColor=`rgba(${ta},.2)`;}
+      if(tema&&!ds.keepColor){ds.borderColor=`rgb(${ta})`;ds.backgroundColor=`rgba(${ta},.2)`;}
       else if(/^cGCurva/.test(id)&&ds.borderColor==='#fb923c'){ds.borderColor=`rgb(${ta})`;ds.backgroundColor=`rgb(${ta})`;} // curva "actual" de la comparativa: tono del tema (la anterior ya es --muted)
       let last=-1;(ds.data||[]).forEach((v,i)=>{if(v!=null)last=i;});
       ds.borderWidth=3;ds.pointRadius=cx=>cx.dataIndex===last?5:0;
@@ -6287,13 +6297,52 @@ function renderVarTable(){
 }
 window.renderVarTable=renderVarTable;
 
+// ── Patrimonio neto (cP): rango, media móvil y chips ──
+const P_RANGOS=['7','30','90','all'],P_PERIODOS=[3,5,10,20,50,100,200],SK_PCHART='finanzas-v1-pat-chart';
+function _pPrefs(){
+  let p={};try{p=JSON.parse(localStorage.getItem(SK_PCHART)||'{}')||{};}catch{}
+  return{rango:P_RANGOS.includes(p.rango)?p.rango:'30',mm:P_PERIODOS.includes(p.mm)?p.mm:3,verP:p.verP!==false,verMM:p.verMM!==false};
+}
+function _pGuardar(p){try{localStorage.setItem(SK_PCHART,JSON.stringify(p));}catch{}}
+// Snaps de los últimos N días contados hacia atrás desde el último snap (incluye ambos extremos); 'all' o poca historia = todo.
+function _pFiltrarRango(data,rango){
+  if(rango==='all'||!data.length)return data;
+  const c=new Date(data[data.length-1].d+'T00:00:00Z');c.setUTCDate(c.getUTCDate()-(+rango));
+  const corte=c.toISOString().slice(0,10);
+  return data.filter(s=>s.d>=corte);
+}
+function _pSigPeriodo(p){const i=P_PERIODOS.indexOf(p);return P_PERIODOS[(i+1)%P_PERIODOS.length];}
+// Media móvil simple; null si el período supera la cantidad de puntos (no se dibuja).
+function _pMediaMovil(vals,p){
+  if(!(p>=1)||p>vals.length)return null;
+  return vals.map((_,i)=>i<p-1?null:vals.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p);
+}
 function rChartP(){
+  const pf=_pPrefs();
   const raw=cargarSnaps().sort((a,b)=>a.d.localeCompare(b.d));const t=totales();const hoyStr=hoy();
-  const data=!raw.length?[{d:hoyStr,n:t.neto}]:raw[raw.length-1].d===hoyStr?raw:[...raw,{d:hoyStr,n:t.neto}];
+  const todo=!raw.length?[{d:hoyStr,n:t.neto}]:raw[raw.length-1].d===hoyStr?raw:[...raw,{d:hoyStr,n:t.neto}];
+  const data=_pFiltrarRango(todo,pf.rango);
   const badge=$('evBadgeP');
   if(data.length>=2){const diff=data[data.length-1].n-data[0].n;badge.textContent=(diff>=0?'▲ +':'▼ ')+fmtM(diff);badge.className='ev-badge '+(diff>=0?'up':'dn');}
   else{badge.textContent='Un punto';badge.className='ev-badge neu';}
-  mkChart('cP',{type:'line',data:{labels:data.map(s=>s.d.slice(5).split('-').reverse().join('/')),datasets:[{label:'Patrimonio neto',data:data.map(s=>s.n),borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.10)',fill:true,tension:.4,borderWidth:2,pointBackgroundColor:'#60a5fa',pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=12?4:2,pointHoverRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...ttO(),callbacks:{label:c=>' '+fmtM(c.parsed.y),afterLabel:c=>{if(!c.dataIndex)return'';const d=c.parsed.y-c.dataset.data[c.dataIndex-1];return' Δ '+(d>=0?'+':'−')+'$'+Math.abs(d).toLocaleString('es-AR');}}}},scales:axO(v=>fmtM(v))}});
+  const vals=data.map(s=>s.n),mm=_pMediaMovil(vals,pf.mm);
+  const dsP={label:'Patrimonio neto',data:vals,borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.10)',fill:true,tension:.4,borderWidth:2,pointBackgroundColor:'#60a5fa',pointBorderColor:CV('--card'),pointBorderWidth:2,pointRadius:data.length<=12?4:2,pointHoverRadius:6,hidden:!pf.verP};
+  const dsM={label:'Media móvil (P'+pf.mm+')',data:mm||vals.map(()=>null),borderColor:'#fbbf24',backgroundColor:'#fbbf24',fill:false,tension:.4,borderWidth:2,pointRadius:0,pointHoverRadius:4,keepColor:true,hidden:!pf.verMM};
+  const ch=mkChart('cP',{type:'line',data:{labels:data.map(s=>s.d.slice(5).split('-').reverse().join('/')),datasets:[dsP,dsM]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...ttO(),filter:c=>c.parsed.y!=null,callbacks:{label:c=>' '+(c.datasetIndex?c.dataset.label+': ':'')+fmtM(c.parsed.y),afterLabel:c=>{if(c.datasetIndex||!c.dataIndex)return'';const d=c.parsed.y-c.dataset.data[c.dataIndex-1];return' Δ '+(d>=0?'+':'−')+'$'+Math.abs(d).toLocaleString('es-AR');}}}},scales:axO(v=>fmtM(v))}});
+  const ctl=$('pCtl');if(!ctl)return;
+  const col=i=>(ch&&ch.data.datasets[i].borderColor)||(i?'#fbbf24':'#60a5fa');
+  ctl.innerHTML=`<div class="p-rangos">${[['7','7 días'],['30','30 días'],['90','90 días'],['all','ALL']].map(([k,l])=>`<button type="button" class="p-rango${pf.rango===k?' on':''}" data-rango="${k}">${l}</button>`).join('')}</div>`+
+    `<div class="p-chips"><span class="p-chip${pf.verP?'':' off'}" data-serie="p"><button type="button" class="p-chip-sw" aria-pressed="${pf.verP}" aria-label="Patrimonio neto"><i style="background:${col(0)}"></i></button>Patrimonio neto</span>`+
+    `<span class="p-chip${pf.verMM?'':' off'}" data-serie="mm"><button type="button" class="p-chip-sw" aria-pressed="${pf.verMM}" aria-label="Media móvil"><i style="background:${col(1)}"></i></button><button type="button" class="p-chip-per">Media móvil (P${pf.mm})</button></span></div>`;
+  ctl.querySelectorAll('[data-rango]').forEach(b=>b.onclick=()=>{const p=_pPrefs();p.rango=b.dataset.rango;_pGuardar(p);rChartP();});
+  ctl.querySelectorAll('.p-chip-sw').forEach(b=>b.onclick=()=>{
+    const chip=b.closest('.p-chip'),mmS=chip.dataset.serie==='mm',p=_pPrefs();
+    if(mmS)p.verMM=!p.verMM;else p.verP=!p.verP;
+    _pGuardar(p);
+    const c=_ci.cP;if(c){c.setDatasetVisibility(mmS?1:0,mmS?p.verMM:p.verP);c.update();}
+    const on=mmS?p.verMM:p.verP;chip.classList.toggle('off',!on);b.setAttribute('aria-pressed',on);
+  });
+  ctl.querySelector('.p-chip-per').onclick=()=>{const p=_pPrefs();p.mm=_pSigPeriodo(p.mm);_pGuardar(p);rChartP();};
 }
 
 // ── Activos vs Deudas: tarjeta HTML/SVG (sin Chart.js) ──

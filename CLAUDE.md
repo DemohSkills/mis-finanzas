@@ -39,6 +39,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-chart-vis-<id>` | boolean — gráfico `<id>` oculto (`true`) o visible |
 | `finanzas-v1-comp-sort` | `'venc'` (default) / `'entidad'` / `'monto'` — orden de la lista de compromisos |
 | `finanzas-v1-det-<id>` | boolean — sección plegable `<id>` abierta o plegada (las copias de Gastos en Evolución usan `finanzas-v1-det-det-ev-…`, ver fila anterior) |
+| `finanzas-v1-pat-chart` | `{ rango: '7'/'30'/'90'/'all', mm: 3/5/10/20/50/100/200, verP: boolean, verMM: boolean }` — preferencias del gráfico «Patrimonio neto» (default `'30'`, 3, true, true); valores inválidos caen al default |
 | `finanzas-v1-var-per` | `1` (default) / `7` / `30` / `90` — período en días del cuadro de variaciones |
 
 ## Borradores de gastos
@@ -191,3 +192,9 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Botón «📈 Fondo» (junto a «± Ajustar», en Patrimonio y Vínculos) abre `#fondoModal`: el usuario carga a mano el valor de hoy; `_fondoSugerida(it, hoy) = montoOriginal × hoy / refInicial` y se muestra la diferencia contra el monto actual. No hay tasa ni cálculo automático. Devoluciones/préstamos adicionales NO alteran `montoOriginal` (se siguen cargando con ± Ajustar).
 - Aplicar (`guardarFondo`): fija `monto` a la sugerida y agrega al historial `{accion:'interes', monto:<diferencia con signo>, medio:'', gastoId:null, refValor, refAnterior, fechaRefAnterior}`. NO crea gasto/ingreso ni toca cuentas (el interés no mueve plata). «Deshacer último» (`deshacerUltimoAjuste`) revierte el monto y restaura `refActual`/`refFecha`. El detalle muestra «📈 Fondo: inicial X · última: Y (fecha)» (`_fondoInfoHtml`). Tests en `prestamo-fondo.spec.js`.
 
+
+## Gráfico «Patrimonio neto» (cP): rango, media móvil y chips
+- `rChartP` arma `#pCtl` (botones `.p-rango` 7 días/30 días/90 días/ALL + chips `.p-chip`) y el chart con 2 datasets: [0] Patrimonio neto, [1] «Media móvil (P#)» (`keepColor`: `_neonizar` no le pisa el amarillo). Opciones: `interaction:{mode:'index',intersect:false}`; el Δ del tooltip solo en la serie 0. Sin texto de ayuda visible: la interacción vive en los chips.
+- `_pFiltrarRango(data, rango)`: últimos N días contados hacia atrás desde el último snap, con ambos extremos (7 → hasta 8 puntos); `'all'` o poca historia = todo. El badge de variación se calcula sobre el rango visible. Default `'30'`.
+- `_pMediaMovil(vals, p)` sobre el rango visible; si `p` > puntos devuelve `null` y el dataset 1 queda con todos `null` (no se dibuja, sin error). `_pSigPeriodo`: ciclo 3,5,10,20,50,100,200 → 3 (se toca el texto «Media móvil (P#)»).
+- La rayita de cada chip (`.p-chip-sw`) oculta/muestra el dataset (`setDatasetVisibility`, no lo borra). Preferencias en `finanzas-v1-pat-chart` (ver tabla). Tests: `patrimonio-grafico.spec.js`.
