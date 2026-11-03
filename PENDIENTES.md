@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-11-02)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
-- Tests (Playwright): 1195 en verde (2026-11-02). 2 fallos preexistentes de zona horaria en `resumen-usd.spec.js` («chip de compra MEP»: venc en ≤7 días y venc pasado; TODAY en UTC vs fecha local), iguales sin los cambios recientes.
+- Tests (Playwright): 1227 en verde (2026-11-02), incluye `prestamo-fondo.spec.js` (5 tests).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -48,8 +48,8 @@
    - (1) Verificar con el resumen real del 27/10 (formato de líneas del PDF, fechas de cierre/vencimiento, suma contra el total).
    - (2) ~~Extender la herencia de categoría de cuotas 2..N al importador de Visa.~~ ✅ Hecho (2026-10-29, `_heredarCategoriaCuota` compartida).
 3. **Importación de Visa**: el 29/10 importar con "📥 Importar Visa (Excel)" (no con el resumen del 1/10).
-4. **Regla de interés entre personas (préstamos)**: falta definir tasa y base de cálculo. Necesita una descripción del usuario antes de armar la tarea.
-5. **"Mi nombre en los bancos"**: comprobar cómo figura una transferencia Santander → Mercado Pago para que el matching la detecte como transferencia propia. Necesita captura de ambos movimientos.
+4. ~~**Regla de interés entre personas (préstamos)**~~ ✅ Hecho (2026-11-02): sin tasa fija; el préstamo se sigue contra un fondo de referencia cargado a mano (botón «📈 Fondo»). Ver CLAUDE.md «Préstamos: seguimiento contra un fondo».
+5. ~~**"Mi nombre en los bancos"**~~ ✅ Verificado con datos reales el 2026-11-02 (sin cambios de código): la transferencia Santander → Mercado Pago se detecta como propia.
 6. **Cuenta corriente por persona** (posible fusión de Vínculos con Patrimonio): en espera. Vínculos ya muestra una sola tarjeta por persona (2026-10-26, suite en 996 verdes). 2026-10-27: regla del « · » en nombres de ítem (título + detalle chico) en Vínculos y Patrimonio; Patrimonio → Cobros pendientes agrupa por persona (`pat-cobros-<persona>`); suite en 1003 verdes. 2026-10-27: el modal de clasificar transferencias muestra la cuenta (medio) junto a la fecha; suite en 1005 verdes.
 7. ~~**Detalles visuales menores**~~ ✅ Hecho: nombres largos de fijos cortados con "…", texto del icono "normal" casi pegado al borde y pantalla del PIN con el teclado numérico lejos del pulgar (ver «Retoques visuales» en Hecho).
 8. **Historial git del repo público**: decidir si limpiar valores personales viejos en commits publicados.

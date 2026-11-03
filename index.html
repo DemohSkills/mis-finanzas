@@ -1058,6 +1058,26 @@ try{
   </div>
 </div>
 
+<div class="overlay" id="fondoModal" hidden>
+  <div class="wiz-box" style="max-width:360px;">
+    <h2 id="fondoModalTit" style="margin:0 0 6px;font-size:1rem;"></h2>
+    <div id="fondoModalInfo" class="meta" style="margin-bottom:10px;font-size:.8rem;"></div>
+    <div class="wiz-field">
+      <label>Valor de referencia hoy</label>
+      <input type="text" class="input-monto" inputmode="decimal" id="fondoRefHoy" placeholder="0">
+    </div>
+    <div id="fondoCalc" style="margin:4px 0 10px;font-size:.85rem;"></div>
+    <div class="wiz-field">
+      <label>Fecha</label>
+      <input type="date" id="fondoFecha">
+    </div>
+    <div class="wiz-actions">
+      <button type="button" class="primary" id="btnGuardarFondo">Aplicar diferencia</button>
+      <button type="button" onclick="cerrarFondoModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="ajusteModal" hidden>
   <div class="wiz-box" style="max-width:360px;">
     <h2 id="ajusteModalTit" style="margin:0 0 14px;font-size:1rem;"></h2>
@@ -1505,6 +1525,14 @@ try{
             <input type="text" id="itemPersona" maxlength="40" list="personasList" placeholder="Ej: María">
           </label>
           <datalist id="personasList"></datalist>
+          <div id="itemRefBox" class="full" hidden>
+            <label>Valor de referencia al prestar (opcional)
+              <input type="text" class="input-monto" id="itemRefInicial" inputmode="decimal" placeholder="Valor del fondo hoy">
+            </label>
+            <label>Escala (opcional)
+              <input type="text" id="itemEscala" inputmode="decimal" placeholder="Ej: 100 (1.500.000 ↔ 15.000)">
+            </label>
+          </div>
           <div class="acciones">
             <button type="submit" class="primary" id="btnItemGuardar">Agregar</button>
             <button type="button" id="btnItemBorrar" class="danger" hidden>Borrar</button>
@@ -3219,7 +3247,12 @@ function deshacerUltimoAjuste(itId) {
   if (!confirm('¿Deshacer el último ajuste de ' + it.nombre + '?')) return;
   estado.gastos = estado.gastos.filter(x => x.id !== entrada.gastoId);
   const { accion, monto: m } = entrada;
-  if (accion === 'prestoMas' || accion === 'preste') it.monto = Math.max(0, it.monto - m);
+  if (accion === 'interes') {
+    it.monto = _r2(Math.max(0, it.monto - m));
+    if (entrada.refAnterior != null) { it.refActual = entrada.refAnterior; it.refFecha = entrada.fechaRefAnterior || null; }
+    else { delete it.refActual; delete it.refFecha; }
+  }
+  else if (accion === 'prestoMas' || accion === 'preste') it.monto = Math.max(0, it.monto - m);
   else it.monto += m;
   it.historial.pop();
   guardar(); guardarSnap();
@@ -3228,6 +3261,57 @@ function deshacerUltimoAjuste(itId) {
 }
 
 $('btnGuardarAjuste').onclick = guardarAjuste;
+
+// ── ACTUALIZAR POR FONDO (préstamos con referencia) ──────
+// Deuda sugerida = montoOriginal × (valorHoy / refInicial). El valor de hoy lo carga el usuario a mano.
+let _fondoItemId = null;
+function _fondoSugerida(it, valorHoy) {
+  if (!(it && it.refInicial > 0 && it.montoOriginal >= 0 && valorHoy > 0)) return null;
+  return _r2(it.montoOriginal * (valorHoy / it.refInicial));
+}
+function _fondoInfoHtml(it) {
+  if (!(it && it.refInicial > 0)) return '';
+  const ult = it.refActual > 0 ? ` · última: ${fmtV(it.refActual)}${it.refFecha ? ' (' + fechaCorta(it.refFecha) + ')' : ''}` : '';
+  return `<div class="vinc-ref meta" style="font-size:.75rem;">📈 Fondo: inicial ${fmtV(it.refInicial)}${ult}</div>`;
+}
+function abrirFondoModal(itId) {
+  const it = estado.items.find(x => x.id === itId); if (!it || !(it.refInicial > 0)) return;
+  _fondoItemId = itId;
+  $('fondoModalTit').textContent = '📈 Actualizar por fondo: ' + it.nombre;
+  $('fondoModalInfo').textContent = `Préstamo original ${fmtV(it.montoOriginal)} · referencia inicial ${fmtV(it.refInicial)}` + (it.refActual > 0 ? ` · última ${fmtV(it.refActual)}` : '');
+  $('fondoRefHoy').value = '';
+  $('fondoFecha').value = hoy();
+  _fondoCalc();
+  $('fondoModal').removeAttribute('hidden');
+  $('fondoRefHoy').focus();
+}
+function cerrarFondoModal() { $('fondoModal').setAttribute('hidden', ''); _fondoItemId = null; }
+function _fondoCalc() {
+  const it = estado.items.find(x => x.id === _fondoItemId); if (!it) return;
+  const sug = _fondoSugerida(it, readMonto('fondoRefHoy'));
+  if (sug == null) { $('fondoCalc').textContent = ''; return; }
+  const dif = _r2(sug - it.monto);
+  $('fondoCalc').innerHTML = `Deuda sugerida: <b class="num">${fmtV(sug)}</b><br>Monto actual: <span class="num">${fmtV(it.monto)}</span><br>Diferencia: <b class="num">${dif >= 0 ? '+' : '−'}${fmtV(Math.abs(dif))}</b>`;
+}
+function guardarFondo() {
+  const it = estado.items.find(x => x.id === _fondoItemId); if (!it) return;
+  const ref = readMonto('fondoRefHoy');
+  const sug = _fondoSugerida(it, ref);
+  if (sug == null) return alert('Ingresá el valor de referencia de hoy (mayor a 0)');
+  const dif = _r2(sug - it.monto);
+  if (dif === 0) return alert('No hay diferencia con el monto actual');
+  const fecha = $('fondoFecha').value || hoy();
+  if (!it.historial) it.historial = [];
+  it.historial.push({ id:nuevoId(), fecha, accion:'interes', monto:dif, medio:'', gastoId:null, refValor:ref, refAnterior:it.refActual ?? null, fechaRefAnterior:it.refFecha ?? null });
+  it.monto = sug;
+  it.refActual = ref; it.refFecha = fecha;
+  cerrarFondoModal();
+  guardar(); guardarSnap();
+  renderLista('listaActivos','activo'); renderLista('listaDeudas','deuda');
+  renderVinculos(); renderResumen(); renderHistorial();
+}
+$('fondoRefHoy').addEventListener('input', _fondoCalc);
+$('btnGuardarFondo').onclick = guardarFondo;
 
 // ── COBRÉ (Cobros pendientes) ─────────────────────────────
 let _cobreItemId = null;
@@ -4483,7 +4567,7 @@ function renderLista(contId, tipo) {
   const csList=tipo==='activo'?(estado.cobrosSemanales||[]):[];
   const grupos=GRUPOS.map(g=>[g,estado.items.filter(it=>it.tipo===tipo&&it.grupo===g)]).filter(([g,items])=>items.length||(tipo==='activo'&&g==='Cobros pendientes'));
   let total=0;
-  const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió'};
+  const etiqAjuste={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',interes:'Interés (fondo)'};
   const hayEditandoItem=!!editandoItemId;
 
   if(medios.length){
@@ -4512,7 +4596,8 @@ function renderLista(contId, tipo) {
     const agregarItem=(cont2,it,conPersona)=>{
       const esPrestamo=g==='Préstamos con personas'&&!!it.persona;
       const esCobro=g==='Cobros pendientes';
-      cont2.appendChild(filaItem(it.nombre,it.monto,conPersona?it.persona:'',()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null,esCobro?()=>abrirCobreModal(it.id):null));
+      cont2.appendChild(filaItem(it.nombre,it.monto,conPersona?it.persona:'',()=>editarItem(it.id),it.id===editandoItemId,esPrestamo?()=>abrirAjusteModal(it.id):null,esCobro?()=>abrirCobreModal(it.id):null,esPrestamo&&it.refInicial>0?()=>abrirFondoModal(it.id):null));
+      if(esPrestamo&&it.refInicial>0) cont2.insertAdjacentHTML('beforeend',_fondoInfoHtml(it));
       if((esPrestamo||esCobro)&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const hdet=document.createElement('details');
@@ -4569,13 +4654,14 @@ function nombreItemHtml(nombre){
   return `<span class="nom-t">${esc(s.slice(0,i))}</span><span class="nom-s">${esc(s.slice(i+3))}</span>`;
 }
 
-function filaItem(nombre,monto,persona,onEdit,editando,onAjustar,onCobre){
+function filaItem(nombre,monto,persona,onEdit,editando,onAjustar,onCobre,onFondo){
   const div=document.createElement('div'); div.className='item'+(editando?' editando':'');
-  div.innerHTML=`<span class="nom">${nombreItemHtml(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}`;
+  div.innerHTML=`<span class="nom">${nombreItemHtml(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onFondo?'<button type="button" class="mini fondo-btn" style="font-size:.75rem;padding:3px 8px">📈 Fondo</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}`;
   div.querySelector('.edit').onclick=onEdit;
   const extraBtns=div.querySelectorAll('button.mini');
   let idx=0;
   if(onAjustar) extraBtns[idx++].onclick=onAjustar;
+  if(onFondo) extraBtns[idx++].onclick=onFondo;
   if(onCobre) extraBtns[idx++].onclick=onCobre;
   return div;
 }
@@ -4583,7 +4669,7 @@ function filaItem(nombre,monto,persona,onEdit,editando,onAjustar,onCobre){
 function resetFormItem(){
   editandoItemId=null; $('formItem').reset();
   $('itemTitulo').textContent='Agregar activo o deuda';
-  $('btnItemGuardar').textContent='Agregar';
+  $('btnItemGuardar').textContent='Agregar'; _itemRefVis();
   $('btnItemBorrar').hidden=$('btnItemCancelar').hidden=true;
 }
 
@@ -4593,6 +4679,8 @@ function editarItem(id){
   $('itemNombre').value=it.nombre; $('itemTipo').value=it.tipo;
   $('itemMonto').value=fmtInput(it.monto);   $('itemGrupo').value=it.grupo;
   $('itemPersona').value=it.persona||'';
+  _itemRefVis();
+  $('itemRefInicial').value=it.refInicial>0?fmtInput(it.refInicial):''; $('itemEscala').value=it.escala>0?String(it.escala).replace('.',','):'';
   $('itemTitulo').textContent='Editar: '+it.nombre;
   $('btnItemGuardar').textContent='Guardar cambios';
   $('btnItemBorrar').hidden=$('btnItemCancelar').hidden=false;
@@ -4601,12 +4689,30 @@ function editarItem(id){
   $('formItem').scrollIntoView({behavior:'smooth',block:'center'}); $('itemMonto').focus();
 }
 
+function _itemRefVis(){ $('itemRefBox').hidden=$('itemGrupo').value!=='Préstamos con personas'; }
+$('itemGrupo').addEventListener('change',_itemRefVis);
 $('formItem').addEventListener('submit',e=>{
   e.preventDefault();
   const monto=Math.round(readMonto('itemMonto')*100)/100;
   if(!(monto>=0)) return alert('Ingresá un monto válido (ej: 1.234,56)');
   const datos={nombre:$('itemNombre').value.trim(),tipo:$('itemTipo').value,monto,grupo:$('itemGrupo').value,persona:$('itemPersona').value.trim()};
-  if(editandoItemId) Object.assign(estado.items.find(x=>x.id===editandoItemId),datos);
+  // Referencia a fondo: solo en Préstamos con personas. Escala (monto ÷ fondo) deriva la referencia si falta.
+  let refI=0, esc2=0;
+  if(datos.grupo==='Préstamos con personas'){
+    refI=readMonto('itemRefInicial')||0; esc2=readMonto('itemEscala')||0;
+    if(!(refI>0)&&esc2>0&&monto>0) refI=_r2(monto/esc2);
+    if(!(refI>0)) refI=0;
+  }
+  const prev=editandoItemId?estado.items.find(x=>x.id===editandoItemId):null;
+  if(refI>0){
+    datos.refInicial=refI; if(esc2>0) datos.escala=esc2;
+    datos.montoOriginal=(prev&&prev.refInicial>0&&prev.montoOriginal!=null)?prev.montoOriginal:monto;
+  }
+  if(prev){
+    if(!(refI>0)){ delete prev.refInicial; delete prev.montoOriginal; delete prev.escala; delete prev.refActual; delete prev.refFecha; }
+    else if(!(esc2>0)) delete prev.escala;
+    Object.assign(prev,datos);
+  }
   else estado.items.push({id:nuevoId(),...datos});
   guardar(); resetFormItem(); render();
 });
@@ -4629,7 +4735,7 @@ function renderVinculos(){
   const cont=$('vinculos'); cont.innerHTML='';
   if(!porPersona.size){ cont.innerHTML='<div class="vacio">No hay compromisos con personas.</div>'; return; }
   const personas=[...porPersona].map(([nombre,items])=>({nombre,items,neto:_r2(items.reduce((s,it)=>s+(it.tipo==='activo'?it.monto:-it.monto),0)+(csPorPersona.get(nombre)||[]).reduce((s,cs)=>s+cwDebe(cs),0)),cws:csPorPersona.get(nombre)||[]})).sort((a,b)=>Math.abs(b.neto)-Math.abs(a.neto));
-  const etiqH={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',cobre:'Cobré'};
+  const etiqH={prestoMas:'Me prestó más',devolvi:'Le devolví',preste:'Le presté más',devolvio:'Me devolvió',cobre:'Cobré',interes:'Interés (fondo)'};
   for(const p of personas){
     const txt=p.neto>0?`Te debe ${fmtV(p.neto)}`:p.neto<0?`Le debés ${fmtV(-p.neto)}`:'Sin saldo pendiente';
     const card=document.createElement('details'); card.className='persona';
@@ -4641,10 +4747,12 @@ function renderVinculos(){
       const li=document.createElement('li');
       const esPrestamo=it.grupo==='Préstamos con personas';
       const esCobro=it.grupo==='Cobros pendientes'&&it.tipo==='activo';
-      const btn=esPrestamo?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':esCobro?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':'';
+      const btn=esPrestamo?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>'+(it.refInicial>0?'<button type="button" class="mini fondo-btn" style="font-size:.75rem;padding:3px 8px">📈 Fondo</button>':''):esCobro?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':'';
       li.innerHTML=`<span class="vinc-nom">${nombreItemHtml(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span>${btn}`;
       const b=li.querySelector('button');
       if(b) b.onclick=()=>esPrestamo?abrirAjusteModal(it.id):abrirCobreModal(it.id);
+      const bf=li.querySelector('.fondo-btn'); if(bf) bf.onclick=()=>abrirFondoModal(it.id);
+      if(esPrestamo&&it.refInicial>0) li.insertAdjacentHTML('beforeend',_fondoInfoHtml(it));
       if((esPrestamo||esCobro)&&it.historial?.length){
         const ultimos=[...it.historial].reverse().slice(0,5);
         const det=document.createElement('details');
