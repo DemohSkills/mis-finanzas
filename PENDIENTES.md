@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-11-02)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
-- Tests (Playwright): 1241 en verde (2026-11-02), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
+- Tests (Playwright): 1243 en verde + 2 fallos previos de resumen-usd.spec.js (2026-11-03), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -33,7 +33,7 @@
 - Dictado de días trabajados: modo «🛠 Trabajo» de la tarjeta de voz; ver CLAUDE.md. Suite: 1034 tests.
 - Retoques visuales (commit `f8639dd`): pantalla del PIN con logo (velas + «Di-Mi-Trip / Pulse Finance»), título pegado al logo y teclado numérico al borde inferior (acercarlo al pulgar); etiquetas de la tarjeta de fijos recortadas solo si no entran (por ancho medido, no 16 caracteres fijos); botón ▶ de velocidad de la cinta con más padding horizontal. Tests en `retoques-pin-fijos.spec.js`. Ajuste posterior: logo de 66 px más arriba con línea de tendencia dorada, y título/puntos movidos al bloque del teclado (`.pin-bottom`). Segundo ajuste (commit `f5ab9ab`): logo 2x centrado en el espacio libre (reducido en pantallas bajas), sin `.pin-spacer`, y `html{background}` para cubrir notch y barra inferior en neón.
 - Recategorizar movimientos (commit `af1827e`): sección «↻ Recategorizar movimientos» en Configuración (filtro → selección → destino) y subcategorías + botón «↻ Recategorizar» en Categorías de gastos; solo gastos. Ver CLAUDE.md. Tests en `recategorizar.spec.js`. Suite: 1195 verdes (2 fallos preexistentes de zona horaria en `resumen-usd.spec.js`).
-- Swipe entre pestañas (en `trabajo-nocturno`, sin publicar): deslizar desde el borde lateral (≤24 px) cambia de pestaña en el orden de la barra; sin vuelta en los extremos. Ver CLAUDE.md. Tests en `swipe-pestanas.spec.js`. Suite: 1222 verdes.
+- Swipe entre pestañas (en `trabajo-nocturno`, sin publicar): un swipe RÁPIDO (≥0,5 px/ms, `SWIPE_VEL`) desde cualquier punto de la pantalla cambia de pestaña en el orden de la barra (un arrastre lento no); sin vuelta en los extremos. Ver CLAUDE.md. Tests en `swipe-pestanas.spec.js`. Suite: 1222 verdes.
 
 ## Pendiente (por orden de prioridad sugerido)
    - Temas neón, mejoras pendientes: ya resueltos (2026-11-02): gráficos con degradado y punto brillante, aros (`.avd-arco`/`.avd-seg`) con brillo, `.tk-row` con `--ok`/`--danger`, `.ev-sep` con `--neon-1`/`--neon-2`, `.imp-fijo-tag` con `--ok` y curva «actual» de la comparativa con el tono del tema. **Siguen sin tocar, necesitan decisión de color del usuario** (7 categorías no caben en 2 tonos neón sin perder el significado): `PALETA_GASTOS`, `S7`, `AVD_COLORES`, colores de las líneas de `cD` (Visa/Boris/Mastercard/Créditos) y barras de `cIngD`/`cCmpD`. Informe en blanco a propósito. Más tonos si el usuario quiere.

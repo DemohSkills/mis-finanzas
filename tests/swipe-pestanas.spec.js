@@ -20,15 +20,18 @@ async function abrir(page, vista = 'inicio') {
   return err;
 }
 const vistaActiva = page => page.evaluate(() => document.querySelector('.tabs button[aria-selected="true"]').dataset.vista);
-function swipe(page, x0, y0, x1, y1) {
-  return page.evaluate(([x0, y0, x1, y1]) => {
+function swipe(page, x0, y0, x1, y1, ms = 100) {
+  return page.evaluate(async ([x0, y0, x1, y1, ms]) => {
     const mk = (x, y) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y });
     const ev = (tipo, x, y, fin) => document.body.dispatchEvent(new TouchEvent(tipo, {
       bubbles: true, cancelable: true,
       touches: fin ? [] : [mk(x, y)], changedTouches: [mk(x, y)],
     }));
-    ev('touchstart', x0, y0); ev('touchmove', (x0 + x1) / 2, (y0 + y1) / 2); ev('touchend', x1, y1, true);
-  }, [x0, y0, x1, y1]);
+    const esp = t => new Promise(r => setTimeout(r, t));
+    ev('touchstart', x0, y0); await esp(ms / 2);
+    ev('touchmove', (x0 + x1) / 2, (y0 + y1) / 2); await esp(ms / 2);
+    ev('touchend', x1, y1, true);
+  }, [x0, y0, x1, y1, ms]);
 }
 
 test('swipe a la izquierda desde el borde derecho avanza en el orden de la barra', async ({ page }) => {
@@ -61,15 +64,55 @@ test('último tab: swipe a la izquierda no hace nada', async ({ page }) => {
   expect(await vistaActiva(page)).toBe('config');
 });
 
-test('swipe que no empieza en el borde no hace nada', async ({ page }) => {
+test('swipe rápido desde el centro de la pantalla cambia de pestaña', async ({ page }) => {
   await abrir(page);
-  await swipe(page, 200, 400, 20, 400);
-  expect(await vistaActiva(page)).toBe('inicio');
-  await swipe(page, 60, 400, 300, 400);
+  await swipe(page, 300, 400, 100, 410); // izquierda: siguiente
+  expect(await vistaActiva(page)).toBe('gastos');
+  await swipe(page, 120, 500, 320, 490); // derecha: anterior
   expect(await vistaActiva(page)).toBe('inicio');
 });
 
-test('gesto corto o mayormente vertical desde el borde no cambia de pestaña', async ({ page }) => {
+test('arrastre lento con el mismo recorrido horizontal NO cambia de pestaña', async ({ page }) => {
+  await abrir(page);
+  await swipe(page, 300, 400, 100, 400, 800); // 200 px en 800 ms = 0,25 px/ms
+  expect(await vistaActiva(page)).toBe('inicio');
+  await swipe(page, 385, 400, 100, 400, 800); // tampoco desde el borde
+  expect(await vistaActiva(page)).toBe('inicio');
+});
+
+test('gesto rápido pero mayormente vertical desde el centro no cambia de pestaña', async ({ page }) => {
+  await abrir(page, 'gastos');
+  await swipe(page, 250, 200, 150, 600, 100);
+  expect(await vistaActiva(page)).toBe('gastos');
+});
+
+test('arrastre lento sobre el gráfico de Patrimonio neto no cambia de pestaña ni rompe el tooltip', async ({ page }) => {
+  const err = await abrir(page, 'evolucion');
+  const caja = await page.locator('#cP').boundingBox();
+  const y = caja.y + caja.height / 2;
+  await page.mouse.move(caja.x + 30, y);
+  await page.mouse.down();
+  await page.mouse.move(caja.x + caja.width - 30, y, { steps: 20 });
+  await page.mouse.up();
+  await swipe(page, caja.x + caja.width - 20, y, caja.x + 20, y, 900);
+  expect(await vistaActiva(page)).toBe('evolucion');
+  const tt = await page.evaluate(() => { const c = window._ci.cP; c.setActiveElements([{ datasetIndex: 0, index: 0 }]); c.update(); return c.getActiveElements().length; });
+  expect(tt).toBeGreaterThan(0);
+  expect(err).toEqual([]);
+});
+
+test('el touchmove es pasivo: no llama a preventDefault', async ({ page }) => {
+  await abrir(page);
+  const prevenido = await page.evaluate(() => {
+    const mk = (x, y) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y });
+    const e = new TouchEvent('touchmove', { bubbles: true, cancelable: true, touches: [mk(100, 100)], changedTouches: [mk(100, 100)] });
+    document.body.dispatchEvent(e);
+    return e.defaultPrevented;
+  });
+  expect(prevenido).toBe(false);
+});
+
+test('gesto corto o mayormente vertical no cambia de pestaña', async ({ page }) => {
   await abrir(page, 'gastos');
   await swipe(page, 385, 400, 350, 400); // corto
   expect(await vistaActiva(page)).toBe('gastos');

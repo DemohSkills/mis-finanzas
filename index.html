@@ -3997,8 +3997,9 @@ function mostrarVista(v) {
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => mostrarVista(b.dataset.vista));
 
-// Swipe desde el borde lateral para cambiar de pestaña (orden = barra de pestañas)
-const SWIPE_BORDE = 24, SWIPE_MIN = 60;
+// Swipe rápido (desde cualquier punto) para cambiar de pestaña (orden = barra de pestañas)
+// Velocidad = |dx| / ms desde el touchstart; un arrastre lento (gráficos, scroll) no cuenta.
+const SWIPE_MIN = 60, SWIPE_VEL = 0.5;
 let _swipe = null;
 function _swipeVistas() { return Array.from(document.querySelectorAll('.tabs button')).map(b => b.dataset.vista); }
 function swipeCambiar(dir) { // dir: +1 siguiente, -1 anterior; devuelve true si cambió
@@ -4018,14 +4019,19 @@ function swipeCambiar(dir) { // dir: +1 siguiente, -1 anterior; devuelve true si
 document.addEventListener('touchstart', e => {
   _swipe = null;
   if (e.touches.length !== 1 || document.querySelector('.overlay:not([hidden])')) return;
-  const t = e.touches[0], w = document.documentElement.clientWidth;
-  if (t.clientX <= SWIPE_BORDE || t.clientX >= w - SWIPE_BORDE) _swipe = { x:t.clientX, y:t.clientY };
+  const t = e.touches[0];
+  _swipe = { x:t.clientX, y:t.clientY, t:e.timeStamp, mx:t.clientX, my:t.clientY, mt:e.timeStamp };
+}, { passive:true });
+document.addEventListener('touchmove', e => { // pasivo: solo anota el último punto
+  const s = _swipe, t = e.touches[0];
+  if (s && t) { s.mx = t.clientX; s.my = t.clientY; s.mt = e.timeStamp; }
 }, { passive:true });
 document.addEventListener('touchend', e => {
   const s = _swipe; _swipe = null;
   if (!s || !e.changedTouches.length) return;
   const t = e.changedTouches[0], dx = t.clientX - s.x, dy = t.clientY - s.y;
   if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  if (Math.abs(dx) / Math.max(1, e.timeStamp - s.t) < SWIPE_VEL) return;
   swipeCambiar(dx < 0 ? 1 : -1);
 }, { passive:true });
 document.addEventListener('touchcancel', () => { _swipe = null; }, { passive:true });
