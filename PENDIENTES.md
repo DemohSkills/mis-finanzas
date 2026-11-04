@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-11-02)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
-- Tests (Playwright): 1262 en verde (2026-11-04), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
+- Tests (Playwright): 1272 en verde (2026-11-04), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -82,3 +82,4 @@
 - A pagar: detalle plegable del resumen + cuotas incluidas fuera de la lista (hecho). Pendiente: deshacer una transferencia de pago del resumen NO restaura los pendientes que bajaron en las cuotas incluidas; las cuotas ligadas a un ítem de patrimonio (`itemNombre`) no participan.
 - Relleno de huecos del historial de patrimonio (en `trabajo-nocturno`, sin publicar): snapshots `estimado:true` para días sin abrir la app; solo los medios son retroactivos, los ítems usan su valor actual (limitación aceptada). Ver CLAUDE.md. Tests en `snapshots-huecos.spec.js`.
 - Vínculos: botón ✎ por ítem y filas sin nombre partido a mitad de palabra, también en Patrimonio (en `trabajo-nocturno`, sin publicar). Tests en `vinculos-editar-layout.spec.js`.
+- Panel «⚙ Filtros» de Movimientos (categorías/subcategorías, períodos rápidos, rango de fechas; en `trabajo-nocturno`, sin publicar). Ver CLAUDE.md. Tests en `filtros-movimientos.spec.js`.
