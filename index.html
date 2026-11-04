@@ -201,8 +201,11 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .gasto.editando,.item.editando{background:color-mix(in srgb,var(--accent) 10%,transparent);}
 .vacio{color:var(--muted);text-align:center;padding:12px 0;}
 /* Items */
-.item{display:flex;align-items:center;gap:8px;padding:7px 4px;border-top:1px solid var(--border);}
-.item .nom{flex:1;min-width:0;overflow-wrap:anywhere;}
+.item{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px 4px;border-top:1px solid var(--border);}
+.item .it-main{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;}
+.item .it-acc{flex:0 0 auto;display:flex;align-items:center;gap:6px;margin-left:auto;}
+.item .nom{flex:1 1 auto;min-width:0;overflow-wrap:break-word;}
+.item .num,.persona li .num{flex:0 0 auto;white-space:nowrap;}
 .item .edit{padding:2px 8px;font-size:.8rem;}
 .chip{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:99px;border:1px solid var(--border);color:var(--muted);margin-left:4px;}
 .chip.vencido{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger);}
@@ -255,7 +258,10 @@ button.icon-btn{padding:6px 10px;font-size:1.1rem;}
 .persona ul{list-style:none;margin:8px 0 0;padding:0;}
 .persona li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);padding:4px 0;}
 .persona li>.vinc-hist{flex:1 1 100%;width:100%;}
-.persona li .vinc-nom{flex:1;min-width:0;overflow-wrap:break-word;}
+.persona li .vinc-main{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;}
+.persona li .vinc-nom{flex:1 1 auto;min-width:0;overflow-wrap:break-word;}
+.persona li .vinc-acc{flex:0 0 auto;display:flex;align-items:center;gap:6px;margin-left:auto;}
+.persona li .edit{padding:2px 8px;font-size:.8rem;}
 .nom-t,.nom-s{display:block;}
 .nom-s{font-size:.72rem;color:var(--muted);font-weight:400;margin-top:1px;}
 details.pat-pers{margin:4px 0 6px;border:1px solid var(--border);border-radius:8px;padding:0 8px;}
@@ -4672,7 +4678,7 @@ function nombreItemHtml(nombre){
 
 function filaItem(nombre,monto,persona,onEdit,editando,onAjustar,onCobre,onFondo){
   const div=document.createElement('div'); div.className='item'+(editando?' editando':'');
-  div.innerHTML=`<span class="nom">${nombreItemHtml(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onFondo?'<button type="button" class="mini fondo-btn" style="font-size:.75rem;padding:3px 8px">📈 Fondo</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}`;
+  div.innerHTML=`<span class="it-main"><span class="nom">${nombreItemHtml(nombre)}${persona?`<span class="chip">${esc(persona)}</span>`:''}</span><span class="num">${fmtV(monto)}</span></span><span class="it-acc"><button type="button" class="edit" title="Editar">✎</button>${onAjustar?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>':''}${onFondo?'<button type="button" class="mini fondo-btn" style="font-size:.75rem;padding:3px 8px">📈 Fondo</button>':''}${onCobre?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':''}</span>`;
   div.querySelector('.edit').onclick=onEdit;
   const extraBtns=div.querySelectorAll('button.mini');
   let idx=0;
@@ -4764,8 +4770,9 @@ function renderVinculos(){
       const esPrestamo=it.grupo==='Préstamos con personas';
       const esCobro=it.grupo==='Cobros pendientes'&&it.tipo==='activo';
       const btn=esPrestamo?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">± Ajustar</button>'+(it.refInicial>0?'<button type="button" class="mini fondo-btn" style="font-size:.75rem;padding:3px 8px">📈 Fondo</button>':''):esCobro?'<button type="button" class="mini" style="font-size:.75rem;padding:3px 8px">Cobré</button>':'';
-      li.innerHTML=`<span class="vinc-nom">${nombreItemHtml(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span>${btn}`;
-      const b=li.querySelector('button');
+      li.innerHTML=`<span class="vinc-main"><span class="vinc-nom">${nombreItemHtml(it.nombre)}</span><span class="num">${it.tipo==='activo'?'+':'−'}${fmtV(it.monto)}</span></span><span class="vinc-acc"><button type="button" class="edit" title="Editar">✎</button>${btn}</span>`;
+      li.querySelector('.edit').onclick=()=>editarItem(it.id);
+      const b=li.querySelector('button.mini:not(.fondo-btn)');
       if(b) b.onclick=()=>esPrestamo?abrirAjusteModal(it.id):abrirCobreModal(it.id);
       const bf=li.querySelector('.fondo-btn'); if(bf) bf.onclick=()=>abrirFondoModal(it.id);
       if(esPrestamo&&it.refInicial>0) li.insertAdjacentHTML('beforeend',_fondoInfoHtml(it));
