@@ -5972,14 +5972,54 @@ window.generarInforme=generarInforme;
 // ═══════════════════════════════════════════════════════
 function cargarSnaps(){ return ls.get(SNAP_KEY)||[]; }
 
+// Saldo de cada medio al cierre de cada fecha (fechas ascendentes 'YYYY-MM-DD'): un solo recorrido sobre los gastos ordenados.
+// Mismo criterio que saldoDe (sin soloHistorial; gasto resta, ingreso suma) pero con fecha ≤ día. No toca saldoDe/totales.
+function _saldosMediosEn(fechas){
+  const mov=estado.gastos.filter(g=>!g.soloHistorial&&MEDIOS.includes(g.medio)).slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  const sal={};for(const m of MEDIOS)sal[m]=estado.iniciales[m];
+  let i=0;const out=[];
+  for(const f of fechas){
+    while(i<mov.length&&(mov[i].fecha||'')<=f){const g=mov[i++];sal[g.medio]+=(g.tipo||'gasto')==='ingreso'?g.monto:-g.monto;}
+    out.push({...sal});
+  }
+  return out;
+}
+// Parte de totales() que viene de MEDIOS a una fecha (activos/deudas de cuentas y tarjetas).
+function totalesMediosA(fecha){
+  let a=0,d=0;
+  for(const s of Object.values(_saldosMediosEn([fecha])[0]))s>=0?a+=s:d-=s;
+  return{activos:a,deudas:d,neto:a-d};
+}
+const SNAP_RELLENO_MAX=400; // tope de días hacia atrás a rellenar (= snapshots que se conservan)
+function _diaMas(ds,n){const x=new Date(ds+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10);}
+// Días sin snapshot entre el último existente (exclusive) y ayer (inclusive): snapshots estimados.
+// Medios a la fecha real; ítems y cobros semanales con su valor ACTUAL (su historia no se reconstruye).
+function _snapsHuecos(snaps,d){
+  const previos=snaps.filter(s=>s.d<d).map(s=>s.d).sort();
+  if(!previos.length)return[];
+  const tiene=new Set(snaps.map(s=>s.d)),ayer=_diaMas(d,-1),fechas=[];
+  for(let f=_diaMas(previos[previos.length-1],1);f<=ayer;f=_diaMas(f,1))if(!tiene.has(f))fechas.push(f);
+  if(!fechas.length)return[];
+  const usar=fechas.slice(-SNAP_RELLENO_MAX),sals=_saldosMediosEn(usar);
+  let ia=0,id=0;for(const it of estado.items)it.tipo==='activo'?ia+=it.monto:id+=it.monto;
+  ia+=cwDebeTotal();
+  const fi=n=>estado.items.find(it=>it.nombre===n)?.monto||0;
+  const bm=Math.round(fi('Boris MP')),cm=Math.round(fi('Créditos MP 1')+fi('Créditos MP 2')+fi('Créditos MP 3')+fi('Créditos MP 4'));
+  return usar.map((f,k)=>{
+    let a=ia,dv=id;for(const s of Object.values(sals[k]))s>=0?a+=s:dv-=s;
+    return{d:f,a:Math.round(a),dv:Math.round(dv),n:Math.round(a-dv),estimado:true,dd:{vs:Math.round(Math.abs(sals[k]['Visa Santander'])),mc:Math.round(Math.abs(sals[k]['Mastercard MP'])),bm,cm}};
+  });
+}
 function guardarSnap(){
   const snaps=cargarSnaps(); const d=hoy(); const t=totales();
+  const huecos=_snapsHuecos(snaps,d);
   const fi=n=>estado.items.find(it=>it.nombre===n)?.monto||0;
   const snap={d,a:Math.round(t.activos),dv:Math.round(t.deudas),n:Math.round(t.neto),dd:{
     vs:Math.round(Math.abs(saldoDe('Visa Santander'))),mc:Math.round(Math.abs(saldoDe('Mastercard MP'))),
     bm:Math.round(fi('Boris MP')),cm:Math.round(fi('Créditos MP 1')+fi('Créditos MP 2')+fi('Créditos MP 3')+fi('Créditos MP 4')),
   }};
-  const filtered=snaps.filter(s=>s.d!==d); filtered.push(snap);
+  const filtered=snaps.filter(s=>s.d!==d).concat(huecos); filtered.push(snap);
+  filtered.sort((a,b)=>a.d.localeCompare(b.d));
   ls.set(SNAP_KEY,filtered.slice(-400));
 }
 
@@ -5992,7 +6032,7 @@ function renderFotosConfig(){
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.82rem;gap:8px;';
     const info=document.createElement('span');
-    info.innerHTML=`${esc(s.d)} · A: ${fmtV(s.a)} · D: ${fmtV(Math.abs(s.dv))} · N: ${fmtV(s.n)}`;
+    info.innerHTML=`${esc(s.d)}${s.estimado?' (estimada)':''} · A: ${fmtV(s.a)} · D: ${fmtV(Math.abs(s.dv))} · N: ${fmtV(s.n)}`;
     const btn=document.createElement('button');
     btn.type='button';btn.className='mini';btn.textContent='Borrar';
     btn.onclick=()=>{

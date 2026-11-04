@@ -46,10 +46,14 @@ function buildEstadoNetoNeg() {
 }
 
 function buildSnapsRef() {
-  // Snap 10 days ago so it qualifies as 7-day reference in snapRef()
-  const d = new Date(); d.setDate(d.getDate() - 10);
-  const ds = d.toISOString().slice(0, 10);
-  return [{ d: ds, a: 250000, dv: 90000, n: 160000, dd: {} }];
+  // Un snap por día desde hace 10 días hasta ayer (sin huecos: guardarSnap no rellena nada),
+  // así el de hace 7 días es la referencia de snapRef()
+  const out = [];
+  for (let n = 10; n >= 1; n--) {
+    const d = new Date(); d.setDate(d.getDate() - n);
+    out.push({ d: d.toLocaleDateString('sv'), a: 250000, dv: 90000, n: 160000, dd: {} });
+  }
+  return out;
 }
 
 async function seedAndUnlock(page, opts = {}) {

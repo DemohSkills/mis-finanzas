@@ -6,7 +6,7 @@
 
 ## Estado actual (2026-11-02)
 - Rama de trabajo: `trabajo-nocturno`. Publicado en `main`: commit `af1827e` (2026-11-02); `trabajo-nocturno` solo lo supera en commits de documentación.
-- Tests (Playwright): 1243 en verde + 2 fallos previos de resumen-usd.spec.js (2026-11-03), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
+- Tests (Playwright): 1253 en verde (2026-11-03), incluye `prestamo-fondo.spec.js` (5) y `patrimonio-grafico.spec.js` (14).
 
 ## Hecho (publicado)
 - Comparativa de gastos (mes anterior vs actual vs próximos), con modo "Al mismo día / Mes completo" y tarjeta "Salida mínima de plata este mes". (`525ec61`, `858154f`, `9086c27`)
@@ -80,3 +80,4 @@
 - Cobro semanal, historial: `cobradas[].historial:true` = semana informativa (sin `movId`, no toca cuentas, Total activos ni ganancia del mes; `neto`/`retencion` pueden ser null). Resumen plegable (clave `finanzas-v1-det-cw-res-<id>`). «A pagar» por vencimiento ahora proyecta cuotas y fijos (6+ meses, tope 48). Filas de semana en dos columnas. Suite: 1053 tests. Nota: «Pagué» de fijos sigue en los 3 primeros meses (el pedido decía también «actual y siguiente»; se mantuvo el comportamiento existente); una semana de historial debe haber terminado (hasta < hoy).
 
 - A pagar: detalle plegable del resumen + cuotas incluidas fuera de la lista (hecho). Pendiente: deshacer una transferencia de pago del resumen NO restaura los pendientes que bajaron en las cuotas incluidas; las cuotas ligadas a un ítem de patrimonio (`itemNombre`) no participan.
+- Relleno de huecos del historial de patrimonio (en `trabajo-nocturno`, sin publicar): snapshots `estimado:true` para días sin abrir la app; solo los medios son retroactivos, los ítems usan su valor actual (limitación aceptada). Ver CLAUDE.md. Tests en `snapshots-huecos.spec.js`.
