@@ -83,88 +83,92 @@ test('filtro por rango de fechas (desde/hasta, inclusivo) y vacío trae todo', a
   await expect(page.locator('#recatMsg')).toContainText('No hay gastos');
 });
 
-test('selección parcial, seleccionar todos y botón deshabilitado sin selección', async ({ page }) => {
+test('cada fila muestra la cuenta en un badge y tiene su select con «— no mover —» por defecto', async ({ page }) => {
   await abrir(page);
   await buscar(page);
-  const sig = page.locator('#btnRecatSig');
-  await expect(sig).toBeDisabled();
-  await expect(sig).toHaveText('Recategorizar 0 seleccionados →');
-  await page.locator('.recat-chk[value="a1"]').check();
-  await expect(sig).toBeEnabled();
-  await expect(sig).toHaveText('Recategorizar 1 seleccionado →');
-  await page.locator('.recat-chk[value="a3"]').check();
-  await expect(sig).toHaveText('Recategorizar 2 seleccionados →');
-  await page.check('#recatTodos');
-  await expect(sig).toHaveText('Recategorizar 4 seleccionados →');
-  await page.uncheck('#recatTodos');
-  await expect(sig).toBeDisabled();
+  const fila = page.locator('#recatLista .recat-fila[data-id="a1"]');
+  await expect(fila.locator('.recat-medio')).toHaveText('Banco Santander');
+  await expect(fila.locator('.meta')).toContainText('Nafta');
+  await expect(fila.locator('.recat-dest')).toHaveValue('');
+  await expect(fila.locator('.recat-dest option').first()).toHaveText('— no mover —');
+  const cats = await page.evaluate(() => getCats());
+  expect(await fila.locator('.recat-dest option').count()).toBe(cats.length + 1);
+  await expect(page.locator('#recatPaso3')).toHaveCount(0);
 });
 
-test('recategorizar actualiza categoría y subcategoría solo de los seleccionados y persiste', async ({ page }) => {
+test('barra «Mover a»: deshabilitada sin tildados; Aplicar prellena solo las tildadas y no guarda; Guardar se habilita', async ({ page }) => {
+  await abrir(page);
+  const antes = await gastosLS(page);
+  await buscar(page);
+  await expect(page.locator('#recatNTild')).toHaveText('0 tildados');
+  await expect(page.locator('#recatMoverA')).toBeDisabled();
+  await expect(page.locator('#btnRecatAplicar')).toBeDisabled();
+  await expect(page.locator('#btnRecatGuardar')).toBeDisabled();
+  await page.locator('.recat-chk[value="a1"]').check();
+  await expect(page.locator('#recatNTild')).toHaveText('1 tildado');
+  await expect(page.locator('#recatMoverA')).toBeEnabled();
+  await expect(page.locator('#btnRecatAplicar')).toBeDisabled();
+  await page.locator('.recat-chk[value="a3"]').check();
+  await expect(page.locator('#recatNTild')).toHaveText('2 tildados');
+  await page.selectOption('#recatMoverA', 'Hogar y Materiales');
+  await expect(page.locator('#btnRecatAplicar')).toBeEnabled();
+  await page.click('#btnRecatAplicar');
+  const dest = id => page.locator(`.recat-fila[data-id="${id}"] .recat-dest`).inputValue();
+  expect([await dest('a1'), await dest('a2'), await dest('a3'), await dest('a4')]).toEqual(['Hogar y Materiales', '', 'Hogar y Materiales', '']);
+  await expect(page.locator('#btnRecatGuardar')).toBeEnabled();
+  expect(await gastosLS(page)).toEqual(antes); // todavía nada guardado
+  await page.uncheck('.recat-chk[value="a1"]');
+  await page.uncheck('.recat-chk[value="a3"]');
+  await expect(page.locator('#btnRecatGuardar')).toBeEnabled(); // el destino ya prellenado se mantiene
+  await page.check('#recatTodos');
+  await expect(page.locator('#recatNTild')).toHaveText('4 tildados');
+  await page.uncheck('#recatTodos');
+  await expect(page.locator('#recatNTild')).toHaveText('0 tildados');
+});
+
+test('mezcla: tildadas + Aplicar y select individual (sin tildar); Guardar cambia categoría, vacía subcategoría y persiste', async ({ page }) => {
   const err = await abrir(page);
   await buscar(page);
+  // a1 y a3 por barra (tildadas), a2 por su propio select (sin tildar), a4 queda sin mover
   await page.locator('.recat-chk[value="a1"]').check();
   await page.locator('.recat-chk[value="a3"]').check();
-  await page.click('#btnRecatSig');
-  await expect(page.locator('#recatPaso3')).toBeVisible();
-  await expect(page.locator('#btnRecatConfirmar')).toBeDisabled();
-  await page.locator('#recatDestChips .cat-chip[data-c="Hogar y Materiales"]').click();
-  await page.fill('#recatSubNueva', 'Auto');
-  await page.click('#btnRecatConfirmar');
+  await page.selectOption('#recatMoverA', 'Hogar y Materiales');
+  await page.click('#btnRecatAplicar');
+  await page.selectOption('.recat-fila[data-id="a2"] .recat-dest', 'Salud');
+  // el select individual pisa lo prellenado en a3
+  await page.selectOption('.recat-fila[data-id="a3"] .recat-dest', 'Comida y Delivery');
+  await page.click('#btnRecatGuardar');
   await expect(page.locator('#recatPaso1')).toBeVisible();
-  await expect(page.locator('#recatMsg')).toContainText('2 gastos recategorizados a «Hogar y Materiales»');
+  await expect(page.locator('#recatMsg')).toHaveText('✓ 3 gastos recategorizados.');
   const gs = Object.fromEntries((await gastosLS(page)).map(x => [x.id, x]));
-  expect(gs.a1).toMatchObject({ categoria: 'Hogar y Materiales', subcategoria: 'Auto' });
-  expect(gs.a3).toMatchObject({ categoria: 'Hogar y Materiales', subcategoria: 'Auto' });
-  expect(gs.a2).toMatchObject({ categoria: 'Transporte/Auto', subcategoria: 'Nafta' });
+  expect(gs.a1.categoria).toBe('Hogar y Materiales');
+  expect(gs.a2.categoria).toBe('Salud');
+  expect(gs.a3.categoria).toBe('Comida y Delivery');
+  for (const id of ['a1', 'a2', 'a3']) expect(gs[id].subcategoria).toBeUndefined();
   expect(gs.a4).toMatchObject({ categoria: 'Transporte/Auto' });
-  expect(gs.a4.subcategoria).toBeUndefined();
   expect(gs.b1.categoria).toBe('Salud');
   expect(gs.i1.categoria).toBe('Transporte/Auto');
   expect(gs.t1.categoria).toBe('Transporte/Auto');
   expect(err).toEqual([]);
-});
-
-test('subcategoría nueva vacía no toca la subcategoría de cada gasto', async ({ page }) => {
-  await abrir(page);
-  await buscar(page, { sub: 'Nafta' });
-  await page.check('#recatTodos');
-  await page.click('#btnRecatSig');
-  await page.locator('#recatDestChips .cat-chip[data-c="Comida y Delivery"]').click();
-  await page.click('#btnRecatConfirmar');
-  const gs = Object.fromEntries((await gastosLS(page)).map(x => [x.id, x]));
-  expect(gs.a1).toMatchObject({ categoria: 'Comida y Delivery', subcategoria: 'Nafta' });
-  expect(gs.a2).toMatchObject({ categoria: 'Comida y Delivery', subcategoria: 'Nafta' });
-  expect(gs.a3).toMatchObject({ categoria: 'Transporte/Auto', subcategoria: 'Peaje' });
-});
-
-test('crear categoría nueva desde el paso 3 y aplicarla', async ({ page }) => {
-  await abrir(page);
+  // los cambios se ven en Movimientos y el filtro ya no trae los movidos
   await buscar(page);
-  await page.locator('.recat-chk[value="a2"]').check();
-  await page.click('#btnRecatSig');
-  page.once('dialog', d => d.accept('Auto Propio'));
-  await page.click('#btnRecatNuevaCat');
-  const nueva = page.locator('#recatDestChips .cat-chip[data-c="Auto Propio"]');
-  await expect(nueva).toHaveClass(/on/);
-  await expect(page.locator('#btnRecatConfirmar')).toBeEnabled();
-  await page.click('#btnRecatConfirmar');
-  const gs = Object.fromEntries((await gastosLS(page)).map(x => [x.id, x]));
-  expect(gs.a2.categoria).toBe('Auto Propio');
-  expect(gs.a1.categoria).toBe('Transporte/Auto');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('finanzas-v1-cats')))).toContain('Auto Propio');
-  await expect(page.locator('#recatCat option', { hasText: 'Auto Propio' })).toHaveCount(1);
+  expect(await ids(page)).toEqual(['a4']);
 });
 
-test('cancelar en el paso 3 vuelve a la lista y en el paso 2 al filtro, sin cambios', async ({ page }) => {
+test('elegir en el select la misma categoría actual no cuenta como cambio', async ({ page }) => {
   await abrir(page);
   const antes = await gastosLS(page);
   await buscar(page);
-  await page.check('#recatTodos');
-  await page.click('#btnRecatSig');
-  await page.locator('#recatDestChips .cat-chip[data-c="Salud"]').click();
-  await page.click('#btnRecatCancelar3');
-  await expect(page.locator('#recatPaso2')).toBeVisible();
+  await page.selectOption('.recat-fila[data-id="a1"] .recat-dest', 'Transporte/Auto');
+  await expect(page.locator('#btnRecatGuardar')).toBeDisabled();
+  expect(await gastosLS(page)).toEqual(antes);
+});
+
+test('cancelar vuelve al filtro sin cambios', async ({ page }) => {
+  await abrir(page);
+  const antes = await gastosLS(page);
+  await buscar(page);
+  await page.selectOption('.recat-fila[data-id="a1"] .recat-dest', 'Salud');
   await page.click('#btnRecatVolver');
   await expect(page.locator('#recatPaso1')).toBeVisible();
   expect(await gastosLS(page)).toEqual(antes);
@@ -191,10 +195,12 @@ for (const tema of TEMAS) {
       await page.selectOption('#recatCat', 'Transporte/Auto');
       await page.click('#btnRecatBuscar');
       await page.check('#recatTodos');
-      await page.click('#btnRecatSig');
+      await page.selectOption('#recatMoverA', 'Salud');
+      await page.click('#btnRecatAplicar');
       const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
       expect(m.sw).toBeLessThanOrEqual(m.cw);
-      await page.click('#btnRecatCancelar3');
+      await page.click('#btnRecatVolver');
+      await page.click('#btnRecatBuscar');
       const m2 = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
       expect(m2.sw).toBeLessThanOrEqual(m2.cw);
       expect(err).toEqual([]);

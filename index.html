@@ -578,8 +578,14 @@ details.cfg-section[open]>summary{margin-bottom:6px;}
 .cat-blk:first-child{border-top:0;}
 .cat-subs{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:4px;}
 .cat-sub{font-size:.72rem;padding:1px 8px;border-radius:99px;border:1px dashed var(--border);color:var(--muted);}
-.recat-fila{display:flex;gap:8px;align-items:flex-start;border-top:1px solid var(--border);padding:8px 0;cursor:pointer;}
-.recat-fila input{margin-top:3px;flex:0 0 auto;}
+.recat-fila{border-top:1px solid var(--border);padding:8px 0;}
+.recat-main{display:flex;flex-direction:row;color:var(--text);font-size:.85rem;gap:8px;align-items:flex-start;cursor:pointer;}
+.recat-main input{width:auto;margin-top:3px;flex:0 0 auto;}
+.recat-dest{display:block;width:100%;margin-top:6px;}
+.recat-medio{display:inline-block;padding:0 6px;border:1px solid var(--border);border-radius:999px;font-size:.7rem;color:var(--text);margin-right:2px;}
+.recat-barra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0;padding:8px;border:1px solid var(--border);border-radius:10px;}
+.recat-barra label{white-space:nowrap;display:flex;flex-direction:row;gap:6px;align-items:center;font-size:.78rem;color:var(--muted);min-width:0;flex:1 1 140px;}
+.recat-barra select{flex:1 1 auto;min-width:0;}
 .recat-fila .info{flex:1 1 auto;min-width:0;}
 .recat-fila .desc{font-weight:500;overflow-wrap:anywhere;}
 .recat-fila .meta{margin:0;font-size:.78rem;}
@@ -1782,21 +1788,16 @@ try{
         <p class="meta" id="recatMsg" role="status"></p>
       </div>
       <div id="recatPaso2" hidden>
-        <label class="meta" style="display:flex;gap:6px;align-items:center;margin:8px 0 0"><input type="checkbox" id="recatTodos"> Seleccionar todos</label>
+        <label class="meta" style="display:flex;flex-direction:row;gap:6px;align-items:center;margin:8px 0 0"><input type="checkbox" id="recatTodos" style="width:auto"> Seleccionar todos</label>
+        <div class="recat-barra">
+          <span class="meta" id="recatNTild">0 tildados</span>
+          <label>Mover a:<select id="recatMoverA" disabled></select></label>
+          <button type="button" class="mini" id="btnRecatAplicar" disabled>Aplicar</button>
+        </div>
         <div id="recatLista"></div>
         <div class="recat-acc">
-          <button type="button" class="mini primary" id="btnRecatSig" disabled>Recategorizar 0 seleccionados →</button>
+          <button type="button" class="mini primary" id="btnRecatGuardar" disabled>Guardar cambios</button>
           <button type="button" class="mini" id="btnRecatVolver">Cancelar</button>
-        </div>
-      </div>
-      <div id="recatPaso3" hidden>
-        <p class="meta" id="recatResumen" style="margin-top:8px"></p>
-        <div class="cat-chips" id="recatDestChips"></div>
-        <button type="button" class="mini" id="btnRecatNuevaCat">+ Crear categoría</button>
-        <label class="meta" style="display:flex;flex-direction:column;gap:2px;margin-top:10px">Subcategoría nueva (opcional; vacía = no se toca)<input type="text" id="recatSubNueva" maxlength="60" autocomplete="off"></label>
-        <div class="recat-acc">
-          <button type="button" class="mini primary" id="btnRecatConfirmar" disabled>Confirmar recategorización</button>
-          <button type="button" class="mini" id="btnRecatCancelar3">Cancelar</button>
         </div>
       </div>
     </details>
@@ -4958,7 +4959,7 @@ function abrirCfg(key,opts){
   if(opts.foco){ const e=$(opts.foco); if(e) try{ e.focus({preventScroll:true}); }catch{} }
 }
 // ── Recategorizar movimientos (solo gastos) ─────────────
-let _recat = { ids: [], sel: new Set(), dest: null };
+let _recat = { ids: [], sel: new Set() };
 const _esGastoRecat = g => (g.tipo || 'gasto') === 'gasto' && !g.transferencia;
 function recatSubcats(cat) {
   const set = new Set();
@@ -4978,7 +4979,7 @@ function _recatLlenarSubFiltro() {
   sel.innerHTML = '<option value="">Todas</option>' + subs.map(s => `<option>${esc(s)}</option>`).join('');
 }
 function _recatPaso(n) {
-  for (const i of [1, 2, 3]) $('recatPaso' + i).hidden = i !== n;
+  for (const i of [1, 2]) $('recatPaso' + i).hidden = i !== n;
 }
 function renderRecat() {
   const sel = $('recatCat'); if (!sel) return;
@@ -4993,10 +4994,22 @@ function abrirRecat(cat) {
   renderRecat();
   if (cat) { $('recatCat').value = cat; _recatLlenarSubFiltro(); }
 }
-function _recatActualizarSel() {
+// Pantalla única: cada fila tiene su propio destino (select inline) y una barra «Mover a» prellena el de las filas tildadas.
+function _recatPendientes() {
+  const por = new Map((estado.gastos || []).map(g => [g.id, g]));
+  const out = [];
+  $('recatLista').querySelectorAll('.recat-fila').forEach(f => {
+    const dest = f.querySelector('.recat-dest').value, g = por.get(f.dataset.id);
+    if (g && dest && dest !== g.categoria) out.push({ g, dest });
+  });
+  return out;
+}
+function _recatActualizar() {
   const n = _recat.sel.size;
-  $('btnRecatSig').disabled = n === 0;
-  $('btnRecatSig').textContent = `Recategorizar ${n} seleccionado${n === 1 ? '' : 's'} →`;
+  $('recatNTild').textContent = `${n} tildado${n === 1 ? '' : 's'}`;
+  $('recatMoverA').disabled = n === 0;
+  $('btnRecatAplicar').disabled = n === 0 || !$('recatMoverA').value;
+  $('btnRecatGuardar').disabled = _recatPendientes().length === 0;
   $('recatTodos').checked = n > 0 && n === _recat.ids.length;
 }
 function recatBuscar() {
@@ -5008,35 +5021,25 @@ function recatBuscar() {
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
   if (!res.length) { $('recatMsg').textContent = 'No hay gastos que coincidan con el filtro.'; return; }
   $('recatMsg').textContent = '';
-  _recat = { ids: res.map(g => g.id), sel: new Set(), dest: null };
-  $('recatLista').innerHTML = res.map(g => `<label class="recat-fila" data-id="${esc(g.id)}"><input type="checkbox" class="recat-chk" value="${esc(g.id)}"><span class="info"><span class="desc">${esc(g.descripcion || '(sin descripción)')}</span><span class="meta" style="display:block">${fmtFechaDM(g.fecha, true)}${g.subcategoria ? ' · ' + esc(g.subcategoria) : ''}</span></span><span class="amt">${fmt(g.monto)}</span></label>`).join('');
+  _recat = { ids: res.map(g => g.id), sel: new Set() };
+  const cats = getCats().map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('recatMoverA').innerHTML = '<option value="">— elegir categoría —</option>' + cats;
+  $('recatLista').innerHTML = res.map(g => `<div class="recat-fila" data-id="${esc(g.id)}"><label class="recat-main"><input type="checkbox" class="recat-chk" value="${esc(g.id)}"><span class="info"><span class="desc">${esc(g.descripcion || '(sin descripción)')}</span><span class="meta" style="display:block"><span class="recat-medio">${esc(g.medio || '—')}</span> ${fmtFechaDM(g.fecha, true)}${g.subcategoria ? ' · ' + esc(g.subcategoria) : ''}</span></span><span class="amt">${fmt(g.monto)}</span></label><select class="recat-dest" aria-label="Categoría destino"><option value="">— no mover —</option>${cats}</select></div>`).join('');
   $('recatLista').querySelectorAll('.recat-chk').forEach(c => c.onchange = () => {
-    c.checked ? _recat.sel.add(c.value) : _recat.sel.delete(c.value); _recatActualizarSel();
+    c.checked ? _recat.sel.add(c.value) : _recat.sel.delete(c.value); _recatActualizar();
   });
-  _recatActualizarSel(); _recatPaso(2);
-}
-function _recatChipsDestino() {
-  const cont = $('recatDestChips');
-  cont.innerHTML = getCats().map(c => `<button type="button" class="cat-chip${_recat.dest === c ? ' on' : ''}" data-c="${esc(c)}" aria-pressed="${_recat.dest === c}">${esc(c)}</button>`).join('');
-  cont.querySelectorAll('.cat-chip').forEach(b => b.onclick = () => { _recat.dest = b.dataset.c; _recatChipsDestino(); });
-  $('btnRecatConfirmar').disabled = !_recat.dest;
+  $('recatLista').querySelectorAll('.recat-dest').forEach(s => s.onchange = _recatActualizar);
+  _recatActualizar(); _recatPaso(2);
 }
 function recatConfirmar() {
-  if (!_recat.dest || !_recat.sel.size) return;
-  const sub = $('recatSubNueva').value.trim();
-  let n = 0;
-  for (const g of estado.gastos) {
-    if (!_recat.sel.has(g.id) || !_esGastoRecat(g)) continue;
-    g.categoria = _recat.dest;
-    if (sub) g.subcategoria = sub;
-    n++;
-  }
+  const pend = _recatPendientes();
+  if (!pend.length) return;
+  for (const { g, dest } of pend) { g.categoria = dest; delete g.subcategoria; }
+  const n = pend.length;
   guardar(); render();
-  const dest = _recat.dest;
-  _recat = { ids: [], sel: new Set(), dest: null };
-  $('recatSubNueva').value = '';
+  _recat = { ids: [], sel: new Set() };
   renderRecat(); renderCfgCats(); _recatPaso(1);
-  $('recatMsg').textContent = `✓ ${n} gasto${n === 1 ? '' : 's'} recategorizado${n === 1 ? '' : 's'} a «${dest}».`;
+  $('recatMsg').textContent = `✓ ${n} gasto${n === 1 ? '' : 's'} recategorizado${n === 1 ? '' : 's'}.`;
 }
 $('recatCat').onchange = _recatLlenarSubFiltro;
 $('btnRecatBuscar').onclick = recatBuscar;
@@ -5045,22 +5048,16 @@ $('recatTodos').onchange = () => {
   const on = $('recatTodos').checked;
   _recat.sel = new Set(on ? _recat.ids : []);
   $('recatLista').querySelectorAll('.recat-chk').forEach(c => c.checked = on);
-  _recatActualizarSel();
+  _recatActualizar();
 };
-$('btnRecatSig').onclick = () => {
-  if (!_recat.sel.size) return;
-  const n = _recat.sel.size;
-  $('recatResumen').textContent = `Destino para ${n} gasto${n === 1 ? '' : 's'} de «${$('recatCat').value}»:`;
-  _recat.dest = null; _recatChipsDestino(); _recatPaso(3);
+$('recatMoverA').onchange = _recatActualizar;
+$('btnRecatAplicar').onclick = () => {
+  const dest = $('recatMoverA').value;
+  if (!dest || !_recat.sel.size) return;
+  $('recatLista').querySelectorAll('.recat-fila').forEach(f => { if (_recat.sel.has(f.dataset.id)) f.querySelector('.recat-dest').value = dest; });
+  _recatActualizar();
 };
-$('btnRecatNuevaCat').onclick = () => {
-  const nombre = prompt('Nombre de la nueva categoría:')?.trim();
-  if (!nombre) return;
-  addCat(nombre); _recat.dest = nombre;
-  _recatChipsDestino(); renderCfgCats(); fillCatSelect('categoria'); fillCatSelect('reglaCat');
-};
-$('btnRecatConfirmar').onclick = recatConfirmar;
-$('btnRecatCancelar3').onclick = () => { _recat.dest = null; _recatPaso(2); };
+$('btnRecatGuardar').onclick = recatConfirmar;
 
 function renderConfig(){
   renderRecat();
