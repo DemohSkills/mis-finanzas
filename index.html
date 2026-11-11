@@ -529,6 +529,7 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .voice-confirm .vc-tipos button{flex:1 1 0;min-width:0;padding:8px 2px;font-size:.78rem;white-space:nowrap;}
 .voice-confirm .vc-tipos.cuatro button{font-size:.7rem;padding:8px 1px;}
 .voice-confirm .vc-tipos.cinco button{font-size:.62rem;padding:8px 0;}
+.voice-confirm .vc-tipos.seis button{font-size:.55rem;}
 .voice-confirm .vc-warn{color:var(--warn);font-size:.78rem;margin:4px 0;}
 .voice-confirm .vc-trab-info{font-size:.82rem;font-weight:600;margin:6px 0;overflow-wrap:anywhere;}
 .voice-confirm select.vc-in{max-width:60%;}
@@ -3244,14 +3245,21 @@ $('btnConfirmarFijoPago').onclick=function(){
   const nota=$('fijoPagoNota').value.trim();
   const actualizarEstim=$('fijoPagoEstim').checked;
   const mesStr=_fijoPagoMes;
+  cerrarFijoPagoModal();
+  _registrarPagoFijo(f,mesStr,{monto,medio,fecha,nota,actualizarEstim});
+};
+
+// Registra el pago de un fijo en un mes: UN gasto en estado.gastos + f.pagos[mesStr]. Compartido por el modal «Pagué» y el dictado.
+function _registrarPagoFijo(f,mesStr,{monto,medio,fecha,nota='',actualizarEstim=false}){
   const[y,m]=mesStr.split('-');const mesNom=_MESES_NOM[+m-1]+' '+y;
   const gasto={id:nuevoId(),creado:Date.now(),monto,fecha,categoria:f.categoria||'Otros/Varios',medio,descripcion:(nota||f.nombre+' '+mesNom),tipo:'gasto',soloHistorial:false};
   estado.gastos.push(gasto);
   f.pagos=f.pagos||{};f.pagos[mesStr]={fecha,monto,gastoId:gasto.id};
   if(actualizarEstim){f.monto=monto;f.estimado=false;}
-  cerrarFijoPagoModal();guardar();render();renderCompromisos();
+  guardar();render();renderCompromisos();
   if(_gastosReady) rChartIC(); if(_evolReady) rChartD();
-};
+  return gasto;
+}
 
 $('btnFijoPagoSinMov').onclick=function(){
   const f=(estado.compromisos||[]).find(x=>x.id===_fijoPagoId);
@@ -5205,6 +5213,11 @@ async function parsearVoz(transcript, apiKey){
     const ent=v=>{const n=Math.trunc(Number(v));return n>0?n:0;};
     const fecha=_fechaVoz(parsed.fecha, ent(parsed.dias_atras));
     const trab=_trabajoVoz(transcript);
+    const fijv=(!trab && tipo!=='ingreso')?_fijoVoz(transcript, parsed.descripcion):null;
+    if(fijv){
+      mostrarConfirmVoz(_montoVoz(parsed.monto, transcript)||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, 'fijo', parsed.categoria||'', {fecha, fijoId:fijv.fijoId, fijoMes:fijv.mes});
+      return;
+    }
     const cobv=(!trab && tipo==='ingreso')?_cobroVoz(transcript):null;
     if(cobv){
       mostrarConfirmVoz(_montoVoz(parsed.monto, transcript)||0, parsed.medio||'Efectivo', parsed.descripcion||transcript, 'cobro', parsed.categoria||'', {fecha, itemId:cobv.itemId});
@@ -5236,6 +5249,20 @@ function _trabajoVoz(transcript){
   const cs=(estado.cobrosSemanales||[]).find(c=>[c.nombre,c.persona].some(n=>(_normVoz(n).match(/[a-z0-9ñ]+/g)||[]).some(w=>w.length>=3 && !SKIP.has(w) && palabras.has(w))));
   if(!cs) return null;
   return {cobroId:cs.id, cwTipo:/\bdesafio/.test(t)?'desafio':'dia'};
+}
+// Fijos activos de este mes todavía sin pagar (los que acepta el modo «Pagar fijo» del dictado).
+function _fijosPagablesVoz(mes){
+  return (estado.compromisos||[]).filter(f=>f.tipo==='fijo' && f.activo!==false && _fijoMesCorresponde(f,mes) && _fijoEstadoMes(f,mes)!=='pagado');
+}
+// Dictado de un gasto fijo (determinístico): un único fijo cuyas palabrasClave coinciden con el dictado o con la descripción de la IA
+// y que sigue sin pagar este mes → {fijoId, mes}; ambiguo, sin coincidencia o ya pagado → null.
+function _fijoVoz(transcript, descripcionIA){
+  const mes=hoy().slice(0,7);
+  const hit=(estado.compromisos||[]).filter(f=>f.tipo==='fijo' && f.activo!==false && (_fijoCoincide(f,transcript)||_fijoCoincide(f,descripcionIA)));
+  if(hit.length!==1) return null;
+  const f=hit[0];
+  if(!_fijoMesCorresponde(f,mes) || _fijoEstadoMes(f,mes)==='pagado') return null;
+  return {fijoId:f.id, mes};
 }
 // Ítems de «Cobros pendientes» con saldo (los que acepta el modo Cobro del dictado).
 function _cobrosPendVoz(){ return estado.items.filter(x=>x.grupo==='Cobros pendientes' && x.tipo==='activo' && x.monto>0); }
@@ -5277,11 +5304,13 @@ function _medioValido(m){
 function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
   const hayCw=(estado.cobrosSemanales||[]).length>0;
   const hayCob=_cobrosPendVoz().length>0;
-  const S={tipo:['gasto','ingreso','borrador',...(hayCw?['trabajo']:[]),...(hayCob?['cobro']:[])].includes(tipo)?tipo:'gasto', itemId:opts.itemId||'', cobroId:opts.cobroId||(estado.cobrosSemanales||[])[0]?.id||null, cwTipo:opts.cwTipo==='desafio'?'desafio':'dia', monto:Number(monto)||0, montoTxt:null,
+  const mesFijo=opts.fijoMes||hoy().slice(0,7);
+  const hayFijo=_fijosPagablesVoz(mesFijo).length>0;
+  const S={tipo:['gasto','ingreso','borrador',...(hayCw?['trabajo']:[]),...(hayCob?['cobro']:[]),...(hayFijo?['fijo']:[])].includes(tipo)?tipo:'gasto', itemId:opts.itemId||'', fijoId:opts.fijoId||'', fijoDet:!!opts.fijoId, cobroId:opts.cobroId||(estado.cobrosSemanales||[])[0]?.id||null, cwTipo:opts.cwTipo==='desafio'?'desafio':'dia', monto:Number(monto)||0, montoTxt:null,
     medio:_medioValido(medio||'Efectivo'), fecha:opts.fecha||hoy(), desc:String(desc||''), cat:null, catIA:catIA||'', cuotas:opts.cuotas||0};
   const cont=$('voiceConfirm');
-  const TIPOS=[['gasto','💸 Gasto'],['ingreso','💰 Ingreso'],['borrador','📝 Borrador'],...(hayCw?[['trabajo','🛠 Trabajo']]:[]),...(hayCob?[['cobro','🤝 Cobro']]:[])];
-  const NOTAS={gasto:'Descuenta del saldo de la cuenta.', ingreso:'Suma al saldo de la cuenta.', cobro:'Suma a la cuenta y descuenta lo que te debían en Cobros pendientes (un solo paso).', borrador:'No toca saldos: se cruza solo al importar el resumen.'};
+  const TIPOS=[['gasto','💸 Gasto'],['ingreso','💰 Ingreso'],['borrador','📝 Borrador'],...(hayCw?[['trabajo','🛠 Trabajo']]:[]),...(hayCob?[['cobro','🤝 Cobro']]:[]),...(hayFijo?[['fijo','🧾 Pagar fijo']]:[])];
+  const NOTAS={gasto:'Descuenta del saldo de la cuenta.', ingreso:'Suma al saldo de la cuenta.', fijo:'Descuenta de la cuenta y marca el fijo como pagado este mes (igual que «Pagué» en A pagar).', cobro:'Suma a la cuenta y descuenta lo que te debían en Cobros pendientes (un solo paso).', borrador:'No toca saldos: se cruza solo al importar el resumen.'};
   const catPara=(t)=>{
     const lista=t==='ingreso'?getCatsIncome():getCats();
     if(S.cat && lista.includes(S.cat)) return S.cat;
@@ -5292,6 +5321,7 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
     if(!$('vozBorrMonto')) return;
     S.montoTxt=$('vozBorrMonto').value; S.monto=readMonto('vozBorrMonto'); S.fecha=$('vozFecha').value;
     if($('vozCobro')){ S.cobroId=$('vozCobro').value; S.cwTipo=$('vozCwTipo').value; return; }
+    if($('vozFijo')||$('vozFijoNom')){ if($('vozFijo')) S.fijoId=$('vozFijo').value; S.medio=$('vozBorrMedio').value; return; }
     if($('vozItem')){ S.itemId=$('vozItem').value; S.medio=$('vozBorrMedio').value; return; }
     S.medio=$('vozBorrMedio').value; S.desc=$('vozDesc').value;
     const c=$('vozCat').value; if(c && c!=='__nueva__') S.cat=c;
@@ -5307,22 +5337,22 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
     if(dia>0) $('vozTrabAviso').innerHTML=`⚠️ Ya tenés ${fmtV(_r2(dia))} cargados el ${_fechaDM(f)}. Si sigue siendo otro día, confirmá igual.`;
   };
   const dibujar=()=>{
-    const bor=S.tipo==='borrador', ing=S.tipo==='ingreso', trab=S.tipo==='trabajo', cob=S.tipo==='cobro';
-    if(!trab && !cob) S.cat=catPara(S.tipo);
+    const bor=S.tipo==='borrador', ing=S.tipo==='ingreso', trab=S.tipo==='trabajo', cob=S.tipo==='cobro', fij=S.tipo==='fijo';
+    if(!trab && !cob && !fij) S.cat=catPara(S.tipo);
     const itSel=cob?estado.items.find(x=>x.id===S.itemId):null;
     const csSel=trab?_cwGet(S.cobroId):null;
     cont.hidden=false;
     cont.innerHTML=`
     <div class="voice-confirm">
-      <p style="font-weight:600;margin:0 0 10px">${trab?'¿Confirmás este día de trabajo?':cob?'¿Confirmás este cobro?':bor?'¿Confirmás este borrador?':'¿Confirmás este movimiento?'}</p>
-      <div class="vc-tipos${TIPOS.length>4?' cuatro cinco':TIPOS.length>3?' cuatro':''}" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l}</button>`).join('')}</div>
+      <p style="font-weight:600;margin:0 0 10px">${trab?'¿Confirmás este día de trabajo?':fij?'¿Confirmás este pago de fijo?':cob?'¿Confirmás este cobro?':bor?'¿Confirmás este borrador?':'¿Confirmás este movimiento?'}</p>
+      <div class="vc-tipos${TIPOS.length>5?' cuatro cinco seis':TIPOS.length>4?' cuatro cinco':TIPOS.length>3?' cuatro':''}" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l}</button>`).join('')}</div>
       <div class="vc-row"><span>Monto</span><input id="vozBorrMonto" class="vc-in" type="text" inputmode="decimal" value="${S.montoTxt!=null?esc(S.montoTxt):(S.monto>0?fmtInput(S.monto):'')}" style="width:9em;text-align:right"></div>
       ${trab?`<div class="vc-row"><span>Cobro</span><select id="vozCobro" class="vc-in">${(estado.cobrosSemanales||[]).map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</select></div>
       <div class="vc-row"><span>Es un</span><select id="vozCwTipo" class="vc-in"><option value="dia">Día trabajado</option><option value="desafio">🏆 Desafío</option></select></div>`
-      :`${cob?`<div class="vc-row"><span>Cobro</span><select id="vozItem" class="vc-in"><option value="">— Elegí quién te pagó —</option>${_cobrosPendVoz().map(x=>`<option value="${esc(x.id)}">${esc(x.nombre)}${x.persona&&x.persona!==x.nombre?' · '+esc(x.persona):''} (debe ${esc(fmt(x.monto))})</option>`).join('')}</select></div>`:''}<div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" class="vc-in">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>`}
+      :`${fij?(S.fijoDet?`<div class="vc-row"><span>Fijo</span><b id="vozFijoNom">${esc((_fijosPagablesVoz(mesFijo).find(x=>x.id===S.fijoId)||{}).nombre||'')} · ${esc(_mesLabel(mesFijo))}</b></div>`:`<div class="vc-row"><span>Fijo</span><select id="vozFijo" class="vc-in"><option value="">— Elegí el fijo —</option>${_fijosPagablesVoz(mesFijo).map(x=>`<option value="${esc(x.id)}">${esc(x.nombre)}</option>`).join('')}</select></div>`):''}${cob?`<div class="vc-row"><span>Cobro</span><select id="vozItem" class="vc-in"><option value="">— Elegí quién te pagó —</option>${_cobrosPendVoz().map(x=>`<option value="${esc(x.id)}">${esc(x.nombre)}${x.persona&&x.persona!==x.nombre?' · '+esc(x.persona):''} (debe ${esc(fmt(x.monto))})</option>`).join('')}</select></div>`:''}<div class="vc-row"><span>Cuenta</span><select id="vozBorrMedio" class="vc-in">${MEDIOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>`}
       <div class="vc-row"><span>Fecha</span><input id="vozFecha" class="vc-in" type="date" value="${esc(S.fecha)}" max="${hoy()}"></div>
       ${trab?'<div id="vozTrabInfo" class="vc-trab-info"></div><p id="vozTrabAviso" class="vc-warn" hidden></p>'
-      :cob?''
+      :cob||fij?''
       :`<div class="vc-row"><span>${bor?'Nota':'Descripción'}</span><input id="vozDesc" class="vc-in" type="text" value="${esc(S.desc)}"></div>
       <div class="vc-row"><span>Categoría</span><select id="vozCat" class="vc-in"></select></div>`}
       ${bor&&S.cuotas>1?'<p id="vozBorrCuotas" style="color:var(--warn);font-size:.75rem;margin:4px 0 8px">Se cruza con la primera cuota del resumen (importe total ÷ cuotas). Las cuotas 2 y siguientes no se cruzan todavía.</p>':''}
@@ -5337,6 +5367,8 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
       $('vozCobro').value=S.cobroId; $('vozCwTipo').value=S.cwTipo;
       ['vozCobro','vozCwTipo','vozFecha'].forEach(i=>{ $(i).onchange=pintarTrab; });
       $('vozFecha').oninput=pintarTrab; $('vozBorrMonto').oninput=pintarTrab; pintarTrab();
+    } else if(fij){
+      $('vozBorrMedio').value=S.medio; if($('vozFijo')) $('vozFijo').value=S.fijoId;
     } else if(cob){
       $('vozBorrMedio').value=S.medio; $('vozItem').value=itSel?S.itemId:'';
     } else {
@@ -5364,6 +5396,15 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
       cwNuevaEntrada(cs,f,m,S.cwTipo);
       guardar(); cont.hidden=true; render();
       $('voiceStatus').textContent='✅ Sumado a la semana de '+cs.nombre+'.';
+      setTimeout(()=>$('voiceStatus').textContent='',3000);
+      return;
+    }
+    if(S.tipo==='fijo'){
+      const fj=_fijosPagablesVoz(mesFijo).find(x=>x.id===S.fijoId);
+      if(!fj) return msg('Elegí el fijo.');
+      cont.hidden=true;
+      _registrarPagoFijo(fj, mesFijo, {monto:m, medio:S.medio, fecha:f, nota:''});
+      $('voiceStatus').textContent='✅ Pago de '+fj.nombre+' registrado.';
       setTimeout(()=>$('voiceStatus').textContent='',3000);
       return;
     }
