@@ -529,7 +529,9 @@ body.ocultar .vt-monto,body.ocultar .vt-sub{display:none!important;}
 .voice-confirm .vc-tipos button{flex:1 1 0;min-width:0;padding:8px 2px;font-size:.78rem;white-space:nowrap;}
 .voice-confirm .vc-tipos.cuatro button{font-size:.7rem;padding:8px 1px;}
 .voice-confirm .vc-tipos.cinco button{font-size:.62rem;padding:8px 0;}
-.voice-confirm .vc-tipos.seis button{font-size:.55rem;}
+.voice-confirm .vc-tipos.seis{gap:3px;}
+.voice-confirm .vc-tipos.seis button{font-size:.6rem;}
+.voice-confirm .vc-tipos.seis .vc-emo{display:none;}
 .voice-confirm .vc-warn{color:var(--warn);font-size:.78rem;margin:4px 0;}
 .voice-confirm .vc-trab-info{font-size:.82rem;font-weight:600;margin:6px 0;overflow-wrap:anywhere;}
 .voice-confirm select.vc-in{max-width:60%;}
@@ -5345,7 +5347,7 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
     cont.innerHTML=`
     <div class="voice-confirm">
       <p style="font-weight:600;margin:0 0 10px">${trab?'¿Confirmás este día de trabajo?':fij?'¿Confirmás este pago de fijo?':cob?'¿Confirmás este cobro?':bor?'¿Confirmás este borrador?':'¿Confirmás este movimiento?'}</p>
-      <div class="vc-tipos${TIPOS.length>5?' cuatro cinco seis':TIPOS.length>4?' cuatro cinco':TIPOS.length>3?' cuatro':''}" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l}</button>`).join('')}</div>
+      <div class="vc-tipos${TIPOS.length>5?' cuatro cinco seis':TIPOS.length>4?' cuatro cinco':TIPOS.length>3?' cuatro':''}" role="group" aria-label="Tipo de movimiento">${TIPOS.map(([t,l])=>`<button type="button" class="${t===S.tipo?'primary':''}" data-tipo="${t}" aria-pressed="${t===S.tipo}">${l.replace(/^([^ ]+) /,'<span class="vc-emo">$1</span> ')}</button>`).join('')}</div>
       <div class="vc-row"><span>Monto</span><input id="vozBorrMonto" class="vc-in" type="text" inputmode="decimal" value="${S.montoTxt!=null?esc(S.montoTxt):(S.monto>0?fmtInput(S.monto):'')}" style="width:9em;text-align:right"></div>
       ${trab?`<div class="vc-row"><span>Cobro</span><select id="vozCobro" class="vc-in">${(estado.cobrosSemanales||[]).map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</select></div>
       <div class="vc-row"><span>Es un</span><select id="vozCwTipo" class="vc-in"><option value="dia">Día trabajado</option><option value="desafio">🏆 Desafío</option></select></div>`

@@ -99,3 +99,16 @@ test.describe('dictado de gastos fijos', () => {
     expect(e.compromisos[0].pagos['2026-10'].gastoId).toBe(e.gastos[0].id);
   });
 });
+
+test('360 px: los 6 botones de tipo entran completos en una fila', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  const estado = estadoCon([fijo()]);
+  estado.items = [{ id: 'c1', nombre: 'X', persona: 'Y', tipo: 'activo', monto: 5, grupo: 'Cobros pendientes', historial: [] }];
+  estado.cobrosSemanales = [{ id: 'cs1', nombre: 'Meli', persona: 'Meli', medioCobro: 'Efectivo', entradas: [], cobradas: [] }];
+  await setup(page, base(), estado);
+  await page.evaluate(() => mostrarConfirmVoz(100, 'Efectivo', 'x', 'gasto'));
+  const r = await page.evaluate(() => [...document.querySelectorAll('.vc-tipos button')].map(b => [b.scrollWidth <= b.clientWidth, Math.round(b.getBoundingClientRect().top)]));
+  expect(r).toHaveLength(6);
+  expect(r.every(x => x[0])).toBe(true);
+  expect(new Set(r.map(x => x[1])).size).toBe(1);
+});
