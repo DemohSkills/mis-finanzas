@@ -19,7 +19,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 | `finanzas-v1-cats` | categorías de gasto personalizadas |
 | `finanzas-v1-cats-income` | categorías de ingreso personalizadas |
 | `finanzas-v1-cats-ganancia` | `{ categoría: boolean }` — overrides de «Cuenta como ganancia»; sin override rigen las 4 por defecto (Sueldo/Honorarios, Rendimientos, Ingresos extras, Otros ingresos). `proposito` sueldo-delux/otro-trabajo cuenta siempre y el resto de propósitos nunca. Backup: `catsGanancia` |
-| `finanzas-v1-rules` | reglas de auto-categorización |
+| `finanzas-v1-rules` | reglas de auto-categorización `[{patron, categoria, subcategoria?}]` (categoría de gasto o de ingreso) |
 | `finanzas-v1-apikey` | API key de Claude Haiku (solo en el dispositivo) |
 | `finanzas-v1-backup-date` | fecha ISO del último backup exportado |
 | `finanzas-v1-ticker-mode` | velocidad de la cinta: `'v1'`/`'v2'`/`'v3'`/`'pause'` (migra legados `'1x'`/`'2x'`/`'scroll'`→`'v1'`, `'3x'`→`'v2'`, `'fixed'`→`'pause'`) |
@@ -160,7 +160,7 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 - Pagar el resumen: en `_ejecutarTransf`, cuando el pagado del ciclo alcanza `c.monto`, `_descontarCuotasResumen` baja un pendiente (y avanza `proxVenc` un mes) a cada cuota incluida; un pago parcial no las toca. Deshacer la transferencia no las restaura.
 
 ## Subcategoría de gastos e Informe por categorías
-- `g.subcategoria` (string opcional, solo `tipo==='gasto'`; ausente = sin subcategoría, nunca string vacío). Se escribe solo desde `#form` (campo `#subcategoria`); los importadores no la tocan. Etiqueta `.subcat-tag` en las dos listas de Movimientos (`_subcatTagHtml`) abre `empezarEdicion(id,{foco:'subcategoria'})`.
+- `g.subcategoria` (string opcional, en `tipo==='gasto'` y también en ingresos no transferencia; ausente = sin subcategoría, nunca string vacío). Se escribe solo desde `#form` (campo `#subcategoria`); los importadores no la tocan. Etiqueta `.subcat-tag` en las dos listas de Movimientos (`_subcatTagHtml`) abre `empezarEdicion(id,{foco:'subcategoria'})`.
 - `#form`: chips `#subcatSug` (hasta 5 de la misma categoría, por frecuencia) y sugerencia `_subcatSugerir`: gasto más reciente con la misma descripción normalizada (`_normT`) que tenga subcategoría; se precarga con aviso `#subcatAviso`, se retira si cambia la descripción y deja de actuar apenas el usuario toca el campo (`_subcatTocado`). No se guarda sola.
 - Informe: `buildInformeHTML(opts.categorias)` filtra `movBase` y el detalle por categoría (cuentas y patrimonio no). Con exactamente 1 categoría agrega `.inf-sec-desglose` (grupos `details.inf-grp`: subcategoría, o descripción igual/similar con «(por descripción)»). Estado `_infCats` (no persistido). El detalle `compacto` es `details.inf-todos` «Todos los movimientos (N)» plegado; `beforeprint` abre los `details` de `#informePrint`. Casillas `#infPrResumen/#infPrDesglose/#infPrTodos` → clases `no-pr-*` en `#informePrint` que ocultan secciones solo al imprimir.
 
@@ -221,3 +221,9 @@ PWA de finanzas personales (single-page app). Funciona offline. Publicada con Gi
 ## Dictado de gastos fijos (modo Pagar fijo)
 - `mostrarConfirmVoz` suma el tipo `fijo` («🧾 Pagar fijo») si hay fijos activos del mes sin pagar (`_fijosPagablesVoz(mes)`: `_fijoMesCorresponde` y `_fijoEstadoMes !== 'pagado'`). `parsearVoz` llama a `_fijoVoz(transcript, descripcionIA)` (sin IA) solo con tipo ≠ ingreso y sin match de trabajo: un único fijo activo cuyo `_fijoCoincide` acierta con el dictado o con la descripción de la IA y sin pagar en `hoy().slice(0,7)`; ambiguo o ya pagado → null (gasto normal). Opts: `fijoId`, `fijoMes`.
 - Tarjeta: nombre del fijo como texto fijo `#vozFijoNom` si vino detectado (si se elige el modo a mano, selector `#vozFijo`), monto/cuenta/fecha editables, sin categoría ni descripción (la categoría es siempre `fijo.categoria`). Confirmar llama a `_registrarPagoFijo(f, mes, {monto, medio, fecha, nota, actualizarEstim})`, la misma que usa `btnConfirmarFijoPago`: UN gasto en `estado.gastos` + `f.pagos[mes]={fecha,monto,gastoId}`. Tests: `voz-fijo.spec.js`.
+
+## Reglas de categorización con subcategoría; subcategoría en ingresos
+- Regla: `{patron, categoria, subcategoria?}`; `#reglaCat` lista `<optgroup>` Gastos/Ingresos (sin «crear nueva») y `#reglaSubcat` es opcional. `aplicarRegla(desc, lista?)` devuelve `{categoria, subcategoria}` o null; con `lista` solo valen reglas de esas categorías. `_subDeRegla(catInfo, cat)` da la subcategoría solo si la categoría final sigue siendo la de la regla (`catInfo.subDe`).
+- Formulario: `_aplicarReglaForm` (descripción y cambio de tipo; gasto o ingreso, filtra por el tipo del formulario) fija categoría y subcategoría (aviso «Sugerida por una regla»; no pisa lo que el usuario tocó). `_subcatChips`/`_subcatSugerir` filtran por `$('tipo').value`.
+- Voz: la regla (filtrada por gasto/ingreso según el tipo de la tarjeta) elige la categoría; al guardar gasto/ingreso se agrega `subcategoria` solo si la categoría elegida es la de la regla. El borrador no lleva subcategoría.
+- Importadores: Santander/MP aplican la regla (categoría + subcategoría, tipo según la lista de ingresos); Visa/Mastercard solo reglas de categorías de GASTO (un «ypf» de ingreso no pisa compras de tarjeta). Cambiar la categoría en la vista previa descarta la subcategoría. Tests: `reglas-subcategoria.spec.js`.

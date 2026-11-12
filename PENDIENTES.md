@@ -83,3 +83,5 @@
 - Relleno de huecos del historial de patrimonio (en `trabajo-nocturno`, sin publicar): snapshots `estimado:true` para días sin abrir la app; solo los medios son retroactivos, los ítems usan su valor actual (limitación aceptada). Ver CLAUDE.md. Tests en `snapshots-huecos.spec.js`.
 - Vínculos: botón ✎ por ítem y filas sin nombre partido a mitad de palabra, también en Patrimonio (en `trabajo-nocturno`, sin publicar). Tests en `vinculos-editar-layout.spec.js`.
 - Panel «⚙ Filtros» de Movimientos (categorías/subcategorías, períodos rápidos, rango de fechas; en `trabajo-nocturno`, sin publicar). Ver CLAUDE.md. Tests en `filtros-movimientos.spec.js`.
+
+- Reglas de categorización con subcategoría y subcategoría para ingresos (en `trabajo-nocturno`, sin publicar). Ver CLAUDE.md. Tests en `reglas-subcategoria.spec.js`. Suite: 1296 verdes.
