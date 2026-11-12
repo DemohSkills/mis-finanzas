@@ -1751,11 +1751,12 @@ try{
 
     <details class="cfg-section" id="cfg-reglas" data-cfg="cfg-reglas">
       <summary><span class="det-arrow">▶</span><h2>🤖 Reglas de categorización automática</h2></summary>
-      <p class="meta">Si la descripción contiene el texto, se asigna la categoría automáticamente.</p>
+      <p class="meta">Si la descripción contiene el texto, se asigna la categoría (y la subcategoría, si la cargás) automáticamente. Sirve para gastos e ingresos.</p>
       <div id="reglasLista"></div>
       <form id="formRegla" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;" autocomplete="off">
         <input type="text" id="reglaPatron" placeholder="Texto a buscar (ej: combustible)" style="flex:2;min-width:140px;border-radius:8px;border:1px solid var(--border);padding:7px 10px;background:var(--bg);color:var(--text);font:inherit;">
         <select id="reglaCat" style="flex:2;min-width:140px;border-radius:8px;border:1px solid var(--border);padding:7px 10px;background:var(--bg);color:var(--text);font:inherit;"></select>
+        <input type="text" id="reglaSubcat" placeholder="Subcategoría (opcional)" maxlength="60" style="flex:2;min-width:140px;border-radius:8px;border:1px solid var(--border);padding:7px 10px;background:var(--bg);color:var(--text);font:inherit;">
         <button type="submit" class="primary" style="flex:0 0 auto;">Agregar regla</button>
       </form>
     </details>
@@ -2052,6 +2053,14 @@ function addCatIncome(nombre) {
 function fillCatSelect(selId, currentVal, forIncome) {
   const sel = $(selId);
   if (!sel) return;
+  if (selId === 'reglaCat') {
+    // Reglas: categorías de gasto e ingreso, agrupadas (sin «crear nueva»: se crean en su sección)
+    const prevR = currentVal ?? sel.value;
+    const grp = (lbl, lst) => `<optgroup label="${lbl}">` + lst.map(c => `<option${c===prevR?' selected':''}>${esc(c)}</option>`).join('') + '</optgroup>';
+    sel.innerHTML = grp('Gastos', getCats()) + grp('Ingresos', getCatsIncome());
+    sel.onchange = null;
+    return;
+  }
   const lista = forIncome ? getCatsIncome() : getCats();
   const prev = currentVal ?? sel.value;
   sel.innerHTML = lista.map(c => `<option${c===prev?' selected':''}>${esc(c)}</option>`).join('') +
@@ -2063,7 +2072,7 @@ function crearCategoriaDesdeSelect(sel, forIncome) {
   if (!nombre) { sel.value = (forIncome ? getCatsIncome() : getCats())[0]; return; }
   forIncome ? addCatIncome(nombre) : addCat(nombre);
   fillCatSelect(sel.id, nombre, forIncome);
-  if (!forIncome) fillCatSelect('reglaCat', nombre);
+  fillCatSelect('reglaCat');
   renderCfgCats();
 }
 
@@ -2071,11 +2080,16 @@ function crearCategoriaDesdeSelect(sel, forIncome) {
 // REGLAS DE AUTO-CATEGORIZACIÓN
 // ═══════════════════════════════════════════════════════
 function getReglas() { return ls.get(RULES_KEY) || []; }
-function aplicarRegla(desc) {
-  const reglas = getReglas();
-  const d = desc.toLowerCase();
-  const r = reglas.find(r => d.includes(r.patron.toLowerCase()));
-  return r ? r.categoria : null;
+// Devuelve {categoria, subcategoria} (subcategoria undefined si la regla no la trae) o null.
+// `lista` (opcional): solo valen reglas cuya categoría esté en esa lista (p. ej. solo gastos o solo ingresos).
+function aplicarRegla(desc, lista) {
+  const d = String(desc || '').toLowerCase();
+  const r = getReglas().find(r => d.includes(r.patron.toLowerCase()) && (!lista || lista.includes(r.categoria)));
+  return r ? { categoria: r.categoria, subcategoria: String(r.subcategoria || '').trim() || undefined } : null;
+}
+// Subcategoría de la regla solo si la categoría final sigue siendo la de la regla (si el usuario la cambió, no aplica).
+function _subDeRegla(catInfo, cat) {
+  return catInfo && catInfo.subcategoria && catInfo.subDe === cat ? catInfo.subcategoria : undefined;
 }
 function renderReglasLista() {
   const cont = $('reglasLista'); if (!cont) return;
@@ -2084,7 +2098,7 @@ function renderReglasLista() {
   cont.innerHTML = reglas.map((r,i) => `
     <div class="rule-row">
       <span class="rp">"${esc(r.patron)}"</span>
-      <span class="rc">→ ${esc(r.categoria)}</span>
+      <span class="rc">→ ${esc(r.categoria)}${r.subcategoria?' · '+esc(r.subcategoria):''}</span>
       <button type="button" class="mini danger" data-ri="${i}">✕</button>
     </div>`).join('');
   cont.querySelectorAll('[data-ri]').forEach(btn => {
@@ -4464,16 +4478,17 @@ function renderHistorial() {
 
 // ─── Subcategoría de gastos ───────────────────────────────────
 function _subcatTagHtml(g){
-  if((g.tipo||'gasto')!=='gasto') return '';
+  const tp=g.tipo||'gasto';
+  if(tp!=='gasto' && !(tp==='ingreso' && !g.transferencia)) return '';
   const s=(g.subcategoria||'').trim();
   return s?`<button type="button" class="subcat-tag" data-a="subcat" title="Editar subcategoría">${esc(s)}</button>`
           :`<button type="button" class="subcat-tag vacia" data-a="subcat">+ agregar subcategoría</button>`;
 }
 let _subcatAuto=null, _subcatTocado=false;
 function _subcatChips(){
-  const cat=$('categoria').value, cont=$('subcatSug');
+  const cat=$('categoria').value, cont=$('subcatSug'), tp=$('tipo').value||'gasto';
   const cnt=new Map();
-  for(const g of estado.gastos){ if(g.categoria===cat && g.subcategoria && (g.tipo||'gasto')==='gasto') cnt.set(g.subcategoria,(cnt.get(g.subcategoria)||0)+1); }
+  for(const g of estado.gastos){ if(g.categoria===cat && g.subcategoria && (g.tipo||'gasto')===tp) cnt.set(g.subcategoria,(cnt.get(g.subcategoria)||0)+1); }
   const top=[...cnt].sort((a,b)=>b[1]-a[1]).slice(0,5);
   cont.hidden=!top.length;
   cont.innerHTML=top.map(([s,n])=>`<button type="button" class="subcat-chip" data-s="${esc(s)}">${esc(s)} · ${n} ${n===1?'vez':'veces'}</button>`).join('');
@@ -4482,10 +4497,10 @@ function _subcatChips(){
 function _subcatSugerir(){
   const inp=$('subcategoria'), av=$('subcatAviso');
   if(_subcatTocado){ return; }
-  const descRaw=$('descripcion').value.trim(), d=_normT(descRaw).trim();
+  const descRaw=$('descripcion').value.trim(), d=_normT(descRaw).trim(), tp=$('tipo').value||'gasto';
   let hit=null;
   if(d){
-    hit=estado.gastos.filter(g=>g.id!==editandoId && g.subcategoria && (g.tipo||'gasto')==='gasto' && _normT(g.descripcion).trim()===d)
+    hit=estado.gastos.filter(g=>g.id!==editandoId && g.subcategoria && (g.tipo||'gasto')===tp && _normT(g.descripcion).trim()===d)
       .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.creado||0)-(a.creado||0))[0]||null;
   }
   if(inp.value.trim() && inp.value!==_subcatAuto){ av.hidden=true; return; }
@@ -4499,7 +4514,8 @@ function _subcatSugerir(){
   }
 }
 function _subcatActualizar(){
-  const visible=($('tipo').value||'gasto')==='gasto' && !_divModo;
+  const tpv=$('tipo').value||'gasto';
+  const visible=(tpv==='gasto'||tpv==='ingreso') && !_divModo;
   $('subcatLabel').hidden=!visible;
   if(!visible){ $('subcatSug').hidden=true; $('subcatAviso').hidden=true; return; }
   _subcatChips(); _subcatSugerir();
@@ -4652,11 +4668,22 @@ function borrar(id) {
 }
 
 // Autocompletado de categoría al escribir descripción
-$('descripcion').addEventListener('input', () => {
-  if (($('tipo')?.value||'gasto')==='ingreso') return;
-  const cat = aplicarRegla($('descripcion').value);
-  if (cat) fillCatSelect('categoria', cat);
-});
+// Regla de auto-categorización en el formulario (gasto o ingreso): categoría + subcategoría de la regla.
+function _aplicarReglaForm() {
+  const tipo = $('tipo')?.value || 'gasto';
+  if (tipo !== 'gasto' && tipo !== 'ingreso') return;
+  const ing = tipo === 'ingreso';
+  const r = aplicarRegla($('descripcion').value, ing ? getCatsIncome() : getCats());
+  if (!r) return;
+  fillCatSelect('categoria', r.categoria, ing);
+  _subcatChips();
+  if (r.subcategoria && !_subcatTocado && !_divModo) {
+    $('subcategoria').value = r.subcategoria; _subcatAuto = r.subcategoria;
+    $('subcatAviso').textContent = '💡 Sugerida por una regla de categorización. Podés borrarla o cambiarla antes de guardar.';
+    $('subcatAviso').hidden = false;
+  }
+}
+$('descripcion').addEventListener('input', _aplicarReglaForm);
 
 $('tipo').addEventListener('change', () => {
   const v = $('tipo').value;
@@ -4681,6 +4708,7 @@ $('tipo').addEventListener('change', () => {
   }
   _subcatActualizar();
   _divActualizar();
+  if (!editandoId && $('descripcion').value.trim()) _aplicarReglaForm();
 });
 
 $('form').addEventListener('submit', e => {
@@ -4711,7 +4739,7 @@ $('form').addEventListener('submit', e => {
   if(_divEditGrupo) estado.gastos=estado.gastos.filter(g=>g.grupoDivision!==_divEditGrupo);
   let cat = $('categoria').value;
   if (cat === '__nueva__') return;
-  const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial, subcategoria: tipo==='gasto' ? ($('subcategoria').value.trim()||undefined) : undefined };
+  const datos={ monto, fecha:$('fecha').value, categoria:cat, medio:$('medio').value, descripcion:$('descripcion').value.trim(), tipo, soloHistorial, subcategoria: (tipo==='gasto'||tipo==='ingreso') ? ($('subcategoria').value.trim()||undefined) : undefined };
   if(editandoId) { Object.assign(estado.gastos.find(x=>x.id===editandoId), datos); }
   else { estado.gastos.push({id:nuevoId(),creado:Date.now(),...datos}); }
   guardar(); resetForm(); render();
@@ -5088,12 +5116,14 @@ $('formRegla').onsubmit=e=>{
   e.preventDefault();
   const patron=$('reglaPatron').value.trim();
   const categoria=$('reglaCat').value;
-  if(!patron||categoria==='__nueva__') return;
+  if(!patron||!categoria||categoria==='__nueva__') return;
+  const subcategoria=$('reglaSubcat').value.trim();
   const reglas=getReglas();
   if(!reglas.find(r=>r.patron===patron)){
-    reglas.push({patron,categoria}); ls.set(RULES_KEY,reglas);
+    const r={patron,categoria}; if(subcategoria) r.subcategoria=subcategoria;
+    reglas.push(r); ls.set(RULES_KEY,reglas);
   }
-  $('reglaPatron').value=''; renderReglasLista();
+  $('reglaPatron').value=''; $('reglaSubcat').value=''; renderReglasLista();
 };
 
 $('btnGuardarApiKey').onclick=()=>{
@@ -5314,7 +5344,8 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
     const lista=t==='ingreso'?getCatsIncome():getCats();
     if(S.cat && lista.includes(S.cat)) return S.cat;
     const exacta=S.catIA?(lista.find(c=>c.toLowerCase()===S.catIA.toLowerCase())||null):null;
-    return aplicarRegla(S.desc)||exacta||lista.find(c=>c==='Otros/Varios')||lista[0];
+    const rg=aplicarRegla(S.desc, lista);
+    return (rg&&rg.categoria)||exacta||lista.find(c=>c==='Otros/Varios')||lista[0];
   };
   const leer=()=>{
     if(!$('vozBorrMonto')) return;
@@ -5430,7 +5461,12 @@ function mostrarConfirmVoz(monto, medio, desc, tipo='gasto', catIA='', opts={}){
       guardar(); renderBorradores(); cont.hidden=true;
       $('voiceStatus').textContent='✅ Borrador guardado.';
     } else {
-      estado.gastos.push({id:nuevoId(),creado:Date.now(),monto:m,fecha:f,categoria:cat,medio:S.medio,descripcion:S.desc,tipo:S.tipo,soloHistorial:false});
+      // Subcategoría de la regla que matchea la descripción, solo si la categoría elegida sigue siendo la de la regla
+      const rgV=aplicarRegla(S.desc, S.tipo==='ingreso'?getCatsIncome():getCats());
+      const subV=rgV&&rgV.categoria===cat?rgV.subcategoria:undefined;
+      const movV={id:nuevoId(),creado:Date.now(),monto:m,fecha:f,categoria:cat,medio:S.medio,descripcion:S.desc,tipo:S.tipo,soloHistorial:false};
+      if(subV) movV.subcategoria=subV;
+      estado.gastos.push(movV);
       guardar(); cont.hidden=true; resetForm(); render();
       $('voiceStatus').textContent='✅ Movimiento guardado.';
     }
@@ -7582,11 +7618,10 @@ const _REGLAS_SANT = [
 
 function _categorizarSant(desc, monto) {
   const d = desc.toLowerCase();
-  const userCat = aplicarRegla(desc);
-  if (userCat) {
-    const catsList = getCats().concat(getCatsIncome());
-    const isIncome = getCatsIncome().includes(userCat);
-    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
+  const rg = aplicarRegla(desc);
+  if (rg) {
+    const isIncome = getCatsIncome().includes(rg.categoria);
+    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: rg.categoria, subcategoria: rg.subcategoria, subDe: rg.categoria, paraRevisar: false };
   }
   for (const r of _REGLAS_SANT) {
     if (r.t(d, monto)) {
@@ -7622,10 +7657,10 @@ const _REGLAS_MP = [
 
 function _categorizarMP(desc, monto) {
   const d = desc.toLowerCase();
-  const userCat = aplicarRegla(desc);
-  if (userCat) {
-    const isIncome = getCatsIncome().includes(userCat);
-    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
+  const rg = aplicarRegla(desc);
+  if (rg) {
+    const isIncome = getCatsIncome().includes(rg.categoria);
+    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: rg.categoria, subcategoria: rg.subcategoria, subDe: rg.categoria, paraRevisar: false };
   }
   for (const r of _REGLAS_MP) {
     if (r.t(d)) {
@@ -7683,10 +7718,10 @@ const _REGLAS_VISA = [
 
 function _categorizarVisa(desc, monto) {
   const d = desc.toLowerCase();
-  const userCat = aplicarRegla(desc);
-  if (userCat) {
-    const isIncome = getCatsIncome().includes(userCat);
-    return { tipo: isIncome ? 'ingreso' : 'gasto', cat: userCat, paraRevisar: false };
+  // Tarjetas: solo reglas de categorías de gasto (un «ypf» de ingreso no debe pisar compras de la tarjeta)
+  const rg = aplicarRegla(desc, getCats());
+  if (rg) {
+    return { tipo: 'gasto', cat: rg.categoria, subcategoria: rg.subcategoria, subDe: rg.categoria, paraRevisar: false };
   }
   for (const r of _REGLAS_VISA) {
     if (r.t(d)) return { tipo: r.tipo, cat: r.cat, paraRevisar: false };
@@ -7851,7 +7886,8 @@ function _renderImpPreview() {
       const fijoTag=(c._fijoMatch?`<span class="imp-fijo-tag">✓ Fijo: ${esc(c._fijoMatch.nombre)}</span>`:'')
         +(c.deBorrador?`<span class="imp-borr-tag">📝 cruzó con borrador: ${esc(c.catInfo?.cat||'')}</span>`:'')
         +(c._rend>0?`<span class="imp-borr-tag">+${fmt(c._rend)} rendimientos de reserva</span>`:'');
-      const catTxt = c.catInfo?.reserva ? '↔ Reservas MP' : (c.catInfo?.cat||'');
+      const _sbP = _subDeRegla(c.catInfo, c.catInfo?.cat);
+      const catTxt = c.catInfo?.reserva ? '↔ Reservas MP' : (c.catInfo?.cat||'') + (_sbP ? ' · ' + _sbP : '');
       return `<div class="imp-row">
         <div class="imp-row-top">
           <span class="imp-row-desc">${esc(c.desc.slice(0,60))}</span>
@@ -8029,6 +8065,7 @@ function _confirmarImpBanco(conAjuste) {
       transferId: transferId || (visaLinked ? undefined : undefined),
       refs, lote: loteId,
     };
+    { const sb = _subDeRegla(c.catInfo, cat); if (sb && !c.catInfo.transf) gasto.subcategoria = sb; }
     if (visaLinked) {
       // link existing ingreso with same transferId retroactively (best effort)
       gasto.transferId = nuevoId();
@@ -8476,7 +8513,7 @@ function _visaArmarCandidatos(data, medio) {
       const ref = mov.comprobante ? `${mov.comprobante}|${mov.fecha}|${mov.pesos.toFixed(2)}` : null;
       candidatos.push({
         fecha: mov.fecha, desc, monto: mov.pesos, cat,
-        catInfo: { tipo: 'gasto', cat, paraRevisar: !!ci.paraRevisar && !mov._catOverride },
+        catInfo: { tipo: 'gasto', cat, paraRevisar: !!ci.paraRevisar && !mov._catOverride, subcategoria: ci.subcategoria, subDe: ci.subDe },
         medio, ref, refs: ref ? [ref] : [], cuota: mov.cuota || null,
         // Visa no trae la fecha de compra en cuotas 2..N: el plan se identifica por descripción + total de cuotas
         plan: mov.cuota ? { desc: origDesc, m: mov.cuota.m } : null,
@@ -8547,6 +8584,7 @@ function _confirmarImpVisa() {
     };
     if (c.cuota) gasto.cuota = { ...c.cuota };
     if (c.plan) gasto.plan = { ...c.plan };
+    { const sb = _subDeRegla(c.catInfo, c.cat); if (sb) gasto.subcategoria = sb; }
     estado.gastos.push(gasto);
     cnt++;
     // Mark matching fijo (use original desc without cuota suffix)
@@ -8766,7 +8804,7 @@ function _mcArmarCandidatos(data, medio) {
     const ref = [mov.fecha, _mcNorm(mov.desc), cuota ? `${cuota.n}/${cuota.m}` : '1/1', mov.pesos.toFixed(2), mov.operacion].join('|');
     cands.push({
       fecha: cuota && cuota.n > 1 ? data.cierre : mov.fecha, desc, monto: mov.pesos, cat: ci.cat,
-      catInfo: { tipo: 'gasto', cat: ci.cat, paraRevisar: !!ci.paraRevisar },
+      catInfo: { tipo: 'gasto', cat: ci.cat, paraRevisar: !!ci.paraRevisar, subcategoria: ci.subcategoria, subDe: ci.subDe },
       medio, ref, refs: [ref], cuota, plan, _origDesc: mov.desc, yaExiste: false, _mov: mov,
     });
   }
@@ -8886,6 +8924,7 @@ function _confirmarImpMC() {
     };
     if (c.cuota) gasto.cuota = { ...c.cuota };
     if (c.plan) gasto.plan = { ...c.plan };
+    { const sb = _subDeRegla(c.catInfo, c.cat); if (sb) gasto.subcategoria = sb; }
     estado.gastos.push(gasto);
     cnt++;
     if (!c._esOtro) {
